@@ -31,7 +31,7 @@ When pillars conflict: fidelity yields to readability on the wall; readability y
 | Death | Possible only on `deadly` routes or objective hazard, and only when enabled in run options | Stakes in the mountains without punishing the sport climber |
 | Names | Real crags and routes; all people fictional | Geography is public knowledge; likeness is not |
 | Platform | Offline-first PWA on GitHub Pages; TWA on Google Play | Same pipeline as the developer's other apps |
-| Tooling | Built in Claude Code; no runtime generative systems | Determinism and offline play |
+| Tooling | Plain Vite repository, no hosted app builder; no runtime generative systems | Determinism, offline play, and a codebase the developer owns end to end |
 
 ### Why a previously considered build tool was dropped
 Early exploration considered generating the app in a hosted vibe-coding studio. It was dropped because the environment caps projects at roughly 100 files, does not compact long conversations (so a large data-driven game burns quota and loses context), and exports a key-proxy server that static hosting would have to rework. None of that is a problem for a plain Vite project built here.

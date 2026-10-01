@@ -45,3 +45,8 @@ Grounded and specific. The sport is treated with respect; its culture is treated
 ## Why this can exist as a solo project
 
 Because the hard part is data, not art. The world is tables: crags, climates, hold mixes, trait effects. Routes are generated from those tables. The climbing engine is one resolution function evaluated many times. A balance harness runs ten thousand careers overnight and tells you which traits are mispriced. That is a tractable shape for one person with a day job and a hangboard.
+
+## Open questions
+
+- Working title. "Climbing World Traveler" is the repository name and a fine placeholder; a shorter title may be wanted before any public page.
+- Visual style for the climber rig and walls (flat vector vs textured) is deliberately undecided until P1a is playable in grey boxes.

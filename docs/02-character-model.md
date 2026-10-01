@@ -208,3 +208,9 @@ Age is applied as a multiplier on **ceilings** and on **adaptation rate**; curre
 - IFSC finalists average 22–23 years across disciplines; logged hardest grades are flat from 18 to the mid-30s; judgement-limited disciplines peak later. Tendon remodelling takes 3–6 months with full adaptation at 18–24 months; pulleys in experienced climbers are 60%+ thicker.
 - Advanced climbers show no lead-vs-toprope anxiety gap while intermediates do (Fryer 2013), motivating `composure` as a trainable decay rate rather than a fixed trait.
 - Full citations are in the plan appendix and will be carried into `docs/sources.md` when the data files are built.
+
+## Open questions
+
+- Whether `skin_durability` should be a trainable attribute or purely a Body property plus resource. It is kept trainable because rock mileage visibly toughens skin, but the harness may show it is too weak to deserve a slot.
+- Whether `rock_knowledge` should be exposed to the player per rock type or summarised into a single "experience on this rock" line per crag. Leaning towards the summary for UI space.
+- Exact `ref_mass` constants per sex and the ±8 kg shift range need checking against anthropometric tables before P1a; the formulas are shaped to make strength-to-weight the lever, not to be medically precise.

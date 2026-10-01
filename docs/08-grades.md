@@ -133,3 +133,9 @@ Death is only possible on `deadly` routes or from objective hazard, and only whe
 ## 6. Sources
 
 Mountain Project international grade comparison · Alpinist grade comparison chart · Bergfreunde climbing grade calculator · IRCRA "Reporting grades in climbing research" (Draper et al. 2015, Sports Technology) · altamontanha.com Brazilian grade revision · Rockfax Deep Water introduction (S-grades) · UKC Mallorca DWS guide.
+
+## Open questions
+
+- The IRCRA integer anchors below 7a and above 8c are a reconstruction from secondary sources; verify against the published Sports Technology table before the DI scale is frozen in code.
+- Whether to show half-grades ("7a+/7b") or round to the nearest grade in the default UI. Half-grades are more honest about the engine; rounding is more familiar. Default to rounding, with half-grades in the route detail view.
+- Ice and mixed DI mappings are design choices with no established conversion; they only need to be internally consistent for P4.
