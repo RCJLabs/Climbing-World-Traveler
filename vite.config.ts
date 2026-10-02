@@ -5,13 +5,19 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // GitHub Pages serves the app under /<repo>/; local dev serves at /.
 const base = process.env.GITHUB_PAGES === 'true' ? '/Climbing-World-Traveler/' : '/';
+/** Shown on the title screen, so a player can tell which build is running. */
+const build = { sha: (process.env.GITHUB_SHA ?? 'dev').slice(0, 7), date: new Date().toISOString().slice(0, 10) };
 
 export default defineConfig({
   base,
+  define: { __BUILD__: JSON.stringify(build) },
   plugins: [
     preact(),
     VitePWA({
-      registerType: 'prompt',
+      // A new service worker takes over as soon as it installs instead of waiting for every tab to close; main.tsx
+      // registers it itself so the reload into a new version can wait for an attempt to finish (18 §6).
+      registerType: 'autoUpdate',
+      injectRegister: false,
       includeAssets: ['icon.svg'],
       manifest: {
         name: 'Climbing World Traveler',
@@ -24,7 +30,7 @@ export default defineConfig({
         start_url: '.',
         icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,svg,json}'] },
+      workbox: { globPatterns: ['**/*.{js,css,html,svg,json}'], skipWaiting: true, clientsClaim: true, cleanupOutdatedCaches: true },
     }),
   ],
   build: {

@@ -1,6 +1,5 @@
 import { render } from 'preact';
 import type { Limb, MoveClass } from '../sim/types';
-import { registerSW } from 'virtual:pwa-register';
 import './theme.css';
 import { Attempt } from './screens/Attempt';
 import { Character } from './screens/Character';
@@ -58,5 +57,17 @@ if (import.meta.env.DEV) {
     };
   });
 }
-// A new version waits until every tab is closed unless the player reloads into it; say so instead of waiting silently.
-const updateSW = registerSW({ immediate: true, onNeedRefresh: () => { updateReady.value = () => void updateSW(true); } });
+// Updates (18 §6): the service worker takes over as soon as a new version installs, so a version never waits for every
+// tab to close. The page reloads into it at once, unless an attempt is on the wall: then a bar offers the reload, so
+// an attempt is never cut off. A check runs on every launch and whenever the app comes back to the foreground.
+if (!import.meta.env.DEV && 'serviceWorker' in navigator) {
+  const replacing = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!replacing) return;
+    if (screen.value.name === 'attempt' && run.value?.attempt) updateReady.value = () => location.reload();
+    else location.reload();
+  });
+  void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL }).then((reg) => {
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void reg.update(); });
+  });
+}
