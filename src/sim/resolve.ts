@@ -308,7 +308,8 @@ export function restDelta(ath: Athlete, r: RestInput): number {
 
 export const autoCommitPApex = (ath: Athlete): number => 0.25 + 0.25 * (ath.a.commitment + ath.a.dynamic_movement) / 200;
 
-export type CommitOutcome = 'apex' | 'caught' | 'slap' | 'cut';
+/** How a dyno or deadpoint was caught (05b §8.4): Auto-commit catches it at the apex or just catches it. */
+export type CommitOutcome = 'apex' | 'caught';
 
 
 // ---------------------------------------------------------------- fear (05b §9)

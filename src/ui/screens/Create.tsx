@@ -25,9 +25,6 @@ interface Draft {
   name: string;
   seed: string;
   difficulty: Difficulty;
-  auto_commit: boolean;
-  sweep_speed: number;
-  pause_drift: boolean;
 }
 
 const randomSeed = (): string => {
@@ -46,7 +43,7 @@ function toSpec(d: Draft): NewRunSpec {
   const body: Body = { ...d.body, mass_kg: Math.round(deriveMass(d.body.sex, d.body.height_cm, d.body.body_fat_pct, d.shift) * 10) / 10, tendon_robustness: tendon };
   return {
     name: d.name.trim() || 'Climber', background: d.background, body, traits: d.traits, attr_alloc: d.alloc,
-    options: { ...DEFAULT_OPTIONS, difficulty: d.difficulty, auto_commit: d.auto_commit, sweep_speed: d.sweep_speed, ...(d.pause_drift ? { pause_drift: true } : {}) },
+    options: { ...DEFAULT_OPTIONS, difficulty: d.difficulty },
   };
 }
 
@@ -54,7 +51,7 @@ function fromPreset(id: string, seed: string): Draft {
   const p = presetSpec(id);
   const shift = Math.round((p.body.mass_kg - deriveMass(p.body.sex, p.body.height_cm, p.body.body_fat_pct, 0)) * 2) / 2;
   const { mass_kg: _m, tendon_robustness: _t, ...body } = p.body;
-  return { background: p.background, body, shift, traits: p.traits, alloc: p.attr_alloc, name: p.name, seed, difficulty: 'standard', auto_commit: false, sweep_speed: 1, pause_drift: false };
+  return { background: p.background, body, shift, traits: p.traits, alloc: p.attr_alloc, name: p.name, seed, difficulty: 'standard' };
 }
 
 export function effectText(t: Trait): string[] {
@@ -79,7 +76,7 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
   const [d, setD] = useState<Draft>(() => {
     const seed = props.seed ?? randomSeed();
     if (props.preset) return fromPreset(props.preset, seed);
-    return { background: 'gym_comp_kid', body: { ...DEFAULT_BODY, age_start: 19 }, shift: 0, traits: ['gym_kid'], alloc: {}, name: '', seed, difficulty: 'standard', auto_commit: false, sweep_speed: 1, pause_drift: false };
+    return { background: 'gym_comp_kid', body: { ...DEFAULT_BODY, age_start: 19 }, shift: 0, traits: ['gym_kid'], alloc: {}, name: '', seed, difficulty: 'standard' };
   });
   const [cat, setCat] = useState<TraitCategory | 'all'>('all');
   const patch = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
@@ -220,9 +217,6 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
             <label class="col small">Run seed<input class="text-input mono" value={d.seed} maxLength={24} onInput={(e) => patch({ seed: (e.target as HTMLInputElement).value.replace(/[^a-zA-Z0-9_-]/g, '') || randomSeed() })} /></label>
             <span class="tiny muted">Same seed, same choices: the same weather and the same problems.</span>
             <div class="col small">Difficulty<Seg label="Difficulty" value={d.difficulty} onChange={(v) => patch({ difficulty: v })} options={[['story', 'Story'], ['standard', 'Standard'], ['hard', 'Hard']]} /></div>
-            <div class="col small">Dynamic moves<Seg label="Commit window" value={d.auto_commit ? 'auto' : 'tap'} onChange={(v) => patch({ auto_commit: v === 'auto' })} options={[['tap', 'Tap to time'], ['auto', 'Auto-commit']]} /></div>
-            <div class="col small">Balance moves<Seg label="Balance moves" value={d.pause_drift ? 'paused' : 'drift'} onChange={(v) => patch({ pause_drift: v === 'paused' })} options={[['drift', 'Drift'], ['paused', 'No drift']]} /></div>
-            {!d.auto_commit && <div class="col small">Dyno speed<Seg label="Dyno speed" value={d.sweep_speed} onChange={(v) => patch({ sweep_speed: v })} options={[[1.3, 'Slower'], [1, 'Normal'], [0.8, 'Faster']]} /></div>}
             <span class="tiny muted">Death is off in this version: Fontainebleau boulders over pads cannot kill you.</span>
             <div class="card">
               <div class="row between"><span class="card-title">{bg.name}</span><span class="mono small">{d.body.sex === 'f' ? 'F' : 'M'} · {d.body.age_start} · {d.body.height_cm} cm</span></div>

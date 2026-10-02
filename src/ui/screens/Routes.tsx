@@ -1,22 +1,28 @@
-// The problems in a session (06 §5, 17 §2): today's procedural slots, the sector's signature problems and the
-// ones you are working, with your read on each and the attempt modes allowed.
+// A session at a sector (06 §5, docs/24 §3): today's problems with the climber's odds on each. Pick what to try and
+// how: one attempt (watched or not), a siege, or the rest of the session by a tactic. Every attempt is simulated.
 import { useMemo, useState } from 'preact/hooks';
-import { athleteOf, conditionsOf, effectiveMode, newProject, routeEntry } from '../../sim/attempt';
+import { athleteOf, conditionsOf, effectiveMode, newProject, routeEntry, showsExactOdds } from '../../sim/attempt';
 import { evWalk } from '../../sim/grade';
 import type { RouteSlot, RunState } from '../../sim/state';
+import { tired } from '../../sim/tactics';
 import type { AttemptMode } from '../../sim/types';
 import { Circuit, TabBar, Top } from '../components';
 import { band, bandColour, grade, pct } from '../format';
-import { act, data, goto } from '../store';
+import { act, busy, data, finishSession, goto, siege, tryProblem } from '../store';
 
 const MODE_LABEL: Record<AttemptMode, string> = { onsight: 'Onsight', flash: 'Flash', redpoint: 'Redpoint', work: 'Work' };
+const MODE_NOTE: Record<AttemptMode, string> = {
+  onsight: 'Onsight: no beta. Hidden holds stay hidden until the climber finds them.',
+  flash: 'Flash: the climber has watched others on it and knows the line.',
+  redpoint: 'Redpoint: the climber knows what it has touched.',
+  work: 'Work: learn the moves faster. Topping out does not count as a tick.',
+};
 
 export function Routes({ run }: { run: RunState }) {
   const session = run.block?.session;
   const [open, setOpen] = useState<string | null>(null);
   const [mode, setMode] = useState<AttemptMode | null>(null);
   const ath = athleteOf(run, data);
-  const exact = run.attrs.route_reading.value >= 60;
 
   const rows = useMemo(() => {
     if (!session) return [];
@@ -27,22 +33,32 @@ export function Routes({ run }: { run: RunState }) {
       const fam = project ? 1 - (1 - (route.signature ? 0.15 : 0)) * Math.exp(-0.35 * ath.mods.familiarity_k_mult * project.attempt_eq) : route.signature ? 0.15 : 0;
       const p = evWalk(geom, ath, { cond, fam }).p_send;
       const hand = route.beta_line.filter((s) => s.limb.endsWith('H')).length;
-      return { slot, route, project, p, hand };
+      return { slot, route, project, p, hand, fam, today: session.tried[slot.seed]?.n ?? 0 };
     }).sort((a, b) => a.route.di_graded - b.route.di_graded);
-  }, [session?.slots, run.day, run.projects]);
+  }, [session?.slots, run.day, run.projects, session?.attempts]);
 
   if (!session) {
     return <div class="screen"><div class="scroll"><p>No session in progress.</p><button class="btn" onClick={() => goto({ name: 'planner' })}>Planner</button></div></div>;
   }
   const sector = data.crags.get(run.crag)!.sectors.find((s) => s.id === session.sector)!;
+  const spent = tired(run);
 
   return (
     <div class="screen">
       <Top kicker={`Session · ${session.attempts} attempts · ${session.sends} sends`} title={sector.name}>
-        <span class="small muted">{Math.round(run.weather.t_max)} °C · spotter: the campsite regular</span>
+        <span class="small muted">{Math.round(run.weather.t_max)} °C · energy {Math.round(run.res.energy)} · skin {Math.round(run.res.skin)}{spent ? ' · done for today' : ''}</span>
       </Top>
       <div class="scroll">
-        {rows.map(({ slot, route, project, p, hand }) => {
+        <div class="card col">
+          <span class="kicker">Let {run.name} climb</span>
+          <span class="small soft">Plays the rest of the session the way the climber would, then ends it.</span>
+          <div class="row">
+            <button class="btn grow" disabled={busy.value} onClick={() => void finishSession('volume')}><div>Mileage</div><div class="tiny muted">many problems, two tries each</div></button>
+            <button class="btn grow" disabled={busy.value} onClick={() => void finishSession('project')}><div>Project</div><div class="tiny muted">the hard ones, five tries each</div></button>
+          </div>
+        </div>
+        <span class="kicker">Or pick a problem</span>
+        {rows.map(({ slot, route, project, p, hand, fam, today }) => {
           const isOpen = open === slot.seed;
           const proj = project ?? newProject(route, run.day);
           const allowed: AttemptMode[] = proj.attempts === 0 ? (route.signature ? ['onsight', 'flash', 'work'] : ['onsight', 'work']) : ['redpoint', 'work'];
@@ -59,8 +75,8 @@ export function Routes({ run }: { run: RunState }) {
                   </div>
                 </div>
                 <div class="col" style={{ alignItems: 'flex-end', gap: '2px' }}>
-                  <span class="small" style={{ color: bandColour(p) }}>{exact ? pct(p) : band(p)}</span>
-                  <span class="tiny muted">{project?.sent ? '✓' : status === 'untried' ? '' : `${project?.attempts}×`}</span>
+                  <span class="small" style={{ color: bandColour(p) }}>{showsExactOdds(run, fam) ? pct(p) : band(p)}</span>
+                  <span class="tiny muted">{project?.sent ? '✓' : today ? `${today}× today` : project ? `${project.attempts}×` : ''}</span>
                 </div>
               </button>
               {isOpen && (
@@ -70,22 +86,20 @@ export function Routes({ run }: { run: RunState }) {
                   <div class="row wrap">
                     {allowed.map((m) => <button key={m} class="chip-btn" aria-pressed={chosen === m} onClick={() => setMode(m)}>{MODE_LABEL[m]}</button>)}
                   </div>
-                  <span class="tiny muted">
-                    {chosen === 'onsight' ? 'Onsight: no beta. Hidden holds stay hidden until you find them.' : chosen === 'flash' ? 'Flash: you watched others on it, so you know the line.' : chosen === 'work' ? 'Work: learn the moves faster. Topping out does not count as a tick.' : 'Redpoint: you know what you have touched.'}
-                  </span>
-                  <button class="btn primary" disabled={run.res.energy < 10 || run.res.skin <= 0} onClick={async () => {
-                    const m = effectiveMode(proj, route, chosen);
-                    if (await act({ t: 'attempt_start', route_seed: slot.seed, mode: m })) goto({ name: 'attempt' });
-                  }}>Start</button>
+                  <span class="tiny muted">{MODE_NOTE[chosen]}</span>
+                  <div class="row">
+                    <button class="btn grow" disabled={busy.value || spent || !!project?.sent} onClick={() => void siege(slot.seed, effectiveMode(proj, route, chosen))}>Siege<span class="tiny muted"> · up to 5</span></button>
+                    <button class="btn primary grow" disabled={busy.value || spent} onClick={() => void tryProblem(slot.seed, effectiveMode(proj, route, chosen))}>Try</button>
+                  </div>
                 </>
               )}
             </div>
           );
         })}
-        <p class="tiny muted">Energy {Math.round(run.res.energy)} · about 2–4 per attempt · skin {Math.round(run.res.skin)}</p>
+        <p class="tiny muted">An attempt costs about 2–4 energy and some skin. Below 22 energy or 12 skin the climber calls it a day.</p>
       </div>
       <div class="cta-bar">
-        <button class="cta secondary" onClick={async () => { if (await act({ t: 'block_end' })) goto({ name: 'planner' }); }}>End session</button>
+        <button class="cta secondary" disabled={busy.value} onClick={async () => { if (await act({ t: 'block_end' })) goto({ name: 'planner' }); }}>End session</button>
       </div>
       <TabBar />
     </div>

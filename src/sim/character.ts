@@ -121,7 +121,6 @@ export interface Mods {
   injury_risk_mult: number;
   cost_mult: number;
   reach_mult: number;
-  commit_window_width: number;
   feet_cut_recovery: number;
   familiarity_k_mult: number;
   fear_source_mult: Record<string, number>;
@@ -137,7 +136,7 @@ export interface Mods {
 
 export const NEUTRAL_MODS: Mods = {
   attr_mult: {}, adapt_rate_mult: {}, hold_mult: {}, move_mult: {}, condition_mult: {}, resource_mult: {},
-  fear_add: 0, injury_risk_mult: 1, cost_mult: 1, reach_mult: 1, commit_window_width: 1, feet_cut_recovery: 0,
+  fear_add: 0, injury_risk_mult: 1, cost_mult: 1, reach_mult: 1, feet_cut_recovery: 0,
   familiarity_k_mult: 1, fear_source_mult: {}, sending_temp_shift: 0, chalk_friction_base: 0, overchalk_penalty_mult: 1,
   flow_chance_mult: 1, reroll_bad: 0, reroll_good: 0, quit: null, project_stoke_immunity: false,
 };
@@ -172,7 +171,6 @@ export function aggregateMods(traitIds: readonly string[], traits: ReadonlyMap<s
     for (const f of e.flags ?? []) {
       const [name, value] = parseFlag(f);
       if (name === 'reach_mult') m.reach_mult *= num(value);
-      else if (name === 'commit_window_width') m.commit_window_width *= num(value);
       else if (name === 'feet_cut_recovery') m.feet_cut_recovery += num(value);
       else if (name === 'familiarity_k_mult') m.familiarity_k_mult *= num(value);
       else if (name.startsWith('fear_source_mult:')) m.fear_source_mult[name.split(':')[1]!] = num(value);

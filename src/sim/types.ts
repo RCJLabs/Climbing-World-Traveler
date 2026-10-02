@@ -1,5 +1,3 @@
-import type { MovePerf } from './reach';
-import type { SwingPerf } from './swing';
 // Canonical types for the simulation. Mirrors docs/schemas.md; P1a uses a subset.
 // Identifiers must not be invented here without adding them to docs/schemas.md first.
 
@@ -323,14 +321,38 @@ export type Difficulty = 'story' | 'standard' | 'hard';
 
 export interface RunOptions {
   death_enabled: boolean;
-  auto_commit: boolean;
-  sweep_speed: number;
   difficulty: Difficulty;
-  /** Balance moves without drift: the hips move only when the player moves them (docs/23 §2.2). Absent = drift on. */
-  pause_drift?: boolean;
 }
 
 export type BlockKind = 'climb' | 'train' | 'rest' | 'active_recovery' | 'work';
+
+/** How the climber runs a session (docs/24 §3): siege the hardest problems, or climb many below the limit. */
+export type SessionTactic = 'project' | 'volume';
+
+/** One block of a planned day (docs/24 §2). */
+export type PlanBlock =
+  | { kind: 'climb'; tactic: SessionTactic }
+  | { kind: 'train'; activity: string }
+  | { kind: 'rest' }
+  | { kind: 'active_recovery' }
+  | { kind: 'work' };
+
+export interface PlanDay {
+  main: PlanBlock;
+  /** A second block, when energy allows (11 §1). */
+  extra: PlanBlock | null;
+}
+
+/** The training week the climber follows when days are simulated (docs/24 §2). Day 0 of the run is its first day. */
+export interface WeekPlan {
+  days: PlanDay[];
+  /** In place of a climbing block when every sector is wet. */
+  wet_day: PlanBlock;
+  /** Odd jobs in place of the plan while money is short. */
+  auto_work: boolean;
+  /** Rest in place of climbing on worn skin or high burnout. */
+  auto_rest: boolean;
+}
 
 export type AttemptMode = 'onsight' | 'flash' | 'redpoint' | 'work';
 
@@ -348,12 +370,9 @@ export type Action =
   | { t: 'block_start'; kind: BlockKind; target?: string }
   | { t: 'block_end' }
   | { t: 'end_day' }
-  | { t: 'attempt_start'; route_seed: string; mode: AttemptMode }
-  | { t: 'move'; limb: Limb; hold: string; class: MoveClass; perf?: MovePerf }
-  | { t: 'commit'; swing: SwingPerf | null }
-  | { t: 'wall_action'; kind: 'rest' | 'chalk' | 'jump_off' }
-  | { t: 'retire' }
-  | { t: 'settings'; patch: Partial<Pick<RunOptions, 'auto_commit' | 'sweep_speed' | 'pause_drift'>> };
+  | { t: 'attempt'; route_seed: string; mode: AttemptMode }
+  | { t: 'set_plan'; plan: WeekPlan }
+  | { t: 'retire' };
 
 export type TickStyle = 'onsight' | 'flash' | 'redpoint' | 'repeat';
 

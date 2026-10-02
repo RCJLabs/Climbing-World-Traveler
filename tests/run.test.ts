@@ -1,20 +1,20 @@
 // Run reducer, attempt loop and replay determinism (docs/05b, 11, 18 §5, 19 §6).
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
-import { athleteOf, autoClimbAction, autoClimbStep, limbOptions, routeEntry } from '../src/sim/attempt';
+import { athleteOf, doWallAction, routeEntry, startAttempt } from '../src/sim/attempt';
 import { BotDriver, PROJECT_POLICY } from '../src/sim/bot';
 import { BENCH_PER_PROFILE, estimateBoulderDI } from '../src/sim/estimate';
 import { workedExampleBuilds } from '../src/harness/sim';
 import { evWalk, gradeRoute, referenceAthlete } from '../src/sim/grade';
 import { DEFAULT_OPTIONS, PRESETS, presetSpec } from '../src/sim/presets';
-import { applyAction, createRun, InvalidAction, reduce, replay, sectorList, STOKE_FAIL_SESSIONS } from '../src/sim/run';
+import { applyAction, createRun, DEFAULT_PLAN, InvalidAction, reduce, replay, sectorList, STOKE_FAIL_SESSIONS } from '../src/sim/run';
 import type { RunState } from '../src/sim/state';
 import type { Action } from '../src/sim/types';
 import { calendarDate } from '../src/sim/weather';
 import { POWER_BASE } from '../src/sim/resolve';
 
 const bundle = loadBundle();
-const AUTO = { ...DEFAULT_OPTIONS, auto_commit: true };
+const AUTO = DEFAULT_OPTIONS;
 
 function botRun(seed: string, preset: string, days: number): { run: RunState; log: Action[] } {
   const spec = presetSpec(preset, AUTO);
@@ -129,8 +129,9 @@ describe('day loop', () => {
       const sector = openDay(run);
       run.counters.failure_streak = streak;
       applyAction(run, { t: 'block_start', kind: 'climb', target: sector }, bundle);
-      applyAction(run, { t: 'attempt_start', route_seed: run.block!.session!.slots[0]!.seed, mode: 'onsight' }, bundle);
-      applyAction(run, { t: 'wall_action', kind: 'jump_off' }, bundle);
+      // A blank attempt: start, then straight off.
+      startAttempt(run, run.block!.session!.slots[0]!.seed, 'onsight', bundle);
+      doWallAction(run, 'jump_off', bundle);
       const before = run.res.stoke;
       applyAction(run, { t: 'block_end' }, bundle);
       expect(run.counters.failure_streak).toBe(streak + 1);
@@ -159,24 +160,22 @@ describe('day loop', () => {
 });
 
 describe('attempts', () => {
-  it('a commit window waits for a commit action, and illegal moves are rejected', () => {
+  it('an attempt plays out whole in one action, and attempts the session cannot take are rejected', () => {
     const run = createRun('dyn', presetSpec('power_boulderer'), bundle);
     const sector = openDay(run);
+    expect(() => applyAction(run, { t: 'attempt', route_seed: 'nowhere', mode: 'onsight' }, bundle)).toThrow(InvalidAction);
     applyAction(run, { t: 'block_start', kind: 'climb', target: sector }, bundle);
-    const slot = run.block!.session!.slots[1]!;
-    applyAction(run, { t: 'attempt_start', route_seed: slot.seed, mode: 'onsight' }, bundle);
-    expect(() => applyAction(run, { t: 'move', limb: 'LH', hold: 'no_such_hold', class: 'static' }, bundle)).toThrow(InvalidAction);
-    let sawWindow = false;
-    for (let g = 0; g < 200 && run.attempt; g++) {
-      if (run.attempt.pending) {
-        sawWindow = true;
-        expect(() => applyAction(run, { t: 'wall_action', kind: 'rest' }, bundle)).toThrow(InvalidAction);
-      }
-      applyAction(run, autoClimbAction(run, bundle, { bot: true }) ?? { t: 'wall_action', kind: 'jump_off' }, bundle);
+    expect(() => applyAction(run, { t: 'attempt', route_seed: 'fontainebleau/elsewhere:0:1:12', mode: 'onsight' }, bundle)).toThrow();
+    let dynos = 0;
+    for (const slot of run.block!.session!.slots.slice(0, 5)) {
+      applyAction(run, { t: 'attempt', route_seed: slot.seed, mode: 'onsight' }, bundle);
+      expect(run.attempt).toBeNull();
+      expect(run.last_attempt?.route_seed).toBe(slot.seed);
+      // Dynos and deadpoints resolve by Auto-commit, caught at the apex or just caught.
+      for (const m of run.last_attempt!.log) if (m.commit) { dynos++; expect(['apex', 'caught']).toContain(m.commit); }
     }
-    expect(run.attempt).toBeNull();
-    expect(run.last_attempt).not.toBeNull();
-    expect(typeof sawWindow).toBe('boolean');
+    expect(run.block!.session!.attempts).toBe(5);
+    expect(dynos).toBeGreaterThan(0);
   });
 
   it('starts an attempt with the power pool: a base plus anaerobic capacity (02 §D)', () => {
@@ -184,61 +183,51 @@ describe('attempts', () => {
     const sector = openDay(run);
     applyAction(run, { t: 'block_start', kind: 'climb', target: sector }, bundle);
     expect(run.res.energy).toBeGreaterThanOrEqual(50);
-    applyAction(run, { t: 'attempt_start', route_seed: run.block!.session!.slots[0]!.seed, mode: 'onsight' }, bundle);
+    startAttempt(run, run.block!.session!.slots[0]!.seed, 'onsight', bundle);
     expect(run.attempt!.power).toBe(POWER_BASE + run.attrs.anaerobic_capacity.value);
   });
 
-  it('limb options show the decision triangle for reachable holds', () => {
-    const run = createRun('opts', presetSpec('dirtbag'), bundle);
-    const sector = openDay(run);
-    applyAction(run, { t: 'block_start', kind: 'climb', target: sector }, bundle);
-    applyAction(run, { t: 'attempt_start', route_seed: run.block!.session!.slots[0]!.seed, mode: 'onsight' }, bundle);
-    const opts = limbOptions(run, 'RH', bundle).filter((o) => o.preview);
-    expect(opts.length).toBeGreaterThan(0);
-    for (const o of opts) {
-      expect(o.preview!.p_complete).toBeGreaterThanOrEqual(0);
-      expect(o.preview!.p_complete).toBeLessThanOrEqual(1);
-      expect(o.preview!.pump_ev).toBeGreaterThanOrEqual(0);
-    }
-  });
-
-  it('auto-climb gives a reason exactly when it hands back (05b §10)', () => {
-    const run = createRun('auto-why', presetSpec('dirtbag'), bundle);
-    const sector = openDay(run);
-    applyAction(run, { t: 'block_start', kind: 'climb', target: sector }, bundle);
-    const reasons = new Set<string>();
-    for (const slot of run.block!.session!.slots.slice(0, 4)) {
-      if (!run.block) break;
-      applyAction(run, { t: 'attempt_start', route_seed: slot.seed, mode: 'onsight' }, bundle);
-      for (let g = 0; g < 200 && run.attempt; g++) {
-        const step = autoClimbStep(run, bundle);
-        expect(step.action).toEqual(autoClimbAction(run, bundle));
-        expect(step.action === null).toBe(step.reason !== null);
-        if (step.reason) reasons.add(step.reason);
-        // Where auto-climb stops, the bot plays on, so the walk visits many stops.
-        const a = step.action ?? autoClimbAction(run, bundle, { bot: true }) ?? { t: 'wall_action', kind: 'jump_off' } as const;
-        applyAction(run, run.attempt.pending ? { t: 'commit', swing: null } : a, bundle);
-      }
-    }
-    expect(reasons.size).toBeGreaterThan(0);
-  });
-
-  it('the same action at the same point gives the same roll (no save-scumming)', () => {
+  it('the same attempt from the same state plays out the same way (no save-scumming)', () => {
     const run = createRun('scum', presetSpec('compression_monster'), bundle);
     const sector = openDay(run);
     applyAction(run, { t: 'block_start', kind: 'climb', target: sector }, bundle);
-    applyAction(run, { t: 'attempt_start', route_seed: run.block!.session!.slots[5]!.seed, mode: 'onsight' }, bundle);
-    const step = autoClimbAction(run, bundle, { bot: true })!;
-    const a = reduce(run, step, bundle);
-    const b = reduce(run, step, bundle);
-    expect(a.attempt?.log.at(-1) ?? a.last_attempt).toEqual(b.attempt?.log.at(-1) ?? b.last_attempt);
+    const a: Action = { t: 'attempt', route_seed: run.block!.session!.slots[5]!.seed, mode: 'onsight' };
+    expect(reduce(run, a, bundle).last_attempt).toEqual(reduce(run, a, bundle).last_attempt);
+  });
+});
+
+describe('the week plan (docs/24 §2)', () => {
+  it('starts every run on the default plan, and rejects plans the game cannot follow', () => {
+    const run = createRun('plan', presetSpec('dirtbag'), bundle);
+    expect(run.plan).toEqual(DEFAULT_PLAN);
+    const bad = structuredClone(DEFAULT_PLAN);
+    bad.days[0]!.extra = { kind: 'climb', tactic: 'volume' };
+    expect(() => applyAction(run, { t: 'set_plan', plan: bad }, bundle)).toThrow(InvalidAction);
+    const short = { ...structuredClone(DEFAULT_PLAN), days: DEFAULT_PLAN.days.slice(0, 6) };
+    expect(() => applyAction(run, { t: 'set_plan', plan: short }, bundle)).toThrow(InvalidAction);
+    const gym = structuredClone(DEFAULT_PLAN);
+    gym.days[0] = { main: { kind: 'train', activity: 'no_such_session' }, extra: null };
+    expect(() => applyAction(run, { t: 'set_plan', plan: gym }, bundle)).toThrow(InvalidAction);
+    const rest = structuredClone(DEFAULT_PLAN);
+    rest.days = rest.days.map(() => ({ main: { kind: 'rest' as const }, extra: null }));
+    applyAction(run, { t: 'set_plan', plan: rest }, bundle);
+    expect(run.plan).toEqual(rest);
+  });
+
+  it('records a progress point every week (docs/24 §4)', () => {
+    const run = createRun('weeks', presetSpec('dirtbag'), bundle);
+    expect(run.history).toHaveLength(1);
+    expect(run.history[0]!.E).toBeCloseTo(run.est!, 9);
+    for (let i = 0; i < 21; i++) applyAction(run, { t: 'end_day' }, bundle);
+    expect(run.history.map((h) => h.day)).toEqual([0, 7, 14, 21]);
+    expect(Object.keys(run.history[3]!.attrs)).toHaveLength(Object.keys(run.attrs).length);
   });
 });
 
 describe('replay (18 §5, 19 §6)', () => {
   it('rebuilds a 30-day bot career exactly from its action log', () => {
     const { run, log } = botRun('replay', 'farm_kid', 30);
-    expect(log.length).toBeGreaterThan(500);
+    expect(log.length).toBeGreaterThan(150);
     expect(JSON.stringify(replay(log, bundle))).toBe(JSON.stringify(run));
   });
 

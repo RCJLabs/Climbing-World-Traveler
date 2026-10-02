@@ -1,106 +1,17 @@
-// Shared harness helpers (docs/19): synthetic runs for arbitrary athletes, single dice attempts through the
-// real attempt loop, and the Swing and Catch and Reach skill models that stand in for players (19 §3, docs/23 §3.4).
+// Shared harness helpers (docs/19): synthetic runs for arbitrary athletes and single dice attempts through the real
+// attempt loop, played by the climber's own tactics as in the game (docs/24 §3).
 
-import { autoClimbAction, balanceSetup, doCommit, doMove, doWallAction, reachBudget, registerRoute, startAttempt } from '../sim/attempt';
-import type { Stance } from '../sim/balance';
+import { registerRoute, simulateAttempt } from '../sim/attempt';
 import { NEUTRAL_MODS, refMass, type Athlete } from '../sim/character';
 import { REFERENCE_BODY } from '../sim/grade';
 import { DEFAULT_OPTIONS, presetSpec } from '../sim/presets';
-import type { MovePerf } from '../sim/reach';
-import { stream, type Rng } from '../sim/rng';
-import { fly, goodSwing, launchVelocity, type SwingPerf, type SwingSetup } from '../sim/swing';
 import { createRun } from '../sim/run';
 import type { AttemptResult, RunState } from '../sim/state';
-import { ALL_ATTRS, type Action, type AttrId, type DataBundle, type Route } from '../sim/types';
-
-export type Timing = 'auto' | 'novice' | 'average' | 'expert' | 'oracle';
-
-/** A player's skill per move type (docs/23 §2); a single `Timing` plays every type at that skill. */
-export interface SkillProfile { swing: Timing; reach: Timing; balance: Timing }
-export type MoveSkill = keyof SkillProfile;
-
-export const profileOf = (t: Timing | SkillProfile): SkillProfile => (typeof t === 'string' ? { swing: t, reach: t, balance: t } : t);
-/** Skill `t` on one move type, Auto on the others: how C8 measures each type alone (docs/19 §3). */
-export const onlyType = (type: MoveSkill, t: Timing): SkillProfile => ({ swing: 'auto', reach: 'auto', balance: 'auto', [type]: t });
-
-/**
- * A player's Swing and Catch: pull and direction scattered around the good launch (relative sd of the pull, sd of the
- * angle in degrees), and the grab scattered around the dead point (mean lateness and sd, ms). (tune, docs/19 C8)
- */
-export const SWING_SKILL: Record<Exclude<Timing, 'auto' | 'oracle'>, { power: number; angle: number; mu: number; sd: number }> = {
-  novice: { power: 0.12, angle: 8, mu: 45, sd: 80 },
-  average: { power: 0.06, angle: 4, mu: 18, sd: 45 },
-  expert: { power: 0.03, angle: 2, mu: 5, sd: 22 },
-};
-
-/** The swing a harness player of skill `timing` makes on this dyno; null = Auto-commit. */
-export function harnessSwing(st: SwingSetup, timing: Timing, rng: Rng): SwingPerf | null {
-  if (timing === 'auto') return null;
-  if (timing === 'oracle') return goodSwing(st);
-  const m = SWING_SKILL[timing];
-  const power = Math.min(1, Math.max(0.05, st.p_need * (1 + rng.normal(0, m.power))));
-  const angle_deg = st.angle_good + rng.normal(0, m.angle);
-  const f = fly(st, launchVelocity(st, power, angle_deg));
-  // A player grabs when the hold looks in reach: at the dead point of their own flight, give or take.
-  const aim = f.slowest ?? (st.v_top * power * Math.sin((angle_deg * Math.PI) / 180)) / 9.81;
-  return { power, angle_deg, catch_ms: Math.round(aim * 1000 + rng.normal(m.mu, m.sd)) };
-}
-
-/**
- * A player's Two-Thumb Grip: how long the drag takes (mean and sd, ms, whatever the move) and how far from the hold's
- * centre it lands (sd of a half-normal, as a share of the placement ring). (tune, docs/19 C8)
- */
-export const REACH_SKILL: Record<Exclude<Timing, 'auto' | 'oracle'>, { mu: number; sd: number; place: number }> = {
-  novice: { mu: 1100, sd: 400, place: 0.5 },
-  average: { mu: 800, sd: 250, place: 0.3 },
-  expert: { mu: 600, sd: 150, place: 0.15 },
-};
-
-/** The drag a harness player of skill `timing` makes on a Reach move with this grip budget; null = Auto. */
-export function harnessReach(budget: number, timing: Timing, rng: Rng): MovePerf | null {
-  if (timing === 'auto') return null;
-  if (timing === 'oracle') return { kind: 'reach', time_ms: Math.round(0.5 * budget), place: 0 };
-  const m = REACH_SKILL[timing];
-  return { kind: 'reach', time_ms: Math.round(Math.max(250, rng.normal(m.mu, m.sd))), place: Math.abs(rng.normal(0, m.place)) };
-}
-
-/**
- * A player's Lean (docs/23 §3.2): how far inside the base they lean before reaching (mean and sd, m). The reach itself
- * takes a `REACH_SKILL` drag time, while the body drifts out at the move's drift speed. (tune, docs/19 C8)
- */
-export const BALANCE_SKILL: Record<Exclude<Timing, 'auto' | 'oracle'>, { lean: number; sd: number }> = {
-  novice: { lean: 0.015, sd: 0.01 },
-  average: { lean: 0.03, sd: 0.012 },
-  expert: { lean: 0.045, sd: 0.012 },
-};
-
-/** The lean and drag a harness player of skill `timing` makes on a Balance move; null = Auto. */
-export function harnessBalance(b: { stance: Stance; drift: number }, timing: Timing, rng: Rng): MovePerf | null {
-  if (timing === 'auto') return null;
-  if (timing === 'oracle') return { kind: 'balance', out_ms: 0, place: 0 };
-  const m = BALANCE_SKILL[timing];
-  const r = REACH_SKILL[timing];
-  // Lean in until `lean` inside the edge (or stay where you are if already deeper), then reach while drifting out.
-  const inside = Math.max(Math.max(0, rng.normal(m.lean, m.sd)), -b.stance.d);
-  const reach = Math.max(250, rng.normal(r.mu, r.sd));
-  const grace = b.drift > 0 ? (1000 * inside) / b.drift : Infinity;
-  return { kind: 'balance', out_ms: Math.round(Math.max(0, reach - grace)), place: Math.abs(rng.normal(0, r.place)) };
-}
-
-/** The `move` the bot chose, with a harness player's drag (Reach) or lean and drag (Balance) on it. */
-export function withPerf(run: RunState, a: Extract<Action, { t: 'move' }>, timing: Timing | SkillProfile, rng: Rng, bundle: DataBundle): Extract<Action, { t: 'move' }> {
-  const p = profileOf(timing);
-  if (p.reach === 'auto' && p.balance === 'auto') return a;
-  const bal = balanceSetup(run, a.limb, a.hold, a.class, bundle);
-  if (bal) { const perf = harnessBalance(bal, p.balance, rng); return perf ? { ...a, perf } : a; }
-  const budget = reachBudget(run, a.limb, a.hold, a.class, bundle);
-  const perf = budget === null ? null : harnessReach(budget, p.reach, rng);
-  return perf ? { ...a, perf } : a;
-}
+import { ALL_ATTRS, type AttrId, type DataBundle, type Route } from '../sim/types';
 
 /** A run whose climber is exactly `ath` (attributes, body, no traits), on a neutral sending-temperature day. */
 export function syntheticRun(ath: Athlete, seed: string, bundle: DataBundle, traits: string[] = []): RunState {
-  const run = createRun(seed, presetSpec('dirtbag', { ...DEFAULT_OPTIONS, auto_commit: true }), bundle);
+  const run = createRun(seed, presetSpec('dirtbag', DEFAULT_OPTIONS), bundle);
   run.body = { ...ath.body };
   run.traits = traits;
   for (const id of ALL_ATTRS) run.attrs[id] = { value: ath.a[id], ceiling: 100, pending: 0, last_stim_day: 0 };
@@ -117,7 +28,7 @@ export function atRoute(run: RunState, route: Route): void {
     session: {
       sector: route.area, E: 0, slots: [{ seed: route.seed ?? route.id, kind: 'mid', di_target: route.di_target }],
       attempts: 0, sends: 0, di_sum: 0, hard_moves: 0, hand_moves: 0, pump_total: 0, time_s: 0, progress_made: false,
-      stim: {}, xp: {}, load: 0, energy_spent: 0,
+      stim: {}, xp: {}, load: 0, energy_spent: 0, tried: {},
     },
   };
   run.res.energy = 100;
@@ -125,32 +36,16 @@ export function atRoute(run: RunState, route: Route): void {
 }
 
 /**
- * One attempt through the real reducer path, bot policy, at familiarity 0 (each call forgets the project).
- * `k` varies the dice: it becomes part of the run seed.
+ * One attempt through the real attempt loop, at familiarity 0 (each call forgets the project). `k` varies the dice:
+ * it becomes part of the run seed.
  */
-export function diceAttempt(base: RunState, route: Route, k: number, bundle: DataBundle, timing: Timing | SkillProfile = 'auto', tapRng?: Rng): AttemptResult {
-  const p = profileOf(timing);
+export function diceAttempt(base: RunState, route: Route, k: number, bundle: DataBundle): AttemptResult {
   const run = structuredClone(base);
   run.seed = `${base.seed}:${k}`;
-  run.options.auto_commit = p.swing === 'auto';
   atRoute(run, route);
   delete run.projects[route.id];
   registerRoute(route);
-  const seed = route.seed ?? route.id;
-  startAttempt(run, seed, 'redpoint', bundle);
-  const rng = tapRng ?? stream('taps', run.seed);
-  for (let guard = 0; guard < 150 && run.attempt; guard++) {
-    const at = run.attempt;
-    if (at.pending && p.swing !== 'auto') {
-      doCommit(run, harnessSwing(at.pending.swing, p.swing, rng), bundle);
-      continue;
-    }
-    const a = autoClimbAction(run, bundle, { bot: true });
-    if (!a || a.t === 'commit') { doCommit(run, null, bundle); continue; }
-    if (a.t === 'move') { const m = withPerf(run, a, p, rng, bundle); doMove(run, m.limb, m.hold, m.class, bundle, m.perf); }
-    else if (a.t === 'wall_action') doWallAction(run, a.kind, bundle);
-  }
-  if (run.attempt) doWallAction(run, 'jump_off', bundle);
+  simulateAttempt(run, route.seed ?? route.id, 'redpoint', bundle);
   return run.last_attempt!;
 }
 

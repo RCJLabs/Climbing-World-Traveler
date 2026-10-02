@@ -1,28 +1,22 @@
 // Event-sourced saves (docs/18 §5): write path, snapshot + tail load, version-bump replay, export/import, meta.
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
-import { autoClimbAction } from '../src/sim/attempt';
 import { DEFAULT_OPTIONS, presetSpec } from '../src/sim/presets';
-import { sectorList } from '../src/sim/run';
+import { nextPlannedAction, simulateDays } from '../src/sim/tactics';
 import { MemoryBackend } from '../src/save/backend';
 import { importRun, IncompatibleRun, RunSession, SNAPSHOT_EVERY } from '../src/save/session';
 
 const bundle = loadBundle();
-const spec = presetSpec('dirtbag', { ...DEFAULT_OPTIONS, auto_commit: true });
+const spec = presetSpec('dirtbag', DEFAULT_OPTIONS);
 
+/** Days by the week plan, one action per write, as a player stepping through them would. */
 async function playDays(s: RunSession, days: number): Promise<void> {
-  for (let d = 0; d < days; d++) {
-    const open = sectorList(s.state, bundle).find((x) => x.open);
-    if (open) {
-      await s.dispatch({ t: 'block_start', kind: 'climb', target: open.id });
-      for (const slot of s.state.block!.session!.slots.slice(0, 4)) {
-        if (s.state.res.energy < 22) break;
-        await s.dispatch({ t: 'attempt_start', route_seed: slot.seed, mode: 'onsight' });
-        for (let g = 0; g < 150 && s.state.attempt; g++) await s.dispatch(autoClimbAction(s.state, bundle, { bot: true }) ?? { t: 'wall_action', kind: 'jump_off' });
-      }
-      await s.dispatch({ t: 'block_end' });
+  for (let d = 0; d < days && !s.state.ended; d++) {
+    for (let g = 0; g < 500; g++) {
+      const a = nextPlannedAction(s.state, bundle);
+      await s.dispatch(a);
+      if (a.t === 'end_day') break;
     }
-    await s.dispatch({ t: 'end_day' });
   }
 }
 
@@ -30,7 +24,7 @@ describe('saves', () => {
   it('writes every action and reloads to the identical state from snapshot + tail', async () => {
     const backend = new MemoryBackend();
     const s = await RunSession.create(backend, bundle, 'save-1', spec);
-    await playDays(s, 15);
+    await playDays(s, 25);
     expect(s.record.action_count).toBeGreaterThan(SNAPSHOT_EVERY);
     expect(backend.writes).toBe(s.record.action_count);
     const loaded = await RunSession.load(backend, bundle, s.id);
@@ -46,9 +40,26 @@ describe('saves', () => {
     const s = await RunSession.create(backend, bundle, 'save-2', spec);
     const before = JSON.stringify(s.state);
     const writes = backend.writes;
-    await expect(s.dispatch({ t: 'move', limb: 'LH', hold: 'x', class: 'static' })).rejects.toThrow();
+    await expect(s.dispatch({ t: 'attempt', route_seed: 'x', mode: 'onsight' })).rejects.toThrow();
     expect(backend.writes).toBe(writes);
     expect(JSON.stringify(s.state)).toBe(before);
+  });
+
+  it('writes a simulated stretch in one transaction and reloads it to the same state', async () => {
+    const backend = new MemoryBackend();
+    const s = await RunSession.create(backend, bundle, 'save-sim', spec);
+    const writes = backend.writes;
+    const state = await s.simulate((draft) => simulateDays(draft, bundle, 25));
+    expect(backend.writes).toBe(writes + 1);
+    expect(state.day).toBe(25);
+    expect(s.record.action_count).toBeGreaterThan(100);
+    const loaded = await RunSession.load(backend, bundle, s.id);
+    expect(JSON.stringify(loaded.state)).toBe(JSON.stringify(s.state));
+    // A failing stretch writes nothing.
+    const before = JSON.stringify(s.state);
+    await expect(s.simulate(() => { throw new Error('boom'); })).rejects.toThrow('boom');
+    expect(JSON.stringify(s.state)).toBe(before);
+    expect(backend.writes).toBe(writes + 1);
   });
 
   it('a reducer-version mismatch discards snapshots and replays the whole log', async () => {

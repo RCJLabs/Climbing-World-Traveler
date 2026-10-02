@@ -1,7 +1,7 @@
 // Display helpers: names for attributes, money, grades, bands.
 
 import { fontGrade } from '../sim/grades';
-import type { AttrId, CircuitColour, HoldType, MoveClass } from '../sim/types';
+import type { AttrId, CircuitColour, MoveClass } from '../sim/types';
 
 export const ATTR_LABEL: Record<AttrId, string> = {
   finger_strength: 'Finger strength', finger_endurance: 'Finger endurance', pull_power: 'Pull power', lockoff: 'Lock-off',
@@ -23,8 +23,6 @@ export const CLASS_LABEL: Record<MoveClass, string> = {
   mantle: 'mantle', jam: 'jam', match: 'match', bump: 'bump', kneebar: 'kneebar',
 };
 
-export const holdLabel = (t: HoldType): string => t.replace('_', ' ').replace('pocket1', 'mono').replace('pocket2', 'two-finger pocket').replace('pocket3', 'pocket');
-
 export const money = (n: number): string => `${n < 0 ? '−' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
 export const grade = (di: number): string => fontGrade(di);
 export const pct = (p: number): string => `${Math.round(p * 100)}%`;
@@ -35,10 +33,5 @@ export function band(p: number): 'solid' | 'probably' | 'sketchy' | 'desperate' 
 }
 
 export const bandColour = (p: number): string => (p >= 0.9 ? 'var(--good)' : p >= 0.65 ? 'var(--sky)' : p >= 0.35 ? 'var(--accent)' : 'var(--warn)');
-
-export const stars = (q: number): string => {
-  const n = q >= 1.0 ? 5 : q >= 0.92 ? 4 : q >= 0.84 ? 3 : q >= 0.74 ? 2 : 1;
-  return '★'.repeat(n) + '☆'.repeat(5 - n);
-};
 
 export const CIRCUIT_LABEL: Record<CircuitColour, string> = { yellow: 'Yellow', orange: 'Orange', blue: 'Blue', red: 'Red', black: 'Black', white: 'White' };

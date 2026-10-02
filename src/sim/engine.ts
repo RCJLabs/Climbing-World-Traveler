@@ -1,11 +1,9 @@
-// Bridges geometry (wall.ts) and resolution (resolve.ts): turns "this limb onto that hold with this class"
-// into a MoveSpec and an evaluation. Used identically by play, previews, auto-climb and the grade engine.
+// Bridges geometry (wall.ts) and resolution (resolve.ts): turns "this limb onto that hold with this class" into a
+// MoveSpec. Used identically by the simulated attempt and the grade engine.
 
 import type { Athlete } from './character';
 import { CLASS_REACH } from './tables';
-import {
-  autoCommitPApex, evaluate, pComplete, probs, recoveryChance, type Conditions, type Evaluation, type MoveSpec, type MoveState, type Probs,
-} from './resolve';
+import type { MoveSpec } from './resolve';
 import {
   bodyPoints, choosePosture, freeState, judgeOption, limbKind, orientationTerm, positionQuality, type ClimbState, type HoldG, type Option, type RouteGeom,
 } from './wall';
@@ -65,34 +63,4 @@ export function applyMove(geom: RouteGeom, ath: Athlete, st: ClimbState, limb: L
   const next: ClimbState = { anchors, posture: st.posture, feet_cut };
   if (cls === 'mantle') return { ...next, posture: 'mantle' };
   return { ...next, posture: choosePosture(geom, ath, next) };
-}
-
-export interface Preview {
-  evaluation: Evaluation;
-  probs: Probs;
-  /** Probability the move completes, including the expected commit outcome for dynamic moves. */
-  p_complete: number;
-  p_recover: number;
-  /** Expected pump added, including sketchy and slip costs (05b §7). */
-  pump_ev: number;
-  /** Position quality of the state after the move (stars). */
-  pq_after: number;
-  dynamic: boolean;
-  p_apex_auto: number;
-}
-
-/** The decision triangle for a candidate move (05b §7). Dynamic moves assume Auto-commit expectations. */
-export function preview(geom: RouteGeom, ath: Athlete, st: ClimbState, ms: MoveState, cond: Conditions, prep: Prepared): Preview {
-  const e = evaluate(ath, prep.spec, ms, cond);
-  const dynamic = prep.cls === 'deadpoint' || prep.cls === 'dyno';
-  const pA = dynamic ? autoCommitPApex(ath) : 0;
-  const margin = e.margin + (dynamic ? 0.4 * pA - 0.1 : 0);
-  const p = probs(margin, e.T);
-  const pRec = recoveryChance(ath, prep.spec.kind, prep.spec.otherAnchors);
-  const after = applyMove(geom, ath, st, prep.option.limb, prep.option.hold.id, prep.cls);
-  const pumpEv = e.pump_cost * (1 - 0.2 * pA) * (p.clean + 1.5 * p.sketchy + 1.5 * p.slip);
-  return {
-    evaluation: e, probs: p, p_complete: pComplete(p), p_recover: pRec, pump_ev: pumpEv,
-    pq_after: positionQuality(geom, ath, after), dynamic, p_apex_auto: pA,
-  };
 }

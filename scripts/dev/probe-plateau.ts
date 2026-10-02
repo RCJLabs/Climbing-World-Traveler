@@ -18,7 +18,7 @@ const years = Number(process.argv[4] ?? 5);
 const LATER = new Set(['tech_cracks', 'rope_craft', 'gear_placement']);
 
 for (let i = from; i < to; i++) {
-  const spec = sampleBuild(stream('harness-build', '7', i), bundle, { ...DEFAULT_OPTIONS, auto_commit: true }, `H${i}`);
+  const spec = sampleBuild(stream('harness-build', '7', i), bundle, DEFAULT_OPTIONS, `H${i}`);
   for (const policy of ['project', 'volume'] as const) {
     const run = createRun(`plateau-${i}`, spec, bundle);
     const bot = new BotDriver(run, bundle, policy === 'project' ? PROJECT_POLICY : VOLUME_POLICY);

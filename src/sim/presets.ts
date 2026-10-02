@@ -4,7 +4,7 @@
 import { deriveMass, refFat } from './character';
 import type { AttrId, Body, NewRunSpec, RunOptions } from './types';
 
-export const DEFAULT_OPTIONS: RunOptions = { death_enabled: false, auto_commit: false, sweep_speed: 1, difficulty: 'standard' };
+export const DEFAULT_OPTIONS: RunOptions = { death_enabled: false, difficulty: 'standard' };
 
 export interface Preset {
   id: string;

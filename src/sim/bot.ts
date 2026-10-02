@@ -1,25 +1,21 @@
-// A scripted player for tests and the headless harness (docs/19 §1). It only emits ordinary actions through
-// the reducer, so every bot career is a valid, replayable action log.
+// A scripted climber for the headless harness and tests (docs/19 §1). It decides its days by state-driven rules
+// rather than a week plan, and plays every session through the same tactics the game's simulated days use. It only
+// emits ordinary actions through the reducer, so every bot career is a valid, replayable action log.
 
-import { autoClimbAction, athleteOf, routeEntry } from './attempt';
 import { applyAction, canStartBlock, dailyCost, sectorList } from './run';
-import type { SwingPerf } from './swing';
 import type { RunState } from './state';
-import type { Action, DataBundle } from './types';
+import { nextSessionAttempt, pickSector } from './tactics';
+import type { Action, DataBundle, SessionTactic } from './types';
 
 export interface BotPolicy {
-  /** 'project' tries the hardest slots repeatedly; 'volume' climbs many easier problems once or twice. */
-  style: 'project' | 'volume';
+  /** 'project' tries the hardest slots repeatedly; 'volume' climbs many easier problems once or twice (docs/24 §3). */
+  style: SessionTactic;
   /** Work when money covers fewer than this many days of living costs (19 §1: 60). */
   workBelowDays: number;
   /** Rest-day rhythm: rest after this many consecutive climbing days. */
   climbDaysInARow: number;
   /** Train on days the forest is shut (activity ids from training.ts). */
   wetDayTraining: string[];
-  /** Swing and Catch on a pending dyno: null = Auto-commit; otherwise a harness player's swing (19 §3, docs/23 §3.4). */
-  swing?: (run: RunState) => SwingPerf | null;
-  /** A Reach or Balance move: the move the bot chose, returned with or without the player's perf (docs/23 §3.1–§3.2). */
-  perf?: (run: RunState, move: Extract<Action, { t: 'move' }>) => Extract<Action, { t: 'move' }>;
 }
 
 export const PROJECT_POLICY: BotPolicy = { style: 'project', workBelowDays: 60, climbDaysInARow: 3, wetDayTraining: ['limit_boulders', 'max_hangs', 'weights'] };
@@ -42,14 +38,14 @@ export class BotDriver {
     const cost = dailyCost(run, this.bundle);
     const low = run.res.money < this.policy.workBelowDays * cost;
     const broke = run.res.money < 20 * cost;
-    const sectors = sectorList(run, this.bundle).filter((s) => s.open);
+    const open = sectorList(run, this.bundle).filter((s) => s.open);
     const wantRest = this.streak >= this.policy.climbDaysInARow || run.res.skin < 35 || run.res.burnout > 60;
     const work = () => { if (canStartBlock(run, 'work', undefined, this.bundle).ok) this.dispatch({ t: 'block_start', kind: 'work' }); };
-    if (sectors.length && !wantRest && !broke && canStartBlock(run, 'climb', sectors[0]!.id, this.bundle).ok) {
-      const fresh = sectors.filter((s) => !run.counters.week_sectors.includes(s.id));
-      const pick = (fresh.length ? fresh : sectors)[run.day % (fresh.length ? fresh.length : sectors.length)]!;
-      this.dispatch({ t: 'block_start', kind: 'climb', target: pick.id });
-      this.session();
+    if (open.length && !wantRest && !broke && canStartBlock(run, 'climb', open[0]!.id, this.bundle).ok) {
+      this.dispatch({ t: 'block_start', kind: 'climb', target: pickSector(run, this.bundle)! });
+      for (let a = nextSessionAttempt(run, this.bundle, this.policy.style); a; a = nextSessionAttempt(run, this.bundle, this.policy.style)) {
+        this.dispatch({ t: 'attempt', ...a });
+      }
       this.dispatch({ t: 'block_end' });
       this.streak++;
       if (low) work();
@@ -58,7 +54,7 @@ export class BotDriver {
       work();
       work();
       this.streak = 0;
-    } else if (!sectors.length && !wantRest) {
+    } else if (!open.length && !wantRest) {
       const act = this.policy.wetDayTraining[run.day % this.policy.wetDayTraining.length]!;
       if (canStartBlock(run, 'train', act, this.bundle).ok) this.dispatch({ t: 'block_start', kind: 'train', target: act });
       this.streak = 0;
@@ -68,50 +64,4 @@ export class BotDriver {
     }
     this.dispatch({ t: 'end_day' });
   }
-
-  private session(): void {
-    const run = this.run;
-    const s = run.block!.session!;
-    const order = [...s.slots].sort((a, b) => {
-      const want = this.policy.style === 'project' ? ['known', 'project', 'push', 'signature', 'mid', 'warmup'] : ['warmup', 'mid', 'signature', 'push', 'known', 'project'];
-      return want.indexOf(a.kind) - want.indexOf(b.kind);
-    });
-    // Warm up on the easiest problem first, whatever the style.
-    const warm = [...s.slots].sort((a, b) => a.di_target - b.di_target)[0];
-    const queue = warm ? [warm, ...order.filter((x) => x !== warm)] : order;
-    const E = s.E;
-    for (const slot of queue) {
-      if (this.tired()) break;
-      if (slot.di_target > E + (this.policy.style === 'project' ? 4.5 : 1)) continue;
-      const tries = this.policy.style === 'project' ? (slot.kind === 'warmup' ? 1 : 5) : 2;
-      for (let i = 0; i < tries && !this.tired(); i++) {
-        const { route } = routeEntry(slot.seed, this.bundle);
-        const project = run.projects[route.id];
-        if (project?.sent && slot.kind !== 'warmup') break;
-        this.dispatch({ t: 'attempt_start', route_seed: slot.seed, mode: route.signature && !project ? 'flash' : 'onsight' });
-        this.climb();
-        if (run.last_attempt?.outcome === 'sent') break;
-      }
-    }
-  }
-
-  private tired(): boolean {
-    return this.run.res.energy < 22 || this.run.res.skin < 12;
-  }
-
-  private climb(): void {
-    for (let guard = 0; guard < 120 && this.run.attempt; guard++) {
-      const at = this.run.attempt;
-      if (at.pending && this.policy.swing) {
-        this.dispatch({ t: 'commit', swing: this.policy.swing(this.run) });
-        continue;
-      }
-      const a = autoClimbAction(this.run, this.bundle, { bot: true });
-      this.dispatch(a?.t === 'move' && this.policy.perf ? this.policy.perf(this.run, a) : a ?? { t: 'wall_action', kind: 'jump_off' });
-    }
-    if (this.run.attempt) this.dispatch({ t: 'wall_action', kind: 'jump_off' });
-  }
 }
-
-/** Estimated boulder DI right now (02 §C.3), for harness reports. */
-export { athleteOf };
