@@ -55,6 +55,11 @@ export function energyCap(run: Pick<RunState, 'attrs' | 'res'>): number {
   return clamp(100 * sleepMult(run.attrs.sleep_hygiene.value) * nutritionMult(run.attrs.nutrition.value) * health, 20, 100);
 }
 
+/** Living cost per day (14 §1 P1a stub): fixed, scaled by difficulty and traits such as Dirtbag. */
+export function dailyCost(run: Pick<RunState, 'options' | 'traits'>, bundle: DataBundle): number {
+  return Math.round(DAILY_COST * LIVING_MULT[run.options.difficulty] * modsOf(run, bundle).cost_mult);
+}
+
 export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle): RunState {
   const ctx = { traits: bundle.traits, backgrounds: bundle.backgrounds };
   const errs = validateCreation(spec, ctx);
@@ -266,7 +271,6 @@ function isRestDay(blocks: readonly BlockKind[]): boolean {
 function endDay(run: RunState, bundle: DataBundle): void {
   if (run.block) endBlock(run, bundle);
   const crag = bundle.crags.get(run.crag)!;
-  const mods = modsOf(run, bundle);
   const c = run.counters;
   const day = run.day;
   const restDay = isRestDay(run.blocks_today);
@@ -275,7 +279,7 @@ function endDay(run: RunState, bundle: DataBundle): void {
   if (restDay) c.rest_days++;
 
   // Money (14 §1 P1a stub, §9).
-  const cost = Math.round(DAILY_COST * LIVING_MULT[run.options.difficulty] * mods.cost_mult);
+  const cost = dailyCost(run, bundle);
   run.res.money -= cost;
   run.today.money_delta -= cost;
   if (run.res.money < 300) run.res.stoke = clamp(run.res.stoke - 1, 0, 100);

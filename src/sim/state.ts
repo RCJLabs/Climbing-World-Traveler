@@ -121,6 +121,8 @@ export interface AttemptResult {
   kappa: number;
   tick?: Tick;
   text: string;
+  /** The attempt's move log, for the result screen's move-by-move list. */
+  log: MoveReport[];
 }
 
 export interface SessionState {

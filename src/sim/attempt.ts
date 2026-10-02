@@ -515,7 +515,7 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
   }
   const result: AttemptResult = {
     route_seed: at.route_seed, route_id: route.id, name: route.name, di: route.di_graded, outcome, progress,
-    moves: at.moves, day: run.day, kappa, text,
+    moves: at.moves, day: run.day, kappa, text, log: at.log,
   };
   if (tick) result.tick = tick;
   run.last_attempt = result;

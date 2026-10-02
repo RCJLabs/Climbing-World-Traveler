@@ -17,6 +17,9 @@ importers:
       preact:
         specifier: ^10.26.0
         version: 10.29.8
+      workbox-window:
+        specifier: ^7.4.1
+        version: 7.4.1
       zod:
         specifier: ^3.24.0
         version: 3.25.76
