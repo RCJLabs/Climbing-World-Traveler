@@ -82,7 +82,18 @@ Moves the stance test flags are leaned and then reached ([23 §3.2](23-move-type
 
 On 10 slab problems near DI 16 with no dynamic moves the novice barn-doors on about 3% of attempts (`scripts/dev/probe-skill.ts`).
 
-**Variance explained by timing.** Run the same 2,000 builds and seeds under novice, average, expert and auto. For every attempt on a route containing at least one dynamic move, record send/fail. Fit `send ~ build_margin + timing_model` (logistic) and compute the share of explained deviance attributable to `timing_model` (type-II). **Target: ≤ 10% of send variance explained by timing**, and expert vs novice send-rate gap on a route at the climber's estimated grade ≤ 8 percentage points **(tune)**. If exceeded, deepen the dead point, widen the slap margin or raise the catch speed in [23 §3.3](23-move-types-and-art-direction.md), or lengthen the grip budget or narrow the placement term in 23 §3.1, not the frequency of dynos. Auto-commit must land within ±2 points of the average model's send rate.
+**Variance explained by timing.** Run the same 2,000 builds and seeds under novice, average, expert and auto. For every attempt on a route containing at least one dynamic move, record send/fail. Fit `send ~ build_margin + timing_model` (logistic) and compute the share of explained deviance attributable to `timing_model` (type-II). **Target: ≤ 10% of send variance explained by timing**, and expert vs novice send-rate gaps on routes at the climber's estimated grade within the per-type limits below **(tune)**. If exceeded, deepen the dead point, widen the slap margin or raise the catch speed in [23 §3.3](23-move-types-and-art-direction.md), or lengthen the grip budget or narrow the placement term in 23 §3.1, not the frequency of dynos. Auto-commit must land within ±2 points of the average model's send rate (the P1a check allows ±5 for sampling noise).
+
+**Per move type (`pnpm calibrate`, C8).** Each type is measured alone, its skill varied and the others on Auto (`onlyType` in `src/harness/sim.ts`), on the problems where it matters, and then all three together:
+
+| Row | Skill varied | Problems near DI 16 | Expert − novice limit (points) |
+|---|---|---|---|
+| dyno | Swing and Catch | dynamic (> 15% dynamic moves) | 7 |
+| reach | Two-Thumb Grip | no dynos, not slab | 3 |
+| balance | Lean | slab, no dynos | 3 |
+| all | all three | dynamic | 8 |
+
+The limits leave the dyno, a single high-stakes move, most of the total; Reach and Balance happen on many moves, each a little. Results are in [23 §3.4](23-move-types-and-art-direction.md) and [22 §5](22-p1a-implementation-notes.md).
 
 ---
 
