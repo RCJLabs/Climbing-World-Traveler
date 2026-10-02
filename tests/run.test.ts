@@ -165,8 +165,9 @@ describe('replay (18 §5, 19 §6)', () => {
   });
 });
 
-describe('exit criterion (01 §4): two builds on the same 6B+', () => {
-  const problems = ['cuvier_rempart', 'bas_cuvier', 'apremont', 'cul_de_chien'].map((sector) => routeEntry(`fontainebleau/${sector}:0:4242:15.5`, bundle));
+describe('exit criterion (01 §4): two builds on the same problem', () => {
+  const sectors = ['cuvier_rempart', 'bas_cuvier', 'apremont', 'cul_de_chien'];
+  const problems = sectors.map((sector) => routeEntry(`fontainebleau/${sector}:0:4242:15.5`, bundle));
 
   it('the Slab Wizard and Compression Monster presets fail in different places on Font 6B+ problems', () => {
     // The presets start near Font 5–6A, so neither sends a 6B+ yet; what differs is where each one fails.
@@ -191,10 +192,11 @@ describe('exit criterion (01 §4): two builds on the same 6B+', () => {
     expect(mean(hand.comp) - mean(hand.slab)).toBeGreaterThan(3);
   });
 
-  it('the 05b §14.1 builds, climbers at that grade, split sends on the same problems', () => {
+  it('the 05b §14.1 builds split sends on problems at their grade', () => {
+    // Both builds estimate near Font 6C (DI 16.9 and 17.4) since the lock-off body model, so they meet 6C problems.
     const { A, B } = workedExampleBuilds();
     let split = 0;
-    for (const { geom } of problems) {
+    for (const { geom } of sectors.map((sector) => routeEntry(`fontainebleau/${sector}:0:4242:16.5`, bundle))) {
       const pa = evWalk(geom, A).p_send;
       const pb = evWalk(geom, B).p_send;
       if (Math.max(pa, pb) >= 0.2 && Math.min(pa, pb) < 0.05) split++;

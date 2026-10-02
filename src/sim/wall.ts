@@ -118,6 +118,14 @@ export function freeState(st: ClimbState, limb: Limb): ClimbState {
   return { ...st, anchors };
 }
 
+/**
+ * Lock-off (05a §4.2). With one hand on and the feet on, the shoulder rises from the body centre to a bent-arm
+ * lock `depth` below the holding hand (metres at 170 cm), but never higher than `stand` × (leg + torso) above
+ * the feet, and never lower than the body-centre position. The same for every climber: lock-off strength acts
+ * through the move matrix, so the Reference Climber's reach does not change along the DI scale (05c §1.1). **(tune)**
+ */
+export const LOCKOFF = { depth: 0.30, stand: 0.9 };
+
 export function bodyPoints(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyPoints {
   const k = kinematics(ath.body);
   const scale = k.height_m / 1.7;
@@ -147,6 +155,10 @@ export function bodyPoints(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyP
   }
   const shoulder = { x: C.x + side * off.sh[0] * scale, s: C.s + off.sh[1] * scale };
   const hip = { x: C.x + side * off.hip[0] * scale, s: C.s + off.hip[1] * scale };
+  if (hands.length === 1 && C_feet) {
+    const torso = k.height_m - k.leg_len - 0.13 * k.height_m;
+    shoulder.s = Math.max(shoulder.s, Math.min(hands[0]!.s - LOCKOFF.depth * scale, C_feet.s + LOCKOFF.stand * (k.leg_len + torso)));
+  }
   return {
     C, C_hands, shoulder, hip,
     CoM: { x: hip.x, s: hip.s + 0.1 * scale },

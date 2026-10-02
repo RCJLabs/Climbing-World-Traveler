@@ -24,7 +24,7 @@
    },
    {
     "y0": 1.5,
-    "y1": 2.1496601958817405,
+    "y1": 2.397156667351713,
     "angle": 93,
     "feature": "lip"
    }
@@ -130,7 +130,7 @@
    {
     "id": "m2",
     "x": -0.27,
-    "y": 1.5765567597403618,
+    "y": 1.6371391725064757,
     "type": "edge",
     "size": "xl",
     "quality": 0.8,
@@ -146,7 +146,7 @@
    {
     "id": "f3",
     "x": 0.1725,
-    "y": 0.7547359293525022,
+    "y": 0.7699023175519568,
     "type": "edge",
     "size": "m",
     "quality": 0.5,
@@ -162,7 +162,7 @@
    {
     "id": "m4",
     "x": 0.22999999999999998,
-    "y": 1.7354472845261961,
+    "y": 1.835527342599206,
     "type": "crimp",
     "size": "xl",
     "quality": 0.8,
@@ -178,7 +178,7 @@
    {
     "id": "f5",
     "x": -0.12375000000000003,
-    "y": 0.7554760201182618,
+    "y": 0.8032799530524881,
     "type": "foot_chip",
     "size": "m",
     "quality": 0.5,
@@ -194,7 +194,7 @@
    {
     "id": "m6",
     "x": -0.32,
-    "y": 1.7770299856368093,
+    "y": 1.9173869822790925,
     "type": "edge",
     "size": "xl",
     "quality": 0.8,
@@ -210,7 +210,7 @@
    {
     "id": "f7",
     "x": 0.11562499999999999,
-    "y": 0.7860331516325656,
+    "y": 0.8701268724859497,
     "type": "foot_chip",
     "size": "m",
     "quality": 0.5,
@@ -226,7 +226,7 @@
    {
     "id": "m8",
     "x": 0.27999999999999997,
-    "y": 1.8219793538525273,
+    "y": 2.015591056988228,
     "type": "crimp",
     "size": "xl",
     "quality": 0.8,
@@ -242,7 +242,7 @@
    {
     "id": "f9",
     "x": -0.15218750000000003,
-    "y": 0.8429744227060583,
+    "y": 0.9686280382293895,
     "type": "edge",
     "size": "m",
     "quality": 0.5,
@@ -258,7 +258,7 @@
    {
     "id": "top",
     "x": -0.27,
-    "y": 2.0896601958817405,
+    "y": 2.337156667351713,
     "type": "sloper",
     "size": "xl",
     "quality": 0.9,
@@ -286,6 +286,22 @@
     "feet_ok": true,
     "hidden": false,
     "rest_value": 0.1
+   },
+   {
+    "id": "d2",
+    "x": -0.6,
+    "y": 2,
+    "type": "sloper",
+    "size": "s",
+    "quality": 0.2,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.2
    }
   ],
   "protection": [
@@ -305,7 +321,7 @@
    "RF": "s_rf"
   },
   "finish_hold": "top",
-  "length_m": 2.1496601958817405,
+  "length_m": 2.397156667351713,
   "style_tags": [
    "vertical",
    "crimp",
@@ -378,9 +394,9 @@
   ],
   "fa_note": "Opened by a Bleausard whose name the sand forgot; the game credits no real person. The first 6A in the forest, polished glassy by eighty years of hands.",
   "components": {
-   "hardest_move": 13.183868582273105,
+   "hardest_move": 13.183868582273103,
    "crux_density": 3,
-   "pump_peak": 19.56891978495616,
+   "pump_peak": 19.568919784956154,
    "rests": 0,
    "dynamic_share": 0.14285714285714285
   }
@@ -393,7 +409,7 @@
   "discipline": "boulder",
   "rock": "sandstone_font",
   "di_target": 19,
-  "di_graded": 19.06,
+  "di_graded": 18.93,
   "danger": "safe",
   "wall": [
    {
@@ -410,8 +426,14 @@
    },
    {
     "y0": 0.95,
-    "y1": 1.3130047534054463,
+    "y1": 1.4,
     "angle": 125,
+    "feature": "none"
+   },
+   {
+    "y0": 1.4,
+    "y1": 1.5648142863033887,
+    "angle": 95,
     "feature": "lip"
    }
   ],
@@ -484,10 +506,10 @@
    {
     "id": "m0",
     "x": 0.2,
-    "y": 0.9143886068719469,
+    "y": 0.9571898725814723,
     "type": "sloper",
-    "size": "m",
-    "quality": 0.5,
+    "size": "s",
+    "quality": 0.35,
     "orientation": 0,
     "sharpness": 0.3,
     "friction": 0.528,
@@ -500,7 +522,7 @@
    {
     "id": "f1",
     "x": 0.30000000000000004,
-    "y": 0.39109715171798676,
+    "y": 0.40109715171798677,
     "type": "jug",
     "size": "m",
     "quality": 0.5,
@@ -516,10 +538,10 @@
    {
     "id": "m2",
     "x": -0.2,
-    "y": 1.0196403377941199,
+    "y": 1.141562953470418,
     "type": "pinch",
-    "size": "m",
-    "quality": 0.5,
+    "size": "s",
+    "quality": 0.35,
     "orientation": 0,
     "sharpness": 0.3,
     "friction": 0.528,
@@ -532,7 +554,7 @@
    {
     "id": "f3",
     "x": -0.09999999999999998,
-    "y": 0.4222726219184583,
+    "y": 0.4558776257950775,
     "type": "edge",
     "size": "m",
     "quality": 0.5,
@@ -548,10 +570,10 @@
    {
     "id": "top",
     "x": 0.15000000000000002,
-    "y": 1.2530047534054463,
+    "y": 1.5048142863033886,
     "type": "sloper",
-    "size": "l",
-    "quality": 0.5,
+    "size": "m",
+    "quality": 0.35,
     "orientation": 0,
     "sharpness": 0.3,
     "friction": 0.528,
@@ -595,7 +617,7 @@
    "RF": "s_rf"
   },
   "finish_hold": "top",
-  "length_m": 1.3130047534054463,
+  "length_m": 1.5648142863033887,
   "style_tags": [
    "roof",
    "sloper",
@@ -638,9 +660,9 @@
   ],
   "fa_note": "A sandy-floored classic whose first ascent is lost to the dune. The game credits no real person.",
   "components": {
-   "hardest_move": 20.460660171779818,
-   "crux_density": 2,
-   "pump_peak": 30.524896677977168,
+   "hardest_move": 20.310660171779823,
+   "crux_density": 3,
+   "pump_peak": 25.171049801806436,
    "rests": 0,
    "dynamic_share": 0.25
   }

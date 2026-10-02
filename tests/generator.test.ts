@@ -66,6 +66,7 @@ describe('generator', () => {
 describe('line shape (06 §2.3, 22 §2)', () => {
   it('keeps generated problems to Font length', () => {
     const hands: number[] = [];
+    const feet: number[] = [];
     for (const profileId of ['font_sloper_slab', 'font_sloper_bulge', 'font_roof']) {
       const profile = bundle.profiles.get(profileId)!;
       for (const di of [10, 15, 20]) {
@@ -74,11 +75,14 @@ describe('line shape (06 §2.3, 22 §2)', () => {
           const n = r.beta_line.filter((s) => s.limb.endsWith('H') && s.class !== 'mantle').length;
           expect(n).toBeGreaterThanOrEqual(TRACE.minHandMoves);
           hands.push(n);
+          feet.push(r.beta_line.filter((s) => s.limb.endsWith('F')).length);
         }
       }
     }
-    const sorted = [...hands].sort((a, b) => a - b);
-    expect(sorted[Math.floor(sorted.length / 2)]!).toBeLessThanOrEqual(7);
+    const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
+    expect(median(hands)).toBeLessThanOrEqual(7);
+    // With the lock-off body model the feet no longer have to chase every hand move.
+    expect(median(feet)).toBeLessThanOrEqual(median(hands));
   });
 
   it('picks a crux even when the preferred third of a short line is empty', () => {
