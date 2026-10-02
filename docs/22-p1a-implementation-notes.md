@@ -71,7 +71,7 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 | `WorldState` | typed as `RunState` in `src/sim/state.ts` | [schemas open question](schemas.md) |
 | Export | plain JSON (`.cwt.json`); gzip arrives with import UI polish | [18 §5](18-tech-architecture.md) |
 | Content version | `DATA_VERSION` (`p1a-11` since stoke is lost only from the third blank session in a row and gains approach the ceiling as `^0.5` at 5/6 the rate; `p1a-10` was failure streaks no longer weighing on rest days, `p1a-9` the benchmark set at four problems per style, `p1a-8` the margin from legality and posture edges, `p1a-7` the stretch penalty at 0, `p1a-6` style ceilings, `p1a-5` the power base and blended wall angles, `p1a-4` lock-off reach, `p1a-3` the lock-off body model, `p1a-2` the line-shape change) is stored on every run. P1a keeps no old generators, so a run saved under another version cannot be replayed: it stays listed, its Hall of Fame entry stays, and *Continue* is disabled with an explanation. Bump the version whenever the same seed would build a different problem or the same actions would play out differently | [18 §5](18-tech-architecture.md) |
-| Route data size | the benchmark set is 468 kB raw, 55 kB gzipped (numbers rounded to 3 decimals, each problem regraded after rounding). Generated route data has its own `routes` chunk (479 kB raw, 56 kB gzipped); the code chunk is 268 kB raw, 86 kB gzipped. The app's initial JavaScript is about 145 kB gzipped against 18 §7's 250 kB. Read as raw size, the benchmark file is over 18 §7's 150 kB per crag chunk; gzipped it is well inside. `size-limit` is not in CI yet | [18 §7](18-tech-architecture.md) |
+| Route data size | the benchmark set is 468 kB raw, 55 kB gzipped (numbers rounded to 3 decimals, each problem regraded after rounding). Generated route data has its own `routes` chunk (479 kB raw, 56 kB gzipped); the code chunk is 276 kB raw, 90 kB gzipped (268 and 86 before the wall view's camera and animation). The app's initial JavaScript is about 148 kB gzipped against 18 §7's 250 kB. Read as raw size, the benchmark file is over 18 §7's 150 kB per crag chunk; gzipped it is well inside. `size-limit` is not in CI yet | [18 §7](18-tech-architecture.md) |
 | Quick-build | six presets: Slab Wizard, Compression Monster, Power Boulderer, Late Starter, Dirtbag, Farm Kid (locked until the unlock) | [17 §6](17-ui-ux.md) |
 
 ## 5. Measured status (harness)
@@ -115,6 +115,28 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 | Where attributes sit at five years | with the ceiling exponent at 1.5: physical about 50–58% of ceiling, technique 36–51% (eight builds, both policies, `scripts/dev/probe-plateau.ts`), almost none above 90%. The flattening came from `diminish = (1 − value/ceiling)^1.5` (12 §3) and the rising attribute cost of each DI (2, 3, then 4.6 points per DI in 05c), not from builds reaching their potential, so the exponent went to 0.5 and the gain rates to 5/6 |
 | Projecting vs volume over five years | personal best at two years 19.6 vs 19.3 (18.6 vs 18.8 when every blank session cost stoke); at five years personal best 22.0 vs 22.9 and estimate 19.3 vs 22.2. Projectors end with stoke at a median 34 (17 before; volume 96). Project sessions still get no footwork stimulus |
 | Burnout lock (fixed) | before `p1a-10`, 10 of 40 project careers ended five years at burnout ≥ 80 and 7 climbed under 600 days: the failure streak was charged on rest days too, so rest could not lower burnout and the forced break repeated for good. None now; the one career under 600 climbing days (569) is a Dirtbag projector who worked 928 blocks to stay solvent |
+
+## 6. Wall view
+
+| Topic | Implemented | Amends |
+|---|---|---|
+| Projection sign | `screen_x = −k_z × z(y) + k_lat × x`: overhangs lean to the left and the rock body is drawn to the right of the face, so the climber hangs in the open space on the left | [05a §1.4](05a-wall-and-kinematics.md) |
+| Camera, rig and motion | as [17 §2](17-ui-ux.md) now specifies: the camera frames the climber and clamps to the problem; the rig is drawn from the engine's body points with the far limbs behind the torso; moves, dynamic moves, shakes and the fall, jump and send endings animate; reduced motion snaps. The pure parts (`src/ui/wall/pose.ts`) are unit-tested | [17 §2](17-ui-ux.md) |
+| Commit window | two taps, launch then catch, with a per-window *Auto* button while ready; now the spec in [17 §4](17-ui-ux.md) | [17 §4](17-ui-ux.md) |
+| Layout | the wall takes what a fixed-height HUD leaves: 470 of 844 px on a 390-wide phone (56%), 406 of 780 at 360 wide (52%), against 17 §1's 65%. The HUD's height does not change with the selection, so the wall never jumps | [17 §1](17-ui-ux.md) |
+| HUD | a row of four horizontal bars (pump, power, skin, chalk) and the fear bar with its IZOF band under the wall, not a stack at the left edge; the selected move's power cost shows beside its pump cost | [17 §3](17-ui-ux.md) |
+
+Not built yet, from the wall audit (next: the mechanics pass):
+
+| Gap | Spec |
+|---|---|
+| The commit window overlays the lower wall instead of a bar in the bottom 20%; the wall does not dim and the target hold is not singled out; the zones are told apart by colour only (no hatching on the apex zone); it shows debug text (window and apex ms); the result word is not shown on the bar | [17 §4](17-ui-ux.md) |
+| A haptic pulse fires 120 ms before the zone centre, which leaks timing | [17 §4](17-ui-ux.md) cues |
+| Reduced motion keeps the continuous sweep instead of the 8-step marker | [17 §7](17-ui-ux.md) |
+| The preview's pump cost is not drawn onto the pump meter | [17 §2–§3](17-ui-ux.md) |
+| Auto-climb shows no "auto" bar and a tap on the wall does not pause it; after a hand-back the toast covers the preview | [17 §2](17-ui-ux.md) |
+| No reasons on long-press for unreachable holds or disabled actions (a tapped unreachable hold shows its reason in the preview); no ghost of the resulting pose before Go | [17 §2](17-ui-ux.md) |
+| The rig has one body shape for every build: proportions scale with height only | [17](17-ui-ux.md) open question |
 
 ---
 
