@@ -4,6 +4,8 @@ Attributes move because of stimulus, on three clocks, toward a ceiling. This doc
 
 Related: [schemas](schemas.md) (`TrainingActivity`, `AttributeState`) · [02 Character Model](02-character-model.md) · [07 Disciplines](07-disciplines.md) · [11 Time](11-time-career-aging.md) · [13 Injury](13-injury-and-health.md) · [14 Economy](14-economy-gear-logistics.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 Research anchors are in §9. Numbers marked **(tune)** are proposals for the harness ([19](19-balance-and-simulation-testing.md)).
 
 ---

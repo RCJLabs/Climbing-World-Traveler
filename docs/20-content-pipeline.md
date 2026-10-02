@@ -54,7 +54,7 @@ Each `world/crags/<id>/` folder becomes one lazy chunk at build time ([18 §6](1
 3. Reference at least one `CragStyleProfile` id in `style_profiles` (add one, §3.6, if no existing profile fits).
 4. Add 2–4 signature routes (§3.5) and list them in `signature_routes`.
 5. Add `TravelEdge` rows to and from the hub in `hubs.json`.
-6. Run `pnpm validate` and `pnpm harness calibrate --crag <id>` (grades 200 procedural routes per profile at the crag).
+6. Run `pnpm validate` and `pnpm harness calibrate --crag <id>` (grades 200 procedural routes per profile at the crag). In P1a: `pnpm calibrate`, then `pnpm benchmarks` to rebuild the crag's benchmark set for the grade estimate (`data/routes/<crag>_benchmarks.json`); rebuild it after any change to the generator or the grade engine.
 
 ### 3.2 A trait
 1. Choose the `TraitCategory` file; append a `Trait` with `kind`, `cost` (creation: ±2..±10; hidden/quirk/acquired: 0), `phase`, `tags` from `tags.json`, `effect`, `excludes`, `requires`, `flavour`; hidden traits add `point_mass` and `foreshadow` text.

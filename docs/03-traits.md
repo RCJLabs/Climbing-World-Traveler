@@ -4,6 +4,8 @@ Traits are the Project-Zomboid layer of character creation: discrete, named bend
 
 Related: [schemas](schemas.md) · [02 Character Model](02-character-model.md) · [04 Backgrounds](04-backgrounds.md) · [05b Move Resolution](05b-move-resolution-and-attempt-loop.md) · [12 Training](12-training-and-adaptation.md) · [13 Injury](13-injury-and-health.md) · [15 Social and Events](15-social-reputation-events.md) · [19 Balance](19-balance-and-simulation-testing.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 All identifiers below are drawn from [schemas](schemas.md) §2–§4. Every number marked **(tune)** is a first-pass proposal that the harness re-costs; the costs in the catalogue are *all* (tune) by definition of §1.4, so the marker is omitted inside the tables.
 
 ---

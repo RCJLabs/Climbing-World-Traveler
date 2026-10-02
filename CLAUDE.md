@@ -1,6 +1,6 @@
 # CLAUDE.md — conventions for this repository
 
-This repo is a climbing career RPG (2D side-view, hold-to-hold, turn-based with a hybrid commit window; career runs with meta-unlocks; real crags, fictional people). It is currently in the design phase: `docs/` holds the complete design set and there is no game code yet. Read `README.md` for the doc index and `docs/01-pillars-scope-roadmap.md` for what to build first.
+This repo is a climbing career RPG (2D side-view, hold-to-hold, turn-based with a hybrid commit window; career runs with meta-unlocks; real crags, fictional people). P1a (the Fontainebleau slice) is implemented: `src/sim` (pure engine and run reducer), `src/save`, `src/ui`, `src/harness`, `scripts/`. Read `README.md` for the doc index and commands, `docs/01-pillars-scope-roadmap.md` for the phases, and `docs/22-p1a-implementation-notes.md` for where the code departs from the design and why.
 
 ## Source of truth
 
@@ -8,7 +8,7 @@ This repo is a climbing career RPG (2D side-view, hold-to-hold, turn-based with 
 - `docs/schemas.md` is the only place identifiers are defined: attribute ids, hold types, move classes, tags, rock types, save-game actions. Never invent a new identifier inline; add it to `schemas.md` first.
 - Numbers marked `(tune)` in the docs are design proposals. Changing them is expected; changing them without running the harness (`docs/19`) is not.
 
-## Stack and style (when code starts)
+## Stack and style
 
 - Vite + TypeScript with `strict: true`. No `any` outside a justified `// eslint-disable` line.
 - UI in Preact with signals. Wall rendering in Canvas2D. No framework for the simulation core.
@@ -28,7 +28,9 @@ This repo is a climbing career RPG (2D side-view, hold-to-hold, turn-based with 
 ## Working in this repo
 
 - Branch per task; small commits with a one-line summary and a body explaining why.
-- Before claiming a balance change works, show harness output (`docs/19`).
+- Before pushing: `pnpm typecheck && pnpm test && pnpm validate && pnpm calibrate --quick` (CI runs the same, then `pnpm build`).
+- Before claiming a balance change works, show harness output (`docs/19`): `pnpm calibrate` for grades, `pnpm harness` for careers.
+- After any change to the route generator or the grade engine, rebuild the benchmark set with `pnpm benchmarks` and check `pnpm calibrate`.
 - Prefer tables and formulas over prose in docs. Every doc ends with `## Open questions`.
 - Do not put model names or tool attributions into docs, code comments or data files.
 - Adding content: follow `docs/20-content-pipeline.md` step by step; add a validator test for any new schema rule.

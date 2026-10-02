@@ -4,6 +4,8 @@ This document specifies how the game manufactures its climbing: a features-first
 
 Related: [schemas](schemas.md) · [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Resolution](05b-move-resolution-and-attempt-loop.md) · [05c Grade Engine](05c-grade-engine.md) · [09 World Atlas](09-world-atlas.md) · [17 UI/UX](17-ui-ux.md) · [20 Content Pipeline](20-content-pipeline.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 Numbers marked **(tune)** are proposals for the balance harness ([19](19-balance-and-simulation-testing.md)).
 
 ---

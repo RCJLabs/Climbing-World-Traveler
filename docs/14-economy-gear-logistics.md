@@ -4,6 +4,8 @@ Money is the quiet antagonist of a climbing career: it decides where you can be,
 
 Related: [schemas](schemas.md) · [02 Character Model](02-character-model.md) · [09 World Atlas](09-world-atlas.md) · [11 Time, Career, Aging](11-time-career-aging.md) · [13 Injury and Health](13-injury-and-health.md) · [15 Social, Reputation, Events](15-social-reputation-events.md) · [16 Meta-progression](16-meta-progression-and-runs.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 ---
 
 ## 1. Money model
@@ -12,7 +14,7 @@ Related: [schemas](schemas.md) · [02 Character Model](02-character-model.md) ·
 - Living costs are driven by `Crag.cost_tier` (1–5) and the chosen lodging tier (§4). Income comes from activity blocks spent working (§2) and from passive streams (sponsorship, content).
 - Traits scale costs through `TraitEffect.cost_mult` (Dirtbag ×0.8, Trust Fund flat stipend, Gear Nerd gear ×1.3, see [03](03-traits.md)).
 - `age_start` adds starting savings (+1,500/yr over 18, cap +30,000; [02 §A](02-character-model.md)) on top of `Background.money_start`.
-- **P1a stub:** fixed $35/day at Fontainebleau, no income, starting money from the background. Everything else in this doc is P2 unless marked.
+- **P1a stub:** fixed $35/day at Fontainebleau, starting money from the background, and one income source: an odd-jobs `work` block at $50 (cost tier 3), 25 energy, 1 stoke ([22](22-p1a-implementation-notes.md)). Everything else in this doc is P2 unless marked.
 
 ---
 

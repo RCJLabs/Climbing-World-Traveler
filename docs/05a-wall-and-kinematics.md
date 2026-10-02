@@ -4,6 +4,8 @@ This document defines the physical stage the climbing engine plays on: how a wal
 
 Related: [schemas](schemas.md) · [02 Character Model](02-character-model.md) · [05b Move Resolution](05b-move-resolution-and-attempt-loop.md) · [05c Grade Engine](05c-grade-engine.md) · [06 Procedural Routes](06-procedural-routes.md) · [10 Weather](10-weather-and-conditions.md) · [17 UI/UX](17-ui-ux.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 Numbers marked **(tune)** are design proposals for the balance harness ([19](19-balance-and-simulation-testing.md)).
 
 ---

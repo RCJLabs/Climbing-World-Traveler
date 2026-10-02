@@ -4,6 +4,8 @@ This document is the single source of truth for every data shape and identifier 
 
 Related: [02 Character Model](02-character-model.md) · [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Resolution](05b-move-resolution-and-attempt-loop.md) · [08 Grades](08-grades.md) · [20 Content Pipeline](20-content-pipeline.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 ---
 
 ## 1. Conventions
@@ -220,6 +222,7 @@ interface Background {
   id: string;
   name: string;
   phase: Phase;
+  unlock?: string;                              // meta unlock required to pick it (16 §4.1), e.g. Farm Kid in P1a
   point_bonus: number;                          // 0..6
   age_range: [number, number];                  // inclusive age_start window the background allows
   attr_add: Partial<Record<AttrId, number>>;
@@ -322,7 +325,7 @@ interface Route {
   wall: WallSegment[];
   holds: Hold[];
   protection: Protection[];
-  start_holds: string[];
+  start: Partial<Record<Limb, string>>;         // start hold per limb (P1a; replaces start_holds, see 22)
   finish: { type: 'top_out' | 'jug' | 'anchor' | 'lower_off'; hold_ids: string[] };
   length_m: number;
   style_tags: Tag[];
@@ -545,32 +548,44 @@ interface MetaState {
   daily_history: { seed: string; summary: RunSummary }[];
 }
 
+// P1a action union (implemented in src/sim/types.ts; docs/22 §3). The day is a sequence of blocks rather than
+// one day_plan, so a session can be saved mid-attempt. Later phases add travel, event_choice, risky_choice,
+// buy/sell and social blocks.
 type Action =
-  | { t: 'new_run'; background: string; body: Body; traits: string[]; attr_alloc: Partial<Record<AttrId, number>>; options: RunOptions; start_crag_override?: string; scenario?: string }
-  | { t: 'day_plan'; day: number; blocks: ActivityBlock[] }
-  | { t: 'travel'; edge: string }
-  | { t: 'attempt_start'; route: string; mode: 'onsight' | 'flash' | 'redpoint' | 'work' ; auto_climb: boolean }
-  | { t: 'move'; limb: Limb; hold: string; class?: MoveClass }   // class is optional: the engine classifies from geometry; a player may force deadpoint/dyno
-  | { t: 'action'; kind: MoveClass | 'take' | 'downclimb' | 'jump_off' | 'chalk' }
+  | { t: 'new_run'; seed: string; spec: NewRunSpec }
+  | { t: 'block_start'; kind: 'climb' | 'train' | 'rest' | 'active_recovery' | 'work'; target?: string }   // climb: sector id; train: activity id
+  | { t: 'block_end' }
+  | { t: 'end_day' }
+  | { t: 'attempt_start'; route_seed: string; mode: 'onsight' | 'flash' | 'redpoint' | 'work' }   // auto-climb is a UI policy that emits ordinary moves
+  | { t: 'move'; limb: Limb; hold: string; class: MoveClass }   // class is explicit; the UI offers the classes geometry allows (05b §2)
   | { t: 'commit'; tap_offset_ms: number | null }      // null = Auto-commit
-  | { t: 'event_choice'; event: string; option: number }
-  | { t: 'risky_choice'; kind: 'solo' | 'dws_s3' | 'highball_reckless' | 'ignore_gear_warning' | 'alpine_commit'; route?: string }   // explicit, logged consent to a death-eligible action (11)
-  | { t: 'buy' | 'sell'; item: string }
-  | { t: 'settings'; patch: Partial<RunOptions> };
+  | { t: 'wall_action'; kind: 'rest' | 'chalk' | 'jump_off' }
+  | { t: 'retire' }
+  | { t: 'settings'; patch: Partial<Pick<RunOptions, 'auto_commit' | 'sweep_speed'>> };
+
+interface NewRunSpec { name: string; background: string; body: Body; traits: string[]; attr_alloc: Partial<Record<AttrId, number>>; options: RunOptions }
+
+// Full-game additions, not yet implemented:
+//   { t: 'travel'; edge: string } · { t: 'event_choice'; event: string; option: number }
+//   { t: 'risky_choice'; kind: 'solo' | 'dws_s3' | 'highball_reckless' | 'ignore_gear_warning' | 'alpine_commit'; route?: string }
+//   { t: 'buy' | 'sell'; item: string } · block kinds social, travel, admin, physio, comp_round, climb_bigwall, alpine_day
 
 interface RunOptions { death_enabled: boolean; auto_commit: boolean; sweep_speed: number; difficulty: 'story' | 'standard' | 'hard'; daily_seed?: string; }
 
-interface RunSummary {
-  climber: string; days: number; age_end: number;
-  scenario?: string;
-  score: number;                         // Hall of Fame score (16)
+interface RunSummary {                   // P1a shape (src/sim/types.ts); later phases make hardest per discipline
+  climber: string; background: string; days: number; age_end: number;
   end_reason: 'retired' | 'forced_injury' | 'death' | 'burnout' | 'bankrupt';
-  hardest: Record<Discipline, number>;   // DI
+  hardest: number;                       // boulder DI, best first send
   hardest_onsight: number;               // DI
-  risky_choices: number;                 // count of logged risky_choice actions
-  ticks: number; first_ascents: number; injuries: number; countries: number;
+  hardest_flash: number;                 // DI, onsight or flash
+  ticks: number;                         // first sends (repeats excluded)
+  circuits: Partial<Record<CircuitColour, number>>;
+  score: number;                         // Hall of Fame score (16 §6, P1a formula in 22)
   unlocks: string[];
-  legacy_npc_id?: string;
+  seed: string;
+  pyramid: Record<string, number>;       // rounded DI -> first sends
+  got_away?: { name: string; sessions: number; di: number };
+  // later: scenario, risky_choices, first_ascents, injuries, countries, legacy_npc_id
 }
 ```
 
@@ -582,7 +597,7 @@ interface RunSummary {
 2. Trait costs are integers in `[-10,-2] ∪ [2,10]` for `creation` kind; `0` for `quirk`, `acquired`, `hidden` (hidden traits carry a `point_mass` used for pool balancing instead).
 3. At most one trait in the whole catalogue may set `attr_mult` for a given attribute *and* be selectable together (validator checks pairwise exclusions).
 4. `Crag.season` has all twelve months; `Crag.di_range` lies within the DI range of [08](08-grades.md).
-5. Every `Route.protection[].reach_from` references holds in the same route; every `start_holds` entry exists.
+5. Every `Route.protection[].reach_from` references holds in the same route; every `start` hold exists.
 6. `Route.di_graded` is produced by the grade engine, never hand-entered, except on `signature: true` routes where a `di_target` is required and the engine result must land within ±1.0.
 7. `Background.start_crag` must have `phase` ≤ the background's phase, and `Background.age_range` must lie within 16..45.
 8. All text fields containing people are fictional; the validator rejects a configurable list of real climbers' names.
@@ -594,6 +609,6 @@ interface RunSummary {
 ## Open questions
 
 - Whether the sim should expose a `t: 'meta'` action family for unlock claims and legacy deletion, or keep all `MetaState` mutations outside the run log as [18 §5](18-tech-architecture.md) assumes. Current answer: outside the log.
-- `WorldState` is described in [18](18-tech-architecture.md) (player, NPCs, visited-crag state, weather history incl. `snow_depth_cm`, calendar, event cooldowns, RNG counters) but not typed here; type it with the first reducer version so this doc and the code agree.
+- `WorldState` is typed as `RunState` in `src/sim/state.ts` (reducer version 1, P1a). NPCs, visited-crag state beyond Fontainebleau, snow depth and event cooldowns join it with their systems.
 - `Climber.burnout_inputs` (the monotony and failure-streak accumulators behind the burnout formula in [12](12-training-and-adaptation.md)) may belong in `Resources` or in `counters`; decide when the day loop is implemented.
 - Placeholder keys in `EventEffect` (`@here`, `@partner`…) versus explicit `target` fields on `GameEvent`: placeholders are simpler for authors and are adopted here; revisit if the event validator cannot check them statically.

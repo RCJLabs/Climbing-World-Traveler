@@ -4,6 +4,8 @@ Conditions are the main reason real climbers travel when they do, so the game ge
 
 Related: [schemas](schemas.md) (`Climate`, `AccessRule`) · [02 §C.6](02-character-model.md) · [05b](05b-move-resolution-and-attempt-loop.md) · [09 World Atlas](09-world-atlas.md) · [13 Injury](13-injury-and-health.md) · [15 Reputation](15-social-reputation-events.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 Numbers marked **(tune)** are design proposals.
 
 ---

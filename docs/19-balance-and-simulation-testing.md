@@ -4,11 +4,15 @@ Trait costs, grade calibration and the weight of the commit window cannot be tun
 
 Related: [03 Traits](03-traits.md) · [05b Move Resolution](05b-move-resolution-and-attempt-loop.md) · [05c Grade Engine](05c-grade-engine.md) · [16 Meta-progression](16-meta-progression-and-runs.md) · [18 Tech Architecture](18-tech-architecture.md) · [20 Content Pipeline](20-content-pipeline.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 ---
 
 ## 1. Headless career simulator
 
 `pnpm harness careers --n 10000 --years 10 --seed 7 --difficulty standard --timing average --out reports/<date>/` runs in Node over worker threads ([18 §7](18-tech-architecture.md)).
+
+**Implemented in P1a** ([22 §5](22-p1a-implementation-notes.md)): `pnpm harness --n 40 --days 365 --seed 7 --policy project|volume|both --timing auto|novice|average|expert|oracle --workers 4 --out reports` (forked worker processes; writes `harness-<seed>.md` and `.json`), and `pnpm calibrate [--quick|--full] [--out reports]` for C1–C9. The bot policy is `src/sim/bot.ts`; the build sampler `src/harness/sampler.ts`.
 
 **Build sampler.** For each career: background uniform over the live phase; `Body` sliders from population bands (height N(172, 9) m / N(162, 8) f, body fat within band, ape index N(1.02, 0.03), banded fields uniform); `age_start` 16–45 weighted toward 18–28; attribute allocation by a random Dirichlet split with the +25 cap; traits by rejection sampling of 0–12 traits that respect the budget and caps in [03](03-traits.md); hidden roll with probability 0.5; `auto_commit` per the `--timing` mode.
 

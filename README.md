@@ -4,9 +4,23 @@ Build a climber. Live a climbing life. See how far your body, head and heart tak
 
 A climbing career RPG for phone and browser. Create a climber from anthropometrics, trainable attributes and Project-Zomboid-style traits (positives cost points, negatives refund them). Travel a world of real crags. Climb hold by hold on a 2D wall where every choice is resolved by your build. Age, get injured, go broke, get sponsored, retire or do not. Then build another one.
 
-**Status:** design phase. This repository currently contains the complete design-document set and no game code. The docs are written to be implemented from directly.
+**Status:** P1a, the Fontainebleau vertical slice, is playable. Create a climber, live day by day in the forest, and climb procedural and signature boulders hold by hold. The full design set is in `docs/`; what P1a implements differently, and the measured balance numbers, are in [docs/22](docs/22-p1a-implementation-notes.md).
 
-Planned platform: offline-first PWA on GitHub Pages and a Trusted Web Activity on Google Play. Stack: Vite, TypeScript, Preact, Canvas2D. See [docs/18-tech-architecture.md](docs/18-tech-architecture.md).
+Platform: offline-first PWA on GitHub Pages, later a Trusted Web Activity on Google Play. Stack: Vite, TypeScript, Preact, Canvas2D. See [docs/18-tech-architecture.md](docs/18-tech-architecture.md).
+
+## Running it
+
+```sh
+pnpm install
+pnpm dev                 # the game at http://localhost:5173
+pnpm test                # engine golden tests, generator, reducer, replay and saves
+pnpm validate            # content validator
+pnpm calibrate --quick   # grade-engine calibration (C1–C9); drop --quick for the fuller sweep
+pnpm harness --n 40 --days 365 --out reports   # headless careers with a scripted player
+pnpm build               # typecheck + production build into dist/
+```
+
+Code map: `src/sim` is the pure, seeded simulation (engine, generator, grade engine, run reducer); `src/save` the event-sourced saves; `src/ui` the Preact screens and the canvas wall; `src/harness` and `scripts/` the balance tooling; `data/` the content.
 
 ---
 
@@ -41,6 +55,7 @@ Read in this order for a first pass: 00 → 01 → 02 → 05b → 03.
 | 19 | [Balance and Simulation Testing](docs/19-balance-and-simulation-testing.md) | Headless career harness, trait re-costing, calibration tests, CI gates |
 | 20 | [Content Pipeline](docs/20-content-pipeline.md) | How to add crags, traits, backgrounds, events, routes; validation |
 | 21 | [Glossary](docs/21-glossary.md) | Climbing and game terms |
+| 22 | [P1a Implementation Notes](docs/22-p1a-implementation-notes.md) | Where the Fontainebleau slice departs from the design, why, and the measured harness results |
 
 ## Conventions
 

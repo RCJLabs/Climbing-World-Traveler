@@ -4,6 +4,8 @@ The run is a calendar. The day is the unit of play, weeks and seasons are the un
 
 Related: [schemas](schemas.md) (`Action`, `RunOptions`, `RunSummary`) · [02 §E](02-character-model.md) · [07 Disciplines](07-disciplines.md) · [10 Weather](10-weather-and-conditions.md) · [12 Training](12-training-and-adaptation.md) · [13 Injury](13-injury-and-health.md) · [14 Economy](14-economy-gear-logistics.md) · [16 Meta](16-meta-progression-and-runs.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 Numbers marked **(tune)** are design proposals.
 
 ---
@@ -59,7 +61,7 @@ The net effect, as in the research (grades flat 18 to mid-30s; IFSC finalists me
 
 | `end_reason` | Trigger | Player control |
 |---|---|---|
-| `retired` | Player chooses *Retire* from the career menu (available from year 2), or accepts a "last season" prompt that appears at age ≥ 40 when `stoke < 30` for 8 weeks | Voluntary |
+| `retired` | Player chooses *Retire* from the career menu (available from year 2; from day 1 in P1a), or accepts a "last season" prompt that appears at age ≥ 40 when `stoke < 30` for 8 weeks | Voluntary |
 | `forced_injury` | An injury whose severity table marks it career-ending ([13](13-injury-and-health.md)): grade-3 spinal, HACE/HAPE survived with deficits, a second grade-3 labrum/cuff after 40, or **a converted death** (below) | Consequence |
 | `death` | Only when `RunOptions.death_enabled` **and** the fatal roll came from an **explicit risky choice**: alpine objective hazard after pressing past a displayed red threshold ([07 §5](07-disciplines.md)); soloing (a route attempted with `protection: none` by choice); a DWS fall on **S3**; a highball fall above **6 m** after a *reckless* preview ("desperate" band chosen with the danger label `bold`/`deadly` shown); a trad fall after ignoring a **gear-rip warning**. Every such choice is confirmed with a two-step dialog and written to the action log as a flagged risky action | Opt-in; when `death_enabled` is false the same roll converts to `forced_injury` with the text making the escape clear |
 | `burnout` | `burnout ≥ 80` triggers a forced two-week break; if `burnout ≥ 80` again within the same season and `stoke < 20`, the "hang up the shoes" event fires with a *keep going* option that costs money and a partner relationship; choosing *quit* ends the run | Avoidable |

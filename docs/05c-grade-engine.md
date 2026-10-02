@@ -4,6 +4,8 @@ The grade engine turns a route into a Difficulty Index by asking one question: a
 
 Related: [schemas](schemas.md) · [02 Character Model](02-character-model.md) · [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Resolution](05b-move-resolution-and-attempt-loop.md) · [06 Procedural Routes](06-procedural-routes.md) · [08 Grades](08-grades.md) · [19 Balance](19-balance-and-simulation-testing.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 Numbers marked **(tune)** are proposals for the balance harness. Research citations refer to the plan appendix (A1).
 
 ---
