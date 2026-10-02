@@ -441,7 +441,7 @@ function solveAll(route: Route, traced: Traced, ath: Athlete, req: GenRequest, r
       const dynamic = prep.cls === 'deadpoint' || prep.cls === 'dyno';
       const target = kind === 'foot'
         ? req.di_target - 1.5
-        : req.di_target + (crux.has(i) ? 0.6 : -0.3) - 0.3 + (dynamic ? -0.4 : 0);
+        : req.di_target + (crux.has(i) ? 0.6 : -0.3) - 0.05 + (dynamic ? -0.4 : 0);
       solveHold(hold, prep.spec, target, req.profile, rng, kind, hold.id === route.finish_hold);
       geom = routeGeom(route);
       const again = prepareMove(geom, ath, st, step.limb, step.hold, prep.cls) ?? prepareMove(geom, ath, st, step.limb, step.hold);
@@ -581,10 +581,23 @@ export function routeFromSeed(seed: string, bundle: DataBundle): Route {
   const crag = bundle.crags.get(p.crag);
   const sector = crag?.sectors.find((s) => s.id === p.sector);
   if (!crag || !sector) throw new Error(`unknown sector in ${seed}`);
-  const profileId = stream(seed, 'profile').pick(sector.style_profiles);
-  const profile = bundle.profiles.get(profileId);
-  if (!profile) throw new Error(`unknown profile ${profileId}`);
+  const profile = profileFor(sector, p.di, bundle, stream(seed, 'profile'));
   return generateBoulder({ crag, sector, profile, di_target: p.di, seed, bundle });
+}
+
+/**
+ * The style profile for a problem (06 §2.1): one of the sector's profiles that can be built to `di` (its `di_max`,
+ * if any, at or above it). If none can, the one that reaches highest: a slab sector's hardest problems stay soft.
+ */
+export function profileFor(sector: Sector, di: number, bundle: Pick<DataBundle, 'profiles'>, rng: Rng): CragStyleProfile {
+  const all = sector.style_profiles.map((id) => {
+    const p = bundle.profiles.get(id);
+    if (!p) throw new Error(`unknown profile ${id}`);
+    return p;
+  });
+  const able = all.filter((p) => (p.di_max ?? Infinity) >= di);
+  if (able.length) return rng.pick(able);
+  return all.reduce((a, b) => ((b.di_max ?? Infinity) > (a.di_max ?? Infinity) ? b : a));
 }
 
 /** Distance helper for UIs and tests. */

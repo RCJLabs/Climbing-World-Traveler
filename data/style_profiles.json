@@ -56,6 +56,7 @@
     "drift_max_m": 0.6,
     "pad_coverage": 0.8,
     "name_bank": "font_fr",
+    "di_max": 21,
     "tags": [
       "boulder",
       "slab",
@@ -129,6 +130,7 @@
     "drift_max_m": 0.6,
     "pad_coverage": 0.8,
     "name_bank": "font_fr",
+    "di_max": 25,
     "tags": [
       "boulder",
       "sloper",

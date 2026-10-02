@@ -26,7 +26,7 @@ Numbers marked **(tune)** are proposals for the balance harness ([19](19-balance
 | `move_grammar` | Stationary weights of the move-class Markov chain (§2.3) |
 | `tags` | Feature probabilities, rest spacing, decoy rate and name bank are derived from tags until the fields proposed in Open questions exist (§6 companion table) |
 
-A crag lists several profiles (`Crag.style_profiles`); a visit samples one per slot weighted equally, so a Font day mixes slab, sloper-bulge and roof problems.
+A crag lists several profiles (`Crag.style_profiles`); a visit samples one per slot weighted equally, so a Font day mixes slab, sloper-bulge and roof problems. A profile may set `di_max`, the hardest DI its style can be built to: low-angle rock makes hand holds easier, so past some grade even the worst holds cannot make a slab harder. A slot above a profile's `di_max` samples among the sector's other profiles; if none reaches that DI, it uses the one with the highest ceiling, and its problem grades soft. Font: slab to DI 21, sloper bulge to 25, roof uncapped **(tune)**.
 
 ---
 

@@ -7,7 +7,7 @@
   "discipline": "boulder",
   "rock": "sandstone_font",
   "di_target": 13,
-  "di_graded": 13.01,
+  "di_graded": 12.88,
   "danger": "safe",
   "wall": [
    {
@@ -396,7 +396,7 @@
   "components": {
    "hardest_move": 13.183868582273103,
    "crux_density": 3,
-   "pump_peak": 19.715295506948635,
+   "pump_peak": 18.43303876317484,
    "rests": 0,
    "dynamic_share": 0.14285714285714285
   }
@@ -409,7 +409,7 @@
   "discipline": "boulder",
   "rock": "sandstone_font",
   "di_target": 19,
-  "di_graded": 19.09,
+  "di_graded": 19.06,
   "danger": "safe",
   "wall": [
    {
@@ -661,8 +661,8 @@
   "fa_note": "A sandy-floored classic whose first ascent is lost to the dune. The game credits no real person.",
   "components": {
    "hardest_move": 20.736916517161013,
-   "crux_density": 2,
-   "pump_peak": 26.315641266976026,
+   "crux_density": 1,
+   "pump_peak": 25.280445310797926,
    "rests": 0,
    "dynamic_share": 0.25
   }
@@ -675,7 +675,7 @@
   "discipline": "boulder",
   "rock": "sandstone_font",
   "di_target": 25,
-  "di_graded": 24.55,
+  "di_graded": 24.99,
   "danger": "safe",
   "wall": [
    {
@@ -687,13 +687,13 @@
    {
     "y0": 0.3,
     "y1": 1.6,
-    "angle": 100,
+    "angle": 110,
     "feature": "none"
    },
    {
     "y0": 1.6,
-    "y1": 2.0297462509308115,
-    "angle": 104,
+    "y1": 1.951559319556386,
+    "angle": 125,
     "feature": "lip"
    }
   ],
@@ -766,7 +766,7 @@
    {
     "id": "f0",
     "x": -0.012499999999999997,
-    "y": 0.7905384493975584,
+    "y": 0.7995614758428182,
     "type": "foot_chip",
     "size": "m",
     "quality": 0.5,
@@ -782,7 +782,7 @@
    {
     "id": "top",
     "x": 0.15,
-    "y": 1.9697462509308117,
+    "y": 1.891559319556386,
     "type": "sloper",
     "size": "xs",
     "quality": 0.15,
@@ -813,9 +813,9 @@
    "RF": "s_rf"
   },
   "finish_hold": "top",
-  "length_m": 2.0297462509308115,
+  "length_m": 1.951559319556386,
   "style_tags": [
-   "vertical",
+   "overhang",
    "sloper",
    "dynamic",
    "power"
@@ -841,9 +841,9 @@
   ],
   "fa_note": "One move, one rocket, one rainbow of chalk on the lip. The game credits no real person.",
   "components": {
-   "hardest_move": 25.01125703272551,
+   "hardest_move": 26.901257032725507,
    "crux_density": 1,
-   "pump_peak": 12.478515264245999,
+   "pump_peak": 16.680282912882806,
    "rests": 0,
    "dynamic_share": 0.5
   }

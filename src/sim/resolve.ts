@@ -167,6 +167,13 @@ export function frictionMod(friction: number, cond: Conditions, ath: Athlete): n
   return 1 + 0.6 * (F - 0.55);
 }
 
+/**
+ * Stretch penalty on Q (05b §4.2): the share of EffectiveStat lost at full relative reach. Zero: the reach term `Rch`
+ * already charges for stretch, and the original 0.1 charged it twice, so a 2–3 cm shift on a crux moved its grade
+ * 0.6–0.8 DI (05c §4 C5). The golden tests set it back to 0.1, the independent calculator's value. **(tune)**
+ */
+export const STRETCH = { q: 0 };
+
 export function evaluate(ath: Athlete, m: MoveSpec, st: MoveState, cond: Conditions): Evaluation {
   const cell = matrixCell(m.kind, m.cls, m.type);
   const { MD, parts } = moveDifficulty(m, st.fam);
@@ -185,7 +192,7 @@ export function evaluate(ath: Athlete, m: MoveSpec, st: MoveState, cond: Conditi
   const tags = terrainTagsFor(m.angle, m.posture, m.feature);
   const M_body = bodyMods(ath, m.type, m.cls, tags, m.r >= 0.85);
   const stretch = Math.min(1, Math.max(0, (m.r - 0.85) / 0.15));
-  const Q = m.pq * (1 - 0.1 * stretch);
+  const Q = m.pq * (1 - STRETCH.q * stretch);
   const fmod = frictionMod(m.friction, cond, ath);
   let M_cond = 1 + FS[m.type] * (fmod - 1);
   M_cond *= 1 - 0.001 * Math.max(0, 50 - st.skin);

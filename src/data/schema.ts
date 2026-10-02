@@ -114,6 +114,7 @@ export const ProfileSchema = z.object({
   drift_max_m: z.number(),
   pad_coverage: z.number(),
   name_bank: z.string(),
+  di_max: z.number().min(8).max(33).optional(),
   tags: z.array(tag),
 }).strict();
 

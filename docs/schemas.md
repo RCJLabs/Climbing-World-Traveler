@@ -381,6 +381,7 @@ interface CragStyleProfile {
   drift_max_m?: number;             // bound on lateral drift of the main line
   pad_coverage?: number;            // boulders: default pad zone width as a fraction of landing
   name_bank?: string;               // id of the crag-flavoured name generator table
+  di_max?: number;                  // hardest DI the style can be built to; above it a sector picks among its other profiles (06 §2.1)
   tags: Tag[];
 }
 

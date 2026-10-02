@@ -1,10 +1,10 @@
 // Golden test: the TypeScript engine must reproduce the worked examples of docs/05b §14 and the
 // grade crossings of docs/05c §2.2, which were produced by an independent Python calculator.
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import fixture from './fixtures/python_engine.json';
 import { NEUTRAL_MODS, refMass, type Athlete } from '../src/sim/character';
 import {
-  autoCommitPApex, diEquiv, evaluate, probs, recoveryChance, REFERENCE_CONDITIONS, sRef, type MoveSpec, type MoveState,
+  autoCommitPApex, diEquiv, evaluate, probs, recoveryChance, REFERENCE_CONDITIONS, sRef, STRETCH, type MoveSpec, type MoveState,
 } from '../src/sim/resolve';
 import { ALL_ATTRS, type AttrId, type Body, type Posture } from '../src/sim/types';
 import { Q_CLASS } from '../src/sim/tables';
@@ -64,6 +64,15 @@ function walk(ath: Athlete, run: FxRun, friction: number, fam = 0, pqOverride?: 
   return { pSend, margins };
 }
 
+// The calculator used the original stretch penalty (Q × (1 − 0.1 × stretch)). The formulas are checked against it at
+// that value; the examples at the current value are recorded at the end of this file from this engine.
+const CALC_STRETCH = 0.1;
+const CURRENT_STRETCH = STRETCH.q;
+function atCalculatorTerms(): void {
+  beforeAll(() => { STRETCH.q = CALC_STRETCH; });
+  afterAll(() => { STRETCH.q = CURRENT_STRETCH; });
+}
+
 describe('DI scale (05c §1)', () => {
   it('anchors the Lattice benchmarks', () => {
     expect(sRef(16)).toBeCloseTo(28, 6);
@@ -75,6 +84,7 @@ describe('DI scale (05c §1)', () => {
 });
 
 describe('worked examples (05b §14) match the independent calculator', () => {
+  atCalculatorTerms();
   const fx = fixture as unknown as Record<string, Record<string, FxRun> & { climber: FxClimber }>;
   const cases: [string, string, number][] = [
     ['A', 'font', 0.788], ['B', 'font', 0.0], ['B', 'font_dyno', 0.051], ['B', 'font_dyno_fam83', 0.134], ['A', 'hueco', 0.311],
@@ -93,6 +103,7 @@ describe('worked examples (05b §14) match the independent calculator', () => {
 });
 
 describe('grade crossings (05c §2.2)', () => {
+  atCalculatorTerms();
   const ref = (fixture as unknown as { reference: Record<string, { climber: FxClimber; font: FxRun; hueco: FxRun }> }).reference;
   for (const [di, row] of Object.entries(ref)) {
     it(`reference climber at DI ${di} matches on both problems`, () => {
@@ -126,4 +137,17 @@ describe('grade crossings (05c §2.2)', () => {
     expect(graded.font).toBeCloseTo(15.89, 2);
     expect(graded.hueco).toBeCloseTo(15.85, 2);
   });
+});
+
+describe('worked examples without the stretch penalty (05b §14 note; recorded from this engine, not the calculator)', () => {
+  const fx = fixture as unknown as Record<string, Record<string, FxRun> & { climber: FxClimber }>;
+  // Same holds as the examples. Moves near full reach no longer lose up to 10% of EffectiveStat.
+  const cases: [string, string, number][] = [['A', 'font', 0.832], ['B', 'font', 0], ['B', 'font_dyno', 0.082], ['B', 'font_dyno_fam83', 0.186], ['A', 'hueco', 0.311]];
+  for (const [who, key, p] of cases) {
+    it(`${who} on ${key}: P_send ≈ ${p}`, () => {
+      const c = fx[who]!;
+      const fam = key.endsWith('fam83') ? 0.83 : 0;
+      expect(walk(athlete(c.climber), c[key]!, ROCK_F[key]!, fam).pSend).toBeCloseTo(p, 2);
+    });
+  }
 });

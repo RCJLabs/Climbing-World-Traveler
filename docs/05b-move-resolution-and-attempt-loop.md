@@ -286,7 +286,7 @@ attr'_i   = attr_i × attr_mult_i                                  one trait mul
 S_cell    = Σ_i w_i × attr'_i                                     matrix weights, §3
 M_trait   = 1 + Σ_j (m_j − 1)                                     hold_mult, move_mult, condition_mult from traits (additive)
 M_body    = Π body rules that fire (02 §A.1): height, ape, finger_length, finger_girth, leg_torso, bf_mod, mass_mod, skin
-Q         = position_quality(State) × (1 − 0.10 × stretch)        05a §7; stretch = clamp((r − 0.85)/0.15, 0, 1)
+Q         = position_quality(State) × (1 − k_stretch × stretch)   05a §7; stretch = clamp((r − 0.85)/0.15, 0, 1); k_stretch = 0 (tune)
 M_cond    = 1 + fs(type) × (friction_mod − 1)                     friction_mod = 1 + 0.6 × (F_eff − 0.55); F_eff from 05a §2.3
             × (1 − 0.001 × max(0, 50 − skin)) × (0.90 if skin < 30 and type ∈ {sloper, smear, volume} else 1)
             × (1 + 0.001 × rock_knowledge[rock])
@@ -300,6 +300,8 @@ S_eff     = S_cell × M_trait × M_body × Q × M_cond × M_state
 EffectiveStat = di_equiv(S_eff)                                   stat points → DI, §4.3
 margin    = EffectiveStat − MoveDifficulty
 ```
+
+`k_stretch` was `0.10`. It charged for stretch a second time, after the reach term `Rch` in §4.1, and near full reach the two together moved a crux 0.6–0.8 DI for a 2–3 cm shift of one hold ([05c §4](05c-grade-engine.md#4-calibration-tests) C5). It is now `0`; the golden tests keep `0.10`, the independent calculator's value, and the worked examples of §14 were computed with it.
 
 `bf_mod` is applied to the whole composite, a deliberate simplification of 02's "all physical EffectiveStats". `Q` multiplies the composite, so a ★ stance (`0.85`) is worth about `−1.5 DI` at V4 and `−2.5 DI` at V10 — bad positions hurt more as the climbing gets harder.
 
@@ -578,6 +580,8 @@ Noise draws use `RngStream(hash(run_seed, route.id, day, 'info'))`.
 ## 14. Worked examples
 
 Both problems below were produced by the generator and graded by [05c](05c-grade-engine.md) at **DI 15.9**, which displays as **Font 6B+ / V4 (DI 16)**. Conditions are the grading reference: chalked, dry, 12 °C. Trait multipliers are omitted (`M_trait = 1`) so the arithmetic stays visible; `energy_mod = 1`, fear inside the band, `focus_meter = focus`. Distances `d` are from the moving limb's root (shoulder or hip) in the stated posture. Probabilities are the expected-value mode of 05c (one retry after a recovered slip, Auto-commit on dynamic moves); live play rolls dice at every in-band step.
+
+The numbers below use the original stretch penalty `k_stretch = 0.10` (§4.2). At the current `0` the same holds give: Build A on the Font problem `0.832` (was `0.788`), Build B `0` on the deadpoint line and `0.082` on the dyno line (`0.186` after five attempts; were `0.051` and `0.134`), Build A on the Hueco roof `0.311` (unchanged).
 
 ### 14.1 Example 1 — two builds on one Font 6B+ sloper/compression problem
 
