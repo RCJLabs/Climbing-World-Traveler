@@ -91,11 +91,12 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 
 | Measure | Result |
 |---|---|
-| Estimate `E`, median | Font 5+ (12.0) at start → 6A (13.5) at 3 months → 6B (14.5) at 6 → 6B+ (15.8) at 12; p90 at 12 months 17.3 |
-| Personal best at 12 months | median 6C (16.6), p90 18.3 |
-| Projecting vs volume | personal best 16.9 vs 15.8; hardest flash 14.1 vs 15.6; ticks 155 vs 841 (12 §9's intended split) |
+| Estimate `E`, median | Font 5+ (12.4) at start → 6A+ (13.8) at 3 months → 6B (14.8) at 6 → 6B+ (16.0) at 12; p90 at 12 months 17.4 |
+| Personal best at 12 months | median 6C (16.9), p90 18.1 |
+| Projecting vs volume | personal best 17.1 vs 16.4; hardest flash 13.8 vs 16.2; ticks 158 vs 841 (12 §9's intended split) |
 | Run ends in a year | none: every career reaches the day limit. Money is tight: about 110 odd-job blocks a year, median $1,940 left |
-| Burnout peak | median 1.3, p90 11 (the bot rests every fourth day and rotates sectors) |
+| Burnout peak | median 1.5, p90 8 (the bot rests every fourth day and rotates sectors) |
+| Cost | about 36,000 actions per one-year career (42,000 before the line-shape change), 20 attempts per climbing day |
 | Replay identity | identical on every checked career |
 
 ---
@@ -107,5 +108,5 @@ Tuning items, in priority order:
 1. **Foot moves.** Hand moves are now in the Font range, but feet still move about 1.5 times per hand move (roofs more). The cause is the body model, not the tracer: with the shoulder midway between hand and feet, the only way to reach higher is higher feet. A lock-off term in 05a (shoulder rising toward the holding hand with `lockoff`) would shorten lines further and make lock-off visible in reach; it changes grading, so it needs the full calibration and golden-test update.
 2. **C5 stability.** The reach term `Rch` and the static/deadpoint class boundary are steep, so 2 cm can flip a move's class.
 3. **C6 and the slab profile.** `font_sloper_slab` grades 0.46 DI soft and crimp-dominant problems 0.4 soft.
-4. **Progress rate** after the first tuning pass is +3.8 DI of estimate in a full-time first year. Check it against the Climbstat anchors in 02 once careers run several years, and against a human playtest.
+4. **Progress rate** is +3.6 DI of estimate in a full-time first year (median). Check it against the Climbstat anchors in 02 once careers run several years, and against a human playtest.
 5. **Stoke** sits around 75 for anyone who sends regularly; burnout barely moves under a sensible schedule. Both need the events and partners of P2 to bite.
