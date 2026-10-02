@@ -36,6 +36,7 @@ export function Title({ current }: { current: RunState | null }) {
         {current && !current.ended && (
           <>
             <div class="col small">Dynamic moves (this run)<Seg label="Commit window" value={current.options.auto_commit ? 'auto' : 'tap'} onChange={(v) => void act({ t: 'settings', patch: { auto_commit: v === 'auto' } })} options={[['tap', 'Tap to time'], ['auto', 'Auto-commit']]} /></div>
+            <div class="col small">Balance moves (this run)<Seg label="Balance moves" value={current.options.pause_drift ? 'paused' : 'drift'} onChange={(v) => void act({ t: 'settings', patch: { pause_drift: v === 'paused' } })} options={[['drift', 'Drift'], ['paused', 'No drift']]} /></div>
             <div class="col small">Dyno speed<Seg label="Dyno speed" value={current.options.sweep_speed} onChange={(v) => void act({ t: 'settings', patch: { sweep_speed: v } })} options={[[1.3, 'Slower'], [1, 'Normal'], [0.8, 'Faster']]} /></div>
             <button class="btn" onClick={() => { if (confirm(`Retire ${current.name}? The run ends and goes into the Hall of Fame.`)) void act({ t: 'retire' }).then((ok) => ok && goto({ name: 'summary' })); }}>Retire {current.name}</button>
           </>
