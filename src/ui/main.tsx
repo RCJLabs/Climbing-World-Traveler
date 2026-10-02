@@ -23,7 +23,8 @@ function App() {
   else if (s.name === 'planner') body = <Planner run={r} />;
   else if (s.name === 'crag') body = <Crag run={r} />;
   else if (s.name === 'routes') body = <Routes run={r} />;
-  else if (s.name === 'attempt') body = r.attempt ? <Attempt run={r} /> : <Result run={r} />;
+  // Attempt stays mounted after the attempt ends so the fall or top-out can play; it moves on to the result itself.
+  else if (s.name === 'attempt') body = <Attempt run={r} />;
   else if (s.name === 'result') body = <Result run={r} />;
   else if (s.name === 'character') body = <Character run={r} />;
   else body = <Summary run={r} />;

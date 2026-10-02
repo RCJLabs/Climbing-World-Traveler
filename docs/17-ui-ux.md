@@ -24,12 +24,29 @@ The core loop, left to right in time:
 | Stage | What the player sees | Input |
 |---|---|---|
 | Idle | The route, the climber rig posed on current holds, holds drawn as type silhouettes ([05a](05a-wall-and-kinematics.md)). Current holds carry the limb glyph (LH/RH/LF/RF). | Pinch to zoom 0.6×–2.5×, drag to pan; double-tap recentres on the climber |
-| Limb select | Tap a limb glyph or one of four limb buttons in the bottom bar. The **reach envelope** for that limb shades the wall; reachable holds brighten, unreachable holds dim and show a reason on long-press ("too far 0.3 m", "blocked by LH", "wrong side"). | Tap limb; tap again to deselect |
+| Limb select | Tap the climber's hand or foot, a limb glyph, or one of four limb buttons in the bottom bar. The **reach envelope** for that limb shades the wall; reachable holds brighten, unreachable holds dim and show a reason on long-press ("too far 0.3 m", "blocked by LH", "wrong side"). | Tap limb; tap again to deselect |
 | Hold highlight | Tap a reachable hold. The **preview triangle** appears beside it: success band · pump cost · resulting position quality. Move class is named ("deadpoint") with a small icon; a commit-window glyph appears if the move is dynamic. | Tap hold |
 | Confirm | A large **Go** button in the thumb zone; the rig ghosts into the resulting pose. | Tap Go, or tap another hold to re-preview |
 | Resolve | Outcome text and meter deltas animate (≤ 400 ms); on dynamic moves the commit window opens first (§4). | — |
 
 Other actions (match, bump, shake, chalk, clip, place gear, kneebar, downclimb, take, jump off) sit in a horizontal action strip above Go, each with its pump/time cost; disabled actions explain themselves on long-press. The **preview triangle** uses three fixed slots so the eye learns positions: left success band (text and icon: *solid* / *probably* / *sketchy* / *desperate*, or a percentage above the `route_reading` threshold), centre pump cost as a bar segment drawn onto the pump meter itself, right position quality as a 1–5 stance icon. Rest value is shown on hold long-press as "shake: +12 pump" **(tune)**.
+
+**Camera.** The wall is the oblique side view of [05a](05a-wall-and-kinematics.md): a hold at lateral `x` and height `y` projects to `X = −z(y) + 0.5·x`, `Y = y`, so an overhang leans out to the left and the rock body sits to the right. The camera frames the climber: shoulders, hips and the four limb ends, plus 0.9 m of rock above the shoulders and 1.0 m below the hips, padded 1.2 m across and 0.8 m up, never smaller than 2.2 × 2.8 m and, at zoom 1, never wider than the whole problem. Zoom (0.6×–2.5×, of which the lower end stops at 0.8× the whole problem) and pan sit on top of that frame, and the view is clamped so it never leaves the problem. After a move the pan eases back to the climber **(tune)**.
+
+**The rig.** Torso as a tapered capsule, head, two-bone arms and legs posed from the same body points the reach check uses ([05a §4.2](05a-wall-and-kinematics.md#42-anchors-body-centre-hips-and-shoulders)), so what is drawn is what was measured. Elbows drop and sit back off the wall; knees point into it. The far-side limbs (LH, LF) are drawn behind the torso a tone darker, the near-side limbs in front; the selected limb is amber. Hold rings, target rings and limb glyphs are drawn above the body, so the climber never hides a choice. Face segments shade darker as the rock steepens.
+
+**Motion** (all **(tune)**):
+
+| Event | Animation |
+|---|---|
+| Static move, rest, chalk | 250 ms ease-in-out between poses; the moving limb travels an arc out from the wall and up (`min(0.25, 0.35·d)` m at mid-move) |
+| Deadpoint, dyno | 420 ms; the body lifts on a half-sine through the move, 0.10 (deadpoint) or 0.22 (dyno) × body scale at mid-flight |
+| Sketchy move, recovered slip | 320 ms shake of the torso, even when no hold changed |
+| Fall, jump off | 700 ms: hands and feet let go, the body drops to the pads accelerating from rest and lands at 65% of the time; *FELL* or *OFF* above the body |
+| Send | 700 ms: up and over the lip; *SENT* below the body |
+| Reduced motion | every pose change snaps; no ending animation, straight to the result |
+
+The attempt screen stays up through the ending and then hands over to the result screen (ending + 250 ms).
 
 **Auto-climb toggle** sits top-right of the wall. On, margin-safe moves animate at 250 ms each until the next intervention point (crux band, clip, rest, gear); a bar at the top shows "auto" and any tap pauses it. Auto-climb never plays a commit window unless `auto_commit` is on; it stops and hands the window to the player.
 
@@ -57,10 +74,11 @@ Fear sources are always shown as a list, never a single number, so the player le
 
 Opens only for `dyno`, `deadpoint`, slaps and optional foot-cut recoveries ([05b](05b-move-resolution-and-attempt-loop.md)).
 
+- **Two taps: launch, then catch.** Confirming a dynamic move opens the window in a *ready* state with the zones drawn and no marker. The first tap (*launch*) starts the sweep; the second (*catch*) stops it, and the offset is measured from the launch. The player chooses when the sweep starts, so it never runs while the thumb is elsewhere, and the input follows the move: you commit, then you catch. Either tap can land anywhere on the bar or the large button below it. While ready, an **Auto** button resolves this one window as Auto-commit; that is the per-move escape hatch, separate from the global setting. A sweep that ends with no catch is a *cut*.
 - **Placement:** a horizontal bar across the bottom 20% of the screen, 84% of screen width, 56 dp tall; the entire bar and the 120 dp below it are the tap target, so a thumb anywhere low on the screen registers. The wall dims 30% behind it; the target hold stays bright.
 - **Sweep:** a marker travels left → right once (mirrored for the left-handed setting), duration 750 ms default, device-tuned range **600–900 ms**; `RunOptions.sweep_speed` scales it 0.6×–1.6× as an accessibility setting with no scoring penalty. Marker speed and zone width are then modulated by the build and state as in 05b (fear outside the IZOF band speeds the marker; pump speeds it; `commitment` and `dynamic_movement` widen the zone).
 - **Zones:** outer zone (*caught*) drawn as a solid mid-luminance block; inner zone (*apex*) as a brighter block with a diagonal hatch so it is distinguishable without colour; the bar outside the zones is dark with a dotted texture; the marker is a high-contrast white line with a 2 dp dark outline. Zone edges are labelled above the bar on the first ten windows of a run ("apex" / "caught" / "slap").
-- **Cues:** a 10 ms haptic pulse and a short tick when the window opens; a 20 ms pulse on the tap. No cue is tied to the marker entering the zone, so haptics never leak timing. The optional "assist tick" (settings, default off) plays a sound at zone entry for players who cannot see the bar; it is an accessibility aid and does not change the resolution.
+- **Cues:** a 10 ms haptic pulse and a short tick on launch; a 20 ms pulse on the catch. No cue is tied to the marker entering the zone, so haptics never leak timing. The optional "assist tick" (settings, default off) plays a sound at zone entry for players who cannot see the bar; it is an accessibility aid and does not change the resolution.
 - **Resolution display:** the marker freezes where the tap landed, the zone it hit flashes, and the result word (*apex / caught / slap / cut*) appears for 500 ms with the margin delta.
 - **Auto-commit:** when on, the bar is replaced by a 400 ms "commit" animation with the stat-roll result; the player never has to tap. Backgrounding the app with a window open resolves it as Auto-commit ([18 §5](18-tech-architecture.md)).
 - **Logging:** the tap offset (ms from the inner-zone centre) is written to the action log as `{ t: 'commit', tap_offset_ms }`; `null` for Auto-commit.
@@ -114,3 +132,5 @@ Navigation: a bottom tab bar with five entries (Planner, Crag, Climber, Social, 
 - Whether the limb buttons should be mirrored for left-handed players (default: yes, with the setting shared with sweep direction).
 - Should the preview show a numeric success percentage at all before `route_reading` reaches the threshold in 05b, or only bands? This doc assumes bands only below the threshold.
 - Landscape support for tablets: proposed as a P2 stretch; portrait-only until then.
+- Whether the launch tap should be able to time out (a window left in *ready* for minutes is harmless now, but a later phase with a running clock on the wall may want it to resolve as Auto-commit).
+- The figure is drawn at one body shape for everyone (proportions scale with height only). Showing ape index, mass and leg length on the rig would make builds visible on the wall; it needs the anthropometric proportions from 02 §A wired into the pose.

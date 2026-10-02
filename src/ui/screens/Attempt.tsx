@@ -5,19 +5,24 @@ import {
   athleteOf, autoClimbAction, classPreview, displayedChance, isVisible, limbOptions, liveFear, restPreview, routeEntry, showsExactOdds,
 } from '../../sim/attempt';
 import { izof, type CommitWindow } from '../../sim/resolve';
-import type { RunState } from '../../sim/state';
+import type { AttemptState, RunState } from '../../sim/state';
 import type { Limb, MoveClass } from '../../sim/types';
 import { stars as starCount } from '../../sim/wall';
 import { Circuit, Meter } from '../components';
 import { band, bandColour, CLASS_LABEL, grade, holdLabel, pct, stars } from '../format';
-import { WallCanvas } from '../wall/WallCanvas';
+import { ENDING_MS, WallCanvas, type Ending, type WallTap } from '../wall/WallCanvas';
 import type { TargetKind } from '../wall/render';
 import { act, data, goto, say, settings } from '../store';
 
 const LIMBS: Limb[] = ['LH', 'RH', 'LF', 'RF'];
 
 export function Attempt({ run }: { run: RunState }) {
-  const at = run.attempt;
+  const live = run.attempt;
+  // The last attempt state stays on screen while a fall or a top-out plays, then the result screen takes over.
+  const lastAt = useRef<AttemptState | null>(live);
+  if (live) lastAt.current = live;
+  const at = live ?? lastAt.current;
+  const [ending, setEnding] = useState<Ending>(null);
   const [limb, setLimb] = useState<Limb | null>(null);
   const [hold, setHold] = useState<string | null>(null);
   const [cls, setCls] = useState<MoveClass | null>(null);
@@ -26,8 +31,13 @@ export function Attempt({ run }: { run: RunState }) {
   const options = useMemo(() => (limb && run.attempt ? limbOptions(run, limb, data) : []), [run, limb]);
 
   useEffect(() => {
-    if (!at) goto({ name: 'result' });
-  }, [at]);
+    if (live) return;
+    const outcome = run.last_attempt?.outcome;
+    if (!lastAt.current || settings.value.reduce_motion || !outcome) { goto({ name: 'result' }); return; }
+    setEnding(outcome === 'sent' ? 'send' : outcome === 'jumped' ? 'off' : 'fall');
+    const t = setTimeout(() => goto({ name: 'result' }), ENDING_MS + 250);
+    return () => clearTimeout(t);
+  }, [live]);
 
   // Backgrounding with a window open resolves it as Auto-commit (18 §5).
   useEffect(() => {
@@ -38,16 +48,16 @@ export function Attempt({ run }: { run: RunState }) {
 
   // Auto-commit setting: resolve windows immediately.
   useEffect(() => {
-    if (at?.pending && run.options.auto_commit && !busy.current) {
+    if (live?.pending && run.options.auto_commit && !busy.current) {
       busy.current = true;
       void act({ t: 'commit', tap_offset_ms: null }).finally(() => { busy.current = false; });
     }
-  }, [at?.pending, run.options.auto_commit]);
+  }, [live?.pending, run.options.auto_commit]);
 
   // Auto-climb loop.
   useEffect(() => {
-    if (!auto || !at || busy.current) return;
-    if (at.pending && !run.options.auto_commit) { setAuto(false); return; }
+    if (!auto || !live || busy.current) return;
+    if (live.pending && !run.options.auto_commit) { setAuto(false); return; }
     const next = autoClimbAction(run, data);
     if (!next) { setAuto(false); say('Auto-climb stopped: your call.'); return; }
     const t = setTimeout(() => {
@@ -79,6 +89,12 @@ export function Attempt({ run }: { run: RunState }) {
   const rest = restPreview(at, geom, ath);
 
   const pickLimb = (l: Limb) => { setLimb(l === limb ? null : l); setHold(null); setCls(null); };
+  const onTap = (t: WallTap) => {
+    if (ending) return;
+    // A tap on the figure's hand or foot picks that limb, unless it lands on a hold the selected limb can move to.
+    if (t.limb && !(limb && t.hold && targets.has(t.hold))) { pickLimb(t.limb); return; }
+    tapHold(t.hold);
+  };
   const tapHold = (id: string | null) => {
     if (!limb) {
       // Tapping a hold with no limb selected picks the free limb that can reach it, hands first.
@@ -92,14 +108,14 @@ export function Attempt({ run }: { run: RunState }) {
     setCls(null);
   };
   const go = async () => {
-    if (!selected || !chosen || busy.current) return;
+    if (!selected || !chosen || busy.current || !live) return;
     busy.current = true;
     const ok = await act({ t: 'move', limb: selected.option.limb, hold: selected.option.hold.id, class: chosen });
     busy.current = false;
     if (ok) { setHold(null); setCls(null); }
   };
   const wall = async (kind: 'rest' | 'chalk' | 'jump_off') => {
-    if (busy.current) return;
+    if (busy.current || !live) return;
     busy.current = true;
     await act({ t: 'wall_action', kind });
     busy.current = false;
@@ -122,16 +138,19 @@ export function Attempt({ run }: { run: RunState }) {
       </div>
       <WallCanvas
         label={`${route.name}: wall with the climber${limb ? `, ${limb} selected` : ''}`}
-        onHold={tapHold}
-        view={{ geom, ath, climb: at.climb, visible: (id) => isVisible(project, route, id), limb, targets, selected: hold, feetCut: at.climb.feet_cut }}
+        onTap={onTap}
+        view={{ geom, ath, climb: at.climb, visible: (id) => isVisible(project, route, id), limb: ending ? null : limb, targets: ending ? new Map() : targets, selected: hold, feetCut: at.climb.feet_cut }}
+        motion={{ step: at.log.length, style: { limb: last?.limb, cls: last?.cls }, shake: last?.outcome === 'sketchy' || last?.outcome === 'slip_recovered' }}
+        ending={ending}
+        reduceMotion={settings.value.reduce_motion}
       >
-        {at.pending && !run.options.auto_commit && (
+        {live && at.pending && !run.options.auto_commit && (
           <CommitOverlay key={`${at.attempt_index}:${at.move_index}`} window={at.pending.window} cls={at.pending.cls} onCommit={(o) => { void act({ t: 'commit', tap_offset_ms: o }); }} />
         )}
       </WallCanvas>
       <div class="hud">
-        {last && <span class="tiny soft">{last.text}{last.commit ? ` (${last.commit})` : ''}</span>}
-        <div class="meters" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr' }}>
+        <span class="tiny soft one-line">{last ? last.text : `${at.mode} attempt`}</span>
+        <div class="meters" style={{ gridTemplateColumns: 'minmax(0, 1.4fr) repeat(3, minmax(0, 1fr))' }}>
           <Meter label="Pump" value={at.pump} colour={at.pump > 70 ? 'var(--warn)' : 'var(--sky)'} />
           <Meter label="Power" value={at.power} max={Math.max(1, ath.a.anaerobic_capacity)} colour="var(--accent)" />
           <Meter label="Skin" value={run.res.skin} colour="#E2B9A0" />
@@ -139,40 +158,38 @@ export function Attempt({ run }: { run: RunState }) {
         </div>
         <div class="col" style={{ gap: '4px' }}>
           <Meter label="Fear" value={fear.fear} band={[bandZ.lo, bandZ.hi]} colour={fear.fear > bandZ.hi ? 'var(--warn)' : fear.fear < bandZ.lo ? 'var(--muted)' : 'var(--good)'} />
-          <div class="row wrap">
+          <div class="row chips-line">
             {at.fear_log.slice(-4).map((f, i) => <span key={i} class="chip">{f.label} {f.delta > 0 ? '+' : '−'}{Math.abs(f.delta)}</span>)}
             {fear.height > 0.5 && <span class="chip">height +{fear.height.toFixed(0)}</span>}
           </div>
         </div>
-        {selected && chosen && pv ? (
-          <div class="preview">
-            <div class="row between">
-              <span class="kicker">{CLASS_LABEL[chosen]} · {selected.option.limb} → {holdLabel(selected.option.hold.type)}</span>
-              {pv.dynamic && <span class="tiny accent mono">power −{Math.round(pv.evaluation.power_cost)} · window</span>}
-            </div>
-            {classes.length > 1 && (
-              <div class="classes">{classes.map((c) => <button key={c} class="chip-btn" aria-pressed={c === chosen} onClick={() => setCls(c)}>{CLASS_LABEL[c]}</button>)}</div>
+        <div class="preview">
+          <div class="row between preview-head">
+            {selected && chosen && pv
+              ? <span class="kicker one-line">{CLASS_LABEL[chosen]} · {selected.option.limb} → {holdLabel(selected.option.hold.type)}</span>
+              : <span class="small soft one-line">{reason ? `Can't: ${reason}.` : limb ? 'Tap a ring. Dashed rings: deadpoint or dyno.' : 'Pick a limb, or tap a hold or a hand or foot.'}</span>}
+            {selected && classes.length > 1 && (
+              <span class="classes">{classes.map((c) => <button key={c} class="chip-btn small" aria-pressed={c === chosen} onClick={() => setCls(c)}>{CLASS_LABEL[c]}</button>)}</span>
             )}
-            <div class="triangle">
-              <div><span class="big" style={{ color: bandColour(shown) }}>{exact ? pct(shown) : band(shown)}</span><span class="tiny muted">success</span></div>
-              <div><span class="big">+{pv.pump_ev.toFixed(1)}</span><span class="tiny muted">pump</span></div>
-              <div><span class="big" style={{ fontSize: '15px' }}>{stars(pv.pq_after)}</span><span class="tiny muted">position after ({starCount(pv.pq_after)}★)</span></div>
+          </div>
+          <div class="triangle" aria-hidden={!pv}>
+            <div><span class="big" style={{ color: pv ? bandColour(shown) : undefined }}>{pv ? (exact ? pct(shown) : band(shown)) : '—'}</span><span class="tiny muted">success</span></div>
+            <div>
+              <span class="big">{pv ? `+${pv.pump_ev.toFixed(1)}` : '—'}{pv?.dynamic && <span class="sub"> / −{Math.round(pv.evaluation.power_cost)}</span>}</span>
+              <span class="tiny muted">{pv?.dynamic ? 'pump / power' : 'pump'}</span>
             </div>
+            <div><span class="big" style={{ fontSize: '15px' }}>{pv ? stars(pv.pq_after) : '—'}</span><span class="tiny muted">{pv ? `after (${starCount(pv.pq_after)}★)` : 'position after'}</span></div>
           </div>
-        ) : (
-          <div class="preview">
-            <span class="small soft">{reason ? `Can't: ${reason}.` : limb ? 'Tap a highlighted hold. Dashed rings need a deadpoint or dyno.' : 'Pick a limb, or tap a hold.'}</span>
-          </div>
-        )}
+        </div>
         <div class="actions">
-          <button onClick={() => wall('rest')} disabled={!!at.pending}>Shake<span>{rest < -0.05 ? rest.toFixed(1) : `+${Math.max(0, rest).toFixed(1)}`}</span></button>
-          <button onClick={() => wall('chalk')} disabled={!!at.pending}>Chalk<span>4 s</span></button>
-          <button onClick={() => wall('jump_off')} disabled={!!at.pending}>Jump off<span>pads</span></button>
+          <button onClick={() => wall('rest')} disabled={!!at.pending || !live}>Shake<span>{rest < -0.05 ? rest.toFixed(1) : `+${Math.max(0, rest).toFixed(1)}`}</span></button>
+          <button onClick={() => wall('chalk')} disabled={!!at.pending || !live}>Chalk<span>4 s</span></button>
+          <button onClick={() => wall('jump_off')} disabled={!!at.pending || !live}>Jump off<span>pads</span></button>
           <button onClick={() => { setLimb(null); setHold(null); }}>Clear<span>select</span></button>
         </div>
         <div class="row">
-          <div class="limbs">{LIMBS.map((l) => <button key={l} aria-pressed={limb === l} onClick={() => pickLimb(l)}>{l}</button>)}</div>
-          <button class="go" disabled={!selected || !chosen || !!at.pending} onClick={go}>GO<span>{chosen ? CLASS_LABEL[chosen] : ''}</span></button>
+          <div class="limbs">{LIMBS.map((l) => <button key={l} aria-pressed={limb === l} disabled={!live} onClick={() => pickLimb(l)}>{l}</button>)}</div>
+          <button class="go" disabled={!selected || !chosen || !!at.pending || !live} onClick={go}>GO<span>{chosen ? CLASS_LABEL[chosen] : ''}</span></button>
         </div>
       </div>
     </div>

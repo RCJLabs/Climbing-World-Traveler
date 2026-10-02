@@ -82,7 +82,8 @@ button.card:hover { border-color: #4a6558; }
 .meter-fill { height: 100%; border-radius: 4px; background: var(--sky); }
 .meter-band { position: absolute; top: 0; bottom: 0; background: rgba(143, 203, 155, 0.25); border-left: 1px solid var(--good); border-right: 1px solid var(--good); }
 .meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 10px 14px; }
-.meter-label span:last-child { margin-left: 6px; }
+.meter-label span:last-child { margin-left: 6px; flex-shrink: 0; }
+.meter-label span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
 .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }
 .tabbar button { background: none; border: none; padding: 10px 4px 12px; font-family: var(--cond); font-size: 14px; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
@@ -121,7 +122,19 @@ button.card:hover { border-color: #4a6558; }
 .triangle { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .triangle > div { display: flex; flex-direction: column; gap: 2px; }
 .triangle .big { font-family: var(--mono); font-size: 18px; font-weight: 600; }
-.classes { display: flex; gap: 6px; flex-wrap: wrap; }
+.classes { display: flex; gap: 4px; flex-wrap: nowrap; flex-shrink: 0; }
+.chip-btn.small { min-height: 26px; padding: 2px 8px; font-size: 11px; }
+/* The HUD keeps one height whatever is selected, so the wall above it never rescales mid-climb. */
+.one-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.preview-head { min-height: 26px; gap: 8px; flex-wrap: nowrap; }
+.chips-line { flex-wrap: nowrap; overflow: hidden; height: 26px; }
+.triangle[aria-hidden='true'] .big { color: var(--muted); }
+.hud .meter-label { letter-spacing: 0.03em; font-size: 11px; }
+.hud .meters { gap: 8px 10px; }
+.hud .preview { padding: 6px 10px; gap: 4px; }
+.hud .triangle .big { font-size: 16px; white-space: nowrap; }
+.hud .triangle .big .sub { font-size: 13px; color: var(--accent); }
+.hud .triangle .tiny { white-space: nowrap; }
 
 .commit { position: absolute; left: 12px; right: 12px; bottom: 12px; background: rgba(16, 26, 22, 0.94); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .commit-bar { position: relative; height: 54px; border-radius: 8px; background: var(--raised); overflow: hidden; touch-action: manipulation; }
