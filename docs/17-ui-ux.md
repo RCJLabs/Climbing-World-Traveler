@@ -31,7 +31,7 @@ The core loop, left to right in time:
 | Confirm | A large **Go** button in the thumb zone; the rig ghosts into the resulting pose. | Tap Go, or tap another hold to re-preview |
 | Resolve | Outcome text and meter deltas animate (≤ 400 ms); on dynamic moves the commit window opens first (§4). | — |
 
-Other actions (match, bump, shake, chalk, clip, place gear, kneebar, downclimb, take, jump off) sit in a horizontal action strip above Go, each with its pump/time cost; disabled actions explain themselves on long-press. The **preview triangle** uses three fixed slots so the eye learns positions: left success band (text and icon: *solid* / *probably* / *sketchy* / *desperate*, or a percentage above the `route_reading` threshold), centre pump cost as a bar segment drawn onto the pump meter itself, right position quality as a 1–5 stance icon. Rest value is shown on hold long-press as "shake: +12 pump" **(tune)**.
+Other actions (match, bump, shake, chalk, clip, place gear, kneebar, downclimb, take, jump off) sit in a horizontal action strip above Go, each with its pump/time cost; a disabled action answers a tap with why it is off. The **preview triangle** uses three fixed slots so the eye learns positions: left success band (text and icon: *solid* / *probably* / *sketchy* / *desperate*, or a percentage above the `route_reading` threshold), centre pump cost as a bar segment drawn onto the pump meter itself, right position quality as a 1–5 stance icon. Rest value is shown on hold long-press as "shake −1.1 pump": the change in pump from a first shake hanging on that hold, negative when it recovers, the same number the Shake button shows for the current stance. Long-press is off while a Reach or Balance move is armed, so a thumb resting before its drag is never read as a question.
 
 **Camera.** The wall is the oblique side view of [05a](05a-wall-and-kinematics.md): a hold at lateral `x` and height `y` projects to `X = −z(y) + 0.5·x`, `Y = y`, so an overhang leans out to the left and the rock body sits to the right. The camera frames the climber: shoulders, hips and the four limb ends, plus 0.9 m of rock above the shoulders and 1.0 m below the hips, padded 1.2 m across and 0.8 m up, never smaller than 2.2 × 2.8 m and, at zoom 1, never wider than the whole problem. Zoom (0.6×–2.5×, of which the lower end stops at 0.8× the whole problem) and pan sit on top of that frame, and the view is clamped so it never leaves the problem. After a move the pan eases back to the climber **(tune)**.
 
@@ -50,7 +50,7 @@ Other actions (match, bump, shake, chalk, clip, place gear, kneebar, downclimb, 
 
 The attempt screen stays up through the ending and then hands over to the result screen (ending + 250 ms).
 
-**Auto-climb toggle** sits top-right of the wall. On, margin-safe moves animate at 250 ms each until the next intervention point (crux band, clip, rest, gear); a bar at the top shows "auto" and any tap pauses it. Auto-climb never plays a commit window unless `auto_commit` is on; it stops and hands the window to the player.
+**Auto-climb toggle** sits top-right of the wall. On, margin-safe moves animate at 250 ms each until the next intervention point (crux band, clip, rest, gear); a bar at the top shows "auto" and any tap pauses it. When it hands back, the reason (crux, dynamic move, pumped, fear, a good shake, an unseen hold) shows in the preview line. Auto-climb never plays a commit window unless `auto_commit` is on; it stops and hands the window to the player.
 
 ---
 
