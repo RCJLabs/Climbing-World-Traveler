@@ -160,13 +160,15 @@ Insurance ([14 §4](14-economy-gear-logistics.md)): standard cover pays 80% of p
 
 ---
 
-## Open questions
+## Open questions / proposed schema additions
+
+### Open questions
 
 1. Whether G1 injuries should be shown as a diagnosis or only as "niggle" text until a physio visit (information gating like `tendon_robustness`).
 2. The epiphyseal variant may deserve its own `InjuryDef` row rather than a substitution rule.
 3. HACE survival deficit as `forced_injury` vs a permanent ceiling loss only; currently both depending on `health`.
 
-## Proposed schema additions
+### Proposed schema additions
 
 - `InjuryDef.severities[].career_ending?: boolean` so [11 §4](11-time-career-aging.md) can read the flag from data.
 - `InjuryDef.site` lacks `'hand'`/`'systemic'` subdivision for frostbite toes; acceptable under `'systemic'`.

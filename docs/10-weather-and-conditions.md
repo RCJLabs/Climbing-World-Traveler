@@ -109,12 +109,14 @@ The player sees a 1–5 day forecast. Each displayed day is the true generated s
 
 ---
 
-## Open questions
+## Open questions / proposed schema additions
+
+### Open questions
 
 1. Whether `friction` should be clamped at 1.25 to stop stacked bonuses (dry sandstone, chalk, wind, cold) making DI drift more than 0.5 on a perfect day; the harness should report friction variance by crag.
 2. The RRG rain exception may need an angle threshold per sector rather than per route.
 
-## Proposed schema additions
+### Proposed schema additions
 
 - `Crag.sun_aspect?: 'n'|'e'|'s'|'w'|'mixed'` per crag (or per sector) so sun/shade is not only a fraction.
 - `Hold.state.wet` already exists; add `WorldState.snow_depth_cm: Record<crag_id, number>` and `WorldState.weather: Record<crag_id, DailyWeather>` where `DailyWeather = { state; t_max; t_min; rh; wind; precip_mm }`.

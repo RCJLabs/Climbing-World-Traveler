@@ -170,16 +170,19 @@ A gym is a crag with `rock: 'plastic'`, `gym_tier` from the host crag/hub, and n
 
 ---
 
-## Open questions
+## Open questions / proposed schema additions
+
+### Open questions
 
 1. Should bouldering keep a vestigial `pump` meter in P1a or hide it entirely until P1b, showing only Power? Leaning to hide.
 2. Pinkpoint vs redpoint: a per-region ethics flag or a single global rule? Proposed global rule with Frankenjura dialogue only.
 3. Trad `rack_kg` as a derived field on the attempt vs a `GearInstance` sum; needs a decision in [14](14-economy-gear-logistics.md).
 4. Competition isolation as a `fear` source vs a separate `nerves` resource; proposed as a fear source to keep one meter.
 
-## Proposed schema additions
+### Proposed schema additions
 
 - `Route.aid_grade?: string` and `Route.nccs?: 'I'|'II'|'III'|'IV'|'V'|'VI'` for multipitch (08 §3 mentions them; schemas.md does not carry the fields).
 - `Protection.coverage?: number` and `Protection.spot_quality?: number` for `pad_zone`.
 - `Crag.tide_seed?: string` for DWS crags.
+- `Climber.acclimatisation_m: number` (altitude currently adapted to; §5) and `Climber.rack_kg` as derived attempt state (§3).
 - `Route.hazard_zones?: { y0: number; y1: number; kind: 'serac'|'cornice'|'avalanche'|'rockfall'; rate_per_hour: number }[]` for alpine.

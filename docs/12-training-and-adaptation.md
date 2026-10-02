@@ -180,13 +180,15 @@ A Projector trait and an Onsight Purist trait ([03](03-traits.md)) tilt these mu
 
 ---
 
-## Open questions
+## Open questions / proposed schema additions
+
+### Open questions
 
 1. Whether `finger_load` should be a schema field on `AttributeState` (per-attribute acute/chronic already exists) or a derived sum; proposed derived.
 2. The 40/60 neural/tendon split of finger-strength stimulus is the single most important tuning number for early-career feel.
 3. Whether gym `tech_*` XP at ×0.7 ([07 §9](07-disciplines.md)) makes the comp-kid background too slow outdoors.
 
-## Proposed schema additions
+### Proposed schema additions
 
 - `AttributeState.pending: number` for tendon-clock gains awaiting realisation.
 - `Climber.burnout_inputs: { monotony: number; failure_streak: number }` as derived state kept in the snapshot.

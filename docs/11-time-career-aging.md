@@ -89,12 +89,14 @@ The **legacy screen** shows, in order: the ending line; the grade pyramid by dis
 
 ---
 
-## Open questions
+## Open questions / proposed schema additions
+
+### Open questions
 
 1. Whether a second block should be allowed after a `fly` edge when the flight is short-haul (< 3 h); currently no.
 2. The retirement age prompt at 40 is a design guess; the harness should check how many runs end there versus by injury.
 
-## Proposed schema additions
+### Proposed schema additions
 
 - `ActivityBlock` is referenced by `Action.day_plan` but not defined in schemas.md; proposed: `interface ActivityBlock { kind: 'climb'|'train'|'rest'|'active_recovery'|'work'|'social'|'travel'|'admin'|'physio'|'comp_round'|'climb_bigwall'|'alpine_day'; ref?: string; time_of_day?: 'dawn'|'day'|'dusk' }`.
 - `Action` needs a `{ t: 'risky_choice'; kind: 'alpine_hazard'|'solo'|'dws_s3'|'highball_reckless'|'gear_rip_ignored'; route?: string }` entry so death eligibility is auditable in replay.

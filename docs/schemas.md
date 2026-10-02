@@ -76,7 +76,13 @@ type SizeClass = 'xs' | 's' | 'm' | 'l' | 'xl';   // hold size relative to the h
 type ProtectionKind = 'bolt' | 'gear' | 'anchor' | 'pad_zone' | 'water' | 'ice_screw' | 'none';
 
 type FallKind = 'boulder' | 'rope' | 'trad_rope' | 'water' | 'alpine';
+
+type InjurySite = 'finger' | 'wrist' | 'elbow' | 'shoulder' | 'back' | 'knee' | 'ankle' | 'skin' | 'systemic';
+
+type ShoeType = 'aggressive' | 'flat' | 'stiff' | 'soft';
 ```
+
+Every content type (`Trait`, `Background`, `Crag`, `Route`, `InjuryDef`, `TrainingActivity`, `GameEvent`, `GearDef`, `CragStyleProfile`) may carry `deprecated?: boolean`. A deprecated entry stays in the data so old saves replay, but is never offered to new runs. This is how the "never rename an id" rule in §1 is honoured.
 
 ---
 
@@ -127,6 +133,7 @@ type AttrId = PhysicalAttr | TechniqueAttr | MentalAttr | LifestyleAttr;
 interface AttributeState {
   value: number;        // 0..100 current
   ceiling: number;      // 0..100 from Body + traits + age
+  pending: number;      // gain banked on the slow (tendon) clock, released over time (12 §3)
   load_acute: number;   // 7-day training stimulus (see 12)
   load_chronic: number; // 28-day
 }
@@ -174,7 +181,9 @@ interface TraitEffect {
   hold_mult?: Partial<Record<HoldType, number>>;       // EffectiveStat multiplier by hold type
   move_mult?: Partial<Record<MoveClass, number>>;
   condition_mult?: Partial<Record<'cold' | 'heat' | 'humid' | 'altitude', number>>;
-  resource_mult?: Partial<Record<keyof Resources, number>>;
+  resource_mult?: Partial<Record<keyof Resources, number>>;   // multiplies the resource's regeneration or gain, never its ceiling (03 §1.9)
+  injury_site_mult?: Partial<Record<InjurySite, number>>;    // injury-risk multiplier by site
+  scope?: { rock?: RockType[]; region?: string[]; discipline?: Discipline[] };   // when present the whole effect applies only in scope (Crag Mayor, Tufa Whisperer, Grit Hardened)
   fear_add?: number;              // baseline fear shift
   injury_risk_mult?: number;
   recovery_mult?: number;
@@ -189,13 +198,17 @@ interface Trait {
   name: string;
   category: TraitCategory;
   kind: TraitKind;
-  cost: number;                   // creation traits: +2..+10 cost, -2..-10 refund; quirks and acquired: 0
+  cost: number;                   // creation traits: +2..+10 cost, -2..-10 refund; quirks, hidden and acquired: 0
+  point_mass?: number;            // hidden traits only: signed weight used to balance the hidden pool (03 §1.6)
   phase: Phase;
   tags: Tag[];
   effect: TraitEffect;
-  excludes: string[];             // trait ids
+  excludes: string[];             // trait ids; reciprocal for creation traits, one-way allowed for hidden
   requires?: string[];            // trait ids or background ids
+  requires_age?: [number, number];   // inclusive age_start window (Late Starter ≥ 28)
   evolves_to?: { trait: string; condition: string }[];   // for 'evolving' traits
+  foreshadow?: string;            // hidden traits: event id that fires before the reveal
+  expires?: { days: number } | { condition: string };    // temporary acquired traits (Acclimatised, Comp Yips)
   flavour: string;
 }
 ```
@@ -208,6 +221,7 @@ interface Background {
   name: string;
   phase: Phase;
   point_bonus: number;                          // 0..6
+  age_range: [number, number];                  // inclusive age_start window the background allows
   attr_add: Partial<Record<AttrId, number>>;
   attr_points: number;                          // free starting allocation on top of base
   money_start: number;
@@ -240,8 +254,19 @@ interface Climber {
   home_region: string;
   location: string;                 // crag id or hub id
   reputation: Record<string, number>;   // region id -> -100..100
+  rep_discipline: Partial<Record<Discipline, number>>;   // -100..100
+  ethics: number;                   // -100..100, chipping/spraying/access violations lower it (15)
+  following: number;                // media audience size, drives content income and sponsor tiers (14, 15)
+  sponsor_tier: 0 | 1 | 2 | 3 | 4 | 5;
+  sponsor_contract_day?: number;    // sim day the current contract renews
   relationships: Record<string, Relationship>;   // climber id -> relationship
   ticklist: Tick[];
+  known_routes: Record<string, { attempts: number; familiarity: number; beta_known: boolean }>;   // route id -> memory (05b §12)
+  counters: Record<string, number>; // named counters for evolving traits and events (practice_falls, rope_falls_logged, flights_taken…)
+  acclimatisation_m: number;        // altitude the climber is currently adapted to (07, 10)
+  rack_kg: number;                  // carried protection mass on trad routes (07)
+  insurance: 'none' | 'travel' | 'full';   // (13, 14)
+  comp_results: { event: string; day: number; discipline: Discipline; rank: number; field: number }[];
   archetypes: string[];             // detected, cosmetic
 }
 ```
@@ -253,13 +278,16 @@ interface Climber {
 ```ts
 interface WallSegment {
   y0: number; y1: number;           // metres from ground
-  angle: number;                    // degrees, 90 = vertical
+  length_m?: number;                // surface length; required when angle ≥ 165° because y0..y1 collapses on roofs (05a)
+  angle: number;                    // degrees, 90 = vertical, capped at 170
   feature?: 'arete' | 'corner' | 'crack' | 'lip' | 'ledge' | 'hueco' | 'tufa' | 'none';
 }
 
 interface Hold {
   id: string;
   x: number; y: number;             // metres; x lateral, y height
+  s?: number;                       // distance along the wall surface from the start, derived from segments (05a); cached, not authored
+  kneebar_with?: string;            // hold id that pairs with this one for a kneebar
   type: HoldType;
   size: SizeClass;
   orientation: number;              // degrees; 0 = pull straight down, 90 = sidepull right, 180 = undercling
@@ -277,6 +305,7 @@ interface Protection {
   id: string;
   kind: ProtectionKind;
   y: number; x?: number;
+  width_m?: number;                 // pad zones and water: lateral extent protected
   gear_sizes?: string[];            // 'c0.3'..'c6', 'nut1'..'nut13'
   quality: number;                  // 0..1 placement quality (gear), bolt condition
   reach_from: string[];             // hold ids from which a clip/placement is possible
@@ -299,8 +328,16 @@ interface Route {
   style_tags: Tag[];
   signature: boolean;
   seed?: string;                    // procedural only
+  beta_line?: { limb: Limb; hold: string }[];   // the generator's intended sequence; revealed by route_reading or beta (06)
+  components?: { hardest_move: number; crux_density: number; pump_peak: number; rests: number };   // surfaced by the grade engine (05c)
+  aid_grade?: string;               // 'A0'..'A5' | 'C1'..'C5' (P3)
+  nccs?: 'I' | 'II' | 'III' | 'IV' | 'V' | 'VI';   // commitment grade for multipitch/big wall (P3)
+  hazard_zones?: { y0: number; y1: number; kind: 'serac' | 'rockfall' | 'avalanche' | 'cornice'; p_per_hour: number }[];   // alpine objective hazard (P4)
   fa_note?: string;                 // fictional FA credit text; no real people
 }
+
+interface Hub { id: string; name: string; country: string; lat: number; lon: number; airport: boolean; }
+// TravelEdge gains an `id` (referenced by Action.travel.edge): `${from}__${to}__${mode}`.
 ```
 
 ---
@@ -333,6 +370,13 @@ interface CragStyleProfile {
   seep_susceptibility: number;
   crux_position: 'low' | 'mid' | 'high' | 'spread';
   move_grammar: Partial<Record<MoveClass, number>>;
+  feature_weights?: Partial<Record<NonNullable<WallSegment['feature']>, number>>;
+  rest_spacing_m?: number;          // mean distance between generated rest stances (routes)
+  decoy_rate?: number;              // off-route holds per metre of line, 0..1 (06)
+  hidden_rate?: number;             // share of holds hidden until read, 0..1
+  drift_max_m?: number;             // bound on lateral drift of the main line
+  pad_coverage?: number;            // boulders: default pad zone width as a fraction of landing
+  name_bank?: string;               // id of the crag-flavoured name generator table
   tags: Tag[];
 }
 
@@ -351,6 +395,14 @@ interface Crag {
   community_size: 'tiny' | 'small' | 'medium' | 'large' | 'huge';
   language: string[];
   gym_tier: 0 | 1 | 2 | 3;
+  connectivity: 0 | 1 | 2 | 3;           // 0 none .. 3 reliable; gates remote work and content income (14)
+  climate_class: string;                 // short label used by the UI and the weather model (10)
+  sun_aspect?: 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW' | 'mixed';
+  season_by_discipline?: Partial<Record<Discipline, Crag['season']>>;   // when ice and rock seasons differ (Chamonix)
+  min_rope_m?: number;
+  landing?: 'flat' | 'uneven' | 'sloping' | 'blocks' | 'water';   // boulder landings default
+  tide_seed?: string;                    // DWS crags: seeds the daily tide/swell series (07)
+  sectors?: { id: string; name: string; character: string; circuits?: { colour: string; di_range: [number, number] }[]; landing?: Crag['landing']; dry_lag_days?: number }[];
   signature_routes: string[];            // route ids
   style_profiles: string[];              // CragStyleProfile ids
   npc_archetypes: string[];
@@ -379,15 +431,21 @@ interface TravelEdge { from: string; to: string; mode: 'fly' | 'drive' | 'bus' |
 interface InjuryDef {
   id: string;
   name: string;
-  site: 'finger' | 'wrist' | 'elbow' | 'shoulder' | 'back' | 'knee' | 'ankle' | 'skin' | 'systemic';
-  severities: { grade: 1 | 2 | 3; heal_days: [number, number]; full_load_days: [number, number]; permanent_ceiling_loss?: Partial<Record<AttrId, number>> }[];
+  site: InjurySite;
+  severities: { grade: 1 | 2 | 3; heal_days: [number, number]; full_load_days: [number, number]; permanent_ceiling_loss?: Partial<Record<AttrId, number>>; career_ending?: boolean }[];
   triggers: ('load' | 'fall' | 'move' | 'cold' | 'altitude' | 'illness')[];
   risk_mods: { tag: Tag; mult: number }[];
   rehab: string[];                        // TrainingActivity ids
   acquired_trait?: string;
 }
 
-interface InjuryInstance { def: string; grade: 1 | 2 | 3; day_onset: number; day_full_load: number; rehab_progress: number; }
+interface InjuryInstance { def: string; grade: 1 | 2 | 3; day_onset: number; day_full_load: number; rehab_progress: number; rehab_compliance: number; /* 0..1, lowers re-injury risk (13) */ }
+
+interface ActivityBlock {
+  kind: 'climb' | 'train' | 'rest' | 'active_recovery' | 'work' | 'social' | 'travel' | 'admin' | 'physio' | 'comp_round' | 'alpine_day' | 'climb_bigwall';
+  time_of_day: 'dawn' | 'morning' | 'afternoon' | 'dusk';
+  target?: string;                  // route id, TrainingActivity id, NPC id or job id depending on kind
+}
 
 interface TrainingActivity {
   id: string;
@@ -399,18 +457,52 @@ interface TrainingActivity {
   tags: Tag[];
 }
 
+interface GearDef {
+  id: string;
+  name: string;
+  kind: 'shoe' | 'rope' | 'cam' | 'nut' | 'quickdraw' | 'pad' | 'chalk' | 'harness' | 'helmet' | 'clothing' | 'ice_tool' | 'screw' | 'hangboard' | 'vehicle' | 'misc';
+  cost: number;
+  mass_kg: number;
+  wear_sessions?: number;           // sessions until worn out (shoes, rope); vehicles use days
+  shoe?: { type: ShoeType; hold_mult: Partial<Record<HoldType, number>>; move_mult: Partial<Record<MoveClass, number>>; resole_cost: number };
+  size?: string;                    // cams and nuts: 'c0.3'..'c6', 'nut1'..'nut13'
+  tags: Tag[];
+  phase: Phase;
+}
+
+interface GearInstance { def: string; wear: number; /* 0..1 remaining */ acquired_day: number; }
+
 interface GameEvent {
   id: string;
   title: string;
   context: ('crag' | 'travel' | 'rest_day' | 'social' | 'training' | 'weather' | 'injury' | 'comp')[];
   weight: number;
-  conditions: string[];                           // predicate ids evaluated by the event system
+  conditions: string[];                           // predicate ids evaluated by the event system (15 §5)
   options: { text: string; requires?: string[]; outcomes: { weight: number; effects: EventEffect; text: string }[] }[];
   once_per_run?: boolean;
+  cooldown_days?: number;
   phase: Phase;
 }
 
-interface EventEffect { resources?: Partial<Resources>; attr_add?: Partial<Record<AttrId, number>>; traits_add?: string[]; traits_remove?: string[]; rep?: Record<string, number>; money?: number; injury?: string; relationship?: Record<string, number>; unlock?: string[]; }
+// All numeric EventEffect fields are DELTAS applied to the current value, never absolute sets.
+// Keys in `rep` and `relationship` may use the placeholders '@here' (current region), '@partner', '@local',
+// '@rival' (NPC ids resolved at fire time) and `traits_add` may use '@pending_hidden' (the queued hidden trait).
+interface EventEffect {
+  resources?: Partial<Resources>;
+  attr_add?: Partial<Record<AttrId, number>>;
+  traits_add?: string[]; traits_remove?: string[];
+  rep?: Record<string, number>;
+  rep_discipline?: Partial<Record<Discipline, number>>;
+  ethics?: number;
+  following_mult?: number;
+  sponsor_tier_delta?: number;
+  money?: number;
+  injury?: string;                                // InjuryDef id, grade rolled by 13
+  relationship?: Record<string, number>;          // trust deltas
+  npc_patch?: Record<string, Partial<NPC>>;       // e.g. mark a partner injured or departed
+  delay_days?: number;                            // lose travel/climbing days
+  unlock?: string[];
+}
 
 interface NPC extends Climber {
   archetype: string;
@@ -434,7 +526,8 @@ interface Tick { route: string; day: number; style: 'onsight' | 'flash' | 'redpo
 
 ```ts
 interface SaveGame {
-  version: number;                       // schema version, migrated by replay
+  version: number;                       // reducer/schema version, migrated by replay (18 §5)
+  data_version: string;                  // content bundle that produced the run; replay selects it
   run_seed: string;
   created: string;                       // ISO date
   actions: Action[];                     // full action log since last snapshot
@@ -442,15 +535,26 @@ interface SaveGame {
   snapshot_action_index?: number;
 }
 
+// Account-level state that lives outside any run (18 §5 `meta` store). Never written by run actions.
+interface MetaState {
+  version: number;
+  unlocks: string[];                     // trait, background, crag, scenario ids
+  hall_of_fame: RunSummary[];
+  legacies: string[];                    // NPC ids created from retired climbers
+  pyramid: Record<Discipline, Record<number, number>>;   // DI step -> count of sends across all runs
+  daily_history: { seed: string; summary: RunSummary }[];
+}
+
 type Action =
-  | { t: 'new_run'; background: string; body: Body; traits: string[]; attr_alloc: Partial<Record<AttrId, number>>; options: RunOptions }
+  | { t: 'new_run'; background: string; body: Body; traits: string[]; attr_alloc: Partial<Record<AttrId, number>>; options: RunOptions; start_crag_override?: string; scenario?: string }
   | { t: 'day_plan'; day: number; blocks: ActivityBlock[] }
   | { t: 'travel'; edge: string }
   | { t: 'attempt_start'; route: string; mode: 'onsight' | 'flash' | 'redpoint' | 'work' ; auto_climb: boolean }
-  | { t: 'move'; limb: Limb; hold: string }
+  | { t: 'move'; limb: Limb; hold: string; class?: MoveClass }   // class is optional: the engine classifies from geometry; a player may force deadpoint/dyno
   | { t: 'action'; kind: MoveClass | 'take' | 'downclimb' | 'jump_off' | 'chalk' }
   | { t: 'commit'; tap_offset_ms: number | null }      // null = Auto-commit
   | { t: 'event_choice'; event: string; option: number }
+  | { t: 'risky_choice'; kind: 'solo' | 'dws_s3' | 'highball_reckless' | 'ignore_gear_warning' | 'alpine_commit'; route?: string }   // explicit, logged consent to a death-eligible action (11)
   | { t: 'buy' | 'sell'; item: string }
   | { t: 'settings'; patch: Partial<RunOptions> };
 
@@ -458,8 +562,12 @@ interface RunOptions { death_enabled: boolean; auto_commit: boolean; sweep_speed
 
 interface RunSummary {
   climber: string; days: number; age_end: number;
+  scenario?: string;
+  score: number;                         // Hall of Fame score (16)
   end_reason: 'retired' | 'forced_injury' | 'death' | 'burnout' | 'bankrupt';
   hardest: Record<Discipline, number>;   // DI
+  hardest_onsight: number;               // DI
+  risky_choices: number;                 // count of logged risky_choice actions
   ticks: number; first_ascents: number; injuries: number; countries: number;
   unlocks: string[];
   legacy_npc_id?: string;
@@ -476,5 +584,16 @@ interface RunSummary {
 4. `Crag.season` has all twelve months; `Crag.di_range` lies within the DI range of [08](08-grades.md).
 5. Every `Route.protection[].reach_from` references holds in the same route; every `start_holds` entry exists.
 6. `Route.di_graded` is produced by the grade engine, never hand-entered, except on `signature: true` routes where a `di_target` is required and the engine result must land within ±1.0.
-7. `Background.start_crag` must have `phase` ≤ the background's phase.
+7. `Background.start_crag` must have `phase` ≤ the background's phase, and `Background.age_range` must lie within 16..45.
 8. All text fields containing people are fictional; the validator rejects a configurable list of real climbers' names.
+9. `excludes` must be reciprocal between two `creation` traits; a `hidden` trait may exclude one-way (the chosen trait does not need to know about the hidden one).
+10. Hidden traits carry `point_mass`; the pool's positive and negative masses must be equal (03 §1.6).
+11. Every `scope`, `foreshadow`, `requires_age`, `expires` and `TraitEffect.flags` entry must be read by a system named in the trait's row; the validator keeps the flag registry from 03 §1.9.
+12. `deprecated` entries are excluded from new-run selection and from the harness, but must still validate.
+
+## Open questions
+
+- Whether the sim should expose a `t: 'meta'` action family for unlock claims and legacy deletion, or keep all `MetaState` mutations outside the run log as [18 §5](18-tech-architecture.md) assumes. Current answer: outside the log.
+- `WorldState` is described in [18](18-tech-architecture.md) (player, NPCs, visited-crag state, weather history incl. `snow_depth_cm`, calendar, event cooldowns, RNG counters) but not typed here; type it with the first reducer version so this doc and the code agree.
+- `Climber.burnout_inputs` (the monotony and failure-streak accumulators behind the burnout formula in [12](12-training-and-adaptation.md)) may belong in `Resources` or in `counters`; decide when the day loop is implemented.
+- Placeholder keys in `EventEffect` (`@here`, `@partner`…) versus explicit `target` fields on `GameEvent`: placeholders are simpler for authors and are adopted here; revisit if the event validator cannot check them statically.
