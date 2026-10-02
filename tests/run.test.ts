@@ -7,7 +7,7 @@ import { BENCH_PER_PROFILE, estimateBoulderDI } from '../src/sim/estimate';
 import { workedExampleBuilds } from '../src/harness/sim';
 import { evWalk, gradeRoute, referenceAthlete } from '../src/sim/grade';
 import { DEFAULT_OPTIONS, PRESETS, presetSpec } from '../src/sim/presets';
-import { applyAction, createRun, InvalidAction, reduce, replay, sectorList } from '../src/sim/run';
+import { applyAction, createRun, InvalidAction, reduce, replay, sectorList, STOKE_FAIL_SESSIONS } from '../src/sim/run';
 import type { RunState } from '../src/sim/state';
 import type { Action } from '../src/sim/types';
 import { calendarDate } from '../src/sim/weather';
@@ -120,6 +120,24 @@ describe('day loop', () => {
     for (let i = 0; i < 30; i++) applyAction(run, { t: 'end_day' }, bundle);
     expect(run.res.burnout).toBeLessThan(80);
     expect(run.counters.failure_streak).toBe(10); // only a send resets it
+  });
+
+  it(`costs stoke for a session without a send only from the ${STOKE_FAIL_SESSIONS}rd in a row`, () => {
+    /** Stoke lost to one blank session (jump off at once), starting from a given failure streak. */
+    const loss = (streak: number): number => {
+      const run = createRun('blank', presetSpec('dirtbag'), bundle);
+      const sector = openDay(run);
+      run.counters.failure_streak = streak;
+      applyAction(run, { t: 'block_start', kind: 'climb', target: sector }, bundle);
+      applyAction(run, { t: 'attempt_start', route_seed: run.block!.session!.slots[0]!.seed, mode: 'onsight' }, bundle);
+      applyAction(run, { t: 'wall_action', kind: 'jump_off' }, bundle);
+      const before = run.res.stoke;
+      applyAction(run, { t: 'block_end' }, bundle);
+      expect(run.counters.failure_streak).toBe(streak + 1);
+      return before - run.res.stoke;
+    };
+    expect(loss(STOKE_FAIL_SESSIONS - 1) - loss(0)).toBeCloseTo(2, 9);
+    expect(loss(STOKE_FAIL_SESSIONS - 2) - loss(0)).toBeCloseTo(0, 9);
   });
 
   it('ends the run as bankrupt after 30 days in the red', () => {

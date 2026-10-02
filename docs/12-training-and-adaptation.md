@@ -66,14 +66,14 @@ Per session, for each attribute `a` with stimulus `s_a`:
 ```
 gain_a = s_a × k_clock × rate_mult_a × lifestyle_mult × stoke_mult × diminish_a
 
-k_clock       = 0.09 neural · 0.045 muscle · 0.03 tendon          (tune)
+k_clock       = 0.075 neural · 0.0375 muscle · 0.025 tendon      (tune; 5/6 of the first 0.09 · 0.045 · 0.03)
 rate_mult_a   = age adaptation multiplier (02 §E) × trait adapt_rate_mult × fibre_bias term (02 §A.1)
 lifestyle_mult = sleep_mult × nutrition_mult                       (§6)
 stoke_mult    = 0.5 if stoke < 20 · 1.0 otherwise · 1.1 if stoke > 80
-diminish_a    = (1 − value_a / ceiling_a)^1.5
+diminish_a    = (1 − value_a / ceiling_a)^0.5                    (tune; was 1.5)
 ```
 
-`diminish` is the ceiling approach: at 50% of ceiling a session delivers 35% of its nominal gain, at 80% it delivers 9%, at 95% it delivers 1%. With `max_hangs` (stimulus 10) three times a week, a climber at `finger_strength` 30 with ceiling 80 gains about 0.17/session on the neural share, so roughly +2 in the first month and +5 over 12 weeks on neural alone, with the tendon share arriving later: this reproduces the "5–10% in 8–12 weeks" window for an intermediate.
+`diminish` is the ceiling approach: at 50% of ceiling a session delivers 71% of its nominal gain, at 80% it delivers 45%, at 95% it delivers 22%. With `max_hangs` (stimulus 10) three times a week, a climber at `finger_strength` 30 with ceiling 80 gains about 0.23/session on the neural share, so roughly +2.5–3 in the first month and +6–7 over 12 weeks on neural alone, with the tendon share arriving later. The exponent was 1.5 (35%, 9% and 1% at those points) with `k_clock` 6/5 of today's: five-year harness careers then flattened to +0.5 DI a year by year four with attributes at about half their ceilings, so the exponent was lowered and the rates trimmed to keep pace in years three to five. Year one still got a little faster (+4.2 DI against +3.9; first 7a send at 0.9 years against 1.1), which barely responds to the rates ([22 §5](22-p1a-implementation-notes.md)). Technique XP uses the same approach.
 
 Technique uses the per-move XP rule in 02 §B.2 instead of session stimulus; `skill_drills` and outdoor days feed it. Mental attributes gain from events and from `fall_practice`.
 
@@ -169,7 +169,7 @@ The real-world debate (intensity-specific training and limit projecting on one s
 | Hardest redpoint after 2 sim years (harness target) | higher by ~1 DI | — |
 | Hardest onsight after 2 sim years | — | higher by ~1 DI; wider pyramid, more ticks |
 
-A Projector trait and an Onsight Purist trait ([03](03-traits.md)) tilt these multipliers by 10–15% each way. The target is that neither strategy dominates, with the mixed schedule (alternating 3-week blocks) as the periodised middle that the research recommends. The P1a harness misses it: volume draws level on hardest redpoint by two years and leads by five ([22, open question 1](22-p1a-implementation-notes.md#open-questions)).
+A Projector trait and an Onsight Purist trait ([03](03-traits.md)) tilt these multipliers by 10–15% each way. The target is that neither strategy dominates, with the mixed schedule (alternating 3-week blocks) as the periodised middle that the research recommends. The P1a harness falls short of it: projecting leads on hardest redpoint by only 0.3 DI at two years and trails by 0.9 at five ([22, open question 1](22-p1a-implementation-notes.md#open-questions)).
 
 ---
 
