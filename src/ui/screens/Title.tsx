@@ -2,7 +2,7 @@
 import type { RunState } from '../../sim/state';
 import { Seg, Top } from '../components';
 import { grade } from '../format';
-import { act, continueRun, deleteRun, goto, meta, runs, saveSettings, settings, storageNote } from '../store';
+import { act, continueRun, data, deleteRun, goto, meta, runs, saveSettings, settings, storageNote } from '../store';
 
 export function Title({ current }: { current: RunState | null }) {
   const s = settings.value;
@@ -20,8 +20,9 @@ export function Title({ current }: { current: RunState | null }) {
           <div key={r.id} class="card">
             <div class="row between"><span class="card-title">{r.title}</span><span class="tiny muted mono">day {r.day + 1}</span></div>
             <span class="tiny muted">{r.summary ? `Finished · ${r.summary.end_reason} · hardest ${r.summary.hardest ? grade(r.summary.hardest) : '—'}` : `Last played ${new Date(r.last_played).toLocaleDateString()}`} · seed {r.run_seed}</span>
+            {r.data_version !== data.version && <span class="tiny warn">Made with an older version of the problem generator, so it can't be continued. Its Hall of Fame entry is kept.</span>}
             <div class="row">
-              <button class="btn small" onClick={() => continueRun(r.id)}>{r.summary ? 'View' : 'Continue'}</button>
+              <button class="btn small" disabled={r.data_version !== data.version} onClick={() => continueRun(r.id)}>{r.summary ? 'View' : 'Continue'}</button>
               <button class="btn small" onClick={() => { if (confirm(`Delete ${r.title}? This cannot be undone.`)) void deleteRun(r.id); }}>Delete</button>
             </div>
           </div>

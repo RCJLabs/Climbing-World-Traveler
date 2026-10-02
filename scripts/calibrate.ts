@@ -1,12 +1,11 @@
 // Grade-engine calibration (docs/05c §4 C1–C9, 19 §5). `pnpm calibrate --quick` is the CI gate; plain
 // `pnpm calibrate` is the fuller sweep; `--full` uses the doc's sample sizes (slow).
 import { loadBundle } from '../src/data/bundle';
-import { diceAttempt, mean, syntheticRun, type Timing } from '../src/harness/sim';
-import { NEUTRAL_MODS, refMass, type Athlete } from '../src/sim/character';
-import { evWalk, gradeRoute, referenceAthlete, sendCurve, X_SEND, REFERENCE_BODY } from '../src/sim/grade';
+import { diceAttempt, mean, syntheticRun, workedExampleBuilds, type Timing } from '../src/harness/sim';
+import { evWalk, gradeRoute, referenceAthlete, sendCurve, X_SEND } from '../src/sim/grade';
 import { stream } from '../src/sim/rng';
 import { generateBoulder, routeFromSeed, routeSeed } from '../src/sim/routes';
-import { ALL_ATTRS, type AttrId, type Route } from '../src/sim/types';
+import type { Route } from '../src/sim/types';
 import { routeGeom } from '../src/sim/wall';
 
 const argv = process.argv.slice(2);
@@ -139,17 +138,7 @@ record('C8 timing share', gap <= 0.08 && Math.abs(autoVsAvg) <= 0.02 + 0.03,
   `${timingRoutes.length} dynamic problems: auto ${(100 * mean(rates.auto)).toFixed(0)}%, novice ${(100 * mean(rates.novice)).toFixed(0)}%, average ${(100 * mean(rates.average)).toFixed(0)}%, expert ${(100 * mean(rates.expert)).toFixed(0)}%; expert − novice ${(100 * gap).toFixed(1)} pts (≤ 8)`, false);
 
 // ---------------------------------------------------------------- C9 build divergence (05b §14.1 builds)
-function build(a: Partial<Record<AttrId, number>>, body: Partial<Athlete['body']>): Athlete {
-  const vals = {} as Record<AttrId, number>;
-  for (const id of ALL_ATTRS) vals[id] = a[id] ?? 30;
-  const b = { ...REFERENCE_BODY, ...body };
-  b.mass_kg = refMass(b.sex, b.height_cm) + (body.mass_kg ?? 0);
-  return { body: b, a: vals, mods: NEUTRAL_MODS, rock_knowledge: {} };
-}
-const A = build({ contact_strength: 44, core_tension: 46, tech_slopers: 42, finger_strength: 24, lockoff: 30, tech_crimps: 16, body_position: 36, hip_mobility: 32, footwork: 26, tech_slab: 18, dynamic_movement: 34, leg_power: 34, finger_endurance: 30, shoulder_mobility: 38, anaerobic_capacity: 36, skin_durability: 30, composure: 50, focus: 40, commitment: 60 },
-  { height_cm: 178, ape_index: 1.05, mass_kg: 4, finger_length: 1, skin_thickness: 'thin' });
-const B = build({ finger_strength: 46, tech_crimps: 44, lockoff: 42, contact_strength: 32, core_tension: 28, tech_slopers: 22, body_position: 34, hip_mobility: 28, footwork: 36, tech_slab: 26, dynamic_movement: 26, leg_power: 28, finger_endurance: 34, shoulder_mobility: 30, anaerobic_capacity: 30, skin_durability: 40, composure: 40, focus: 60, commitment: 35 },
-  { height_cm: 168, ape_index: 1.0, finger_length: -1, finger_girth: 1, skin_thickness: 'thick' });
+const { A, B } = workedExampleBuilds();
 const diffs: number[] = [];
 for (let k = 0; k < S.c9; k++) {
   const sector = crag.sectors[k % crag.sectors.length]!;

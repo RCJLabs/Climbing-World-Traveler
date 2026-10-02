@@ -5,7 +5,7 @@ import { autoClimbAction } from '../src/sim/attempt';
 import { DEFAULT_OPTIONS, presetSpec } from '../src/sim/presets';
 import { sectorList } from '../src/sim/run';
 import { MemoryBackend } from '../src/save/backend';
-import { importRun, RunSession, SNAPSHOT_EVERY } from '../src/save/session';
+import { importRun, IncompatibleRun, RunSession, SNAPSHOT_EVERY } from '../src/save/session';
 
 const bundle = loadBundle();
 const spec = presetSpec('dirtbag', { ...DEFAULT_OPTIONS, auto_commit: true });
@@ -73,5 +73,14 @@ describe('saves', () => {
     const other = new MemoryBackend();
     const imported = await importRun(other, bundle, JSON.parse(JSON.stringify(file)));
     expect(imported.state.ended).toEqual(s.state.ended);
+  });
+
+  it('refuses to replay a run made with another content version', async () => {
+    const backend = new MemoryBackend();
+    const s = await RunSession.create(backend, bundle, 'save-5', spec);
+    await playDays(s, 1);
+    const rec = (await backend.getRun(s.id))!;
+    await backend.append({ ...rec, data_version: 'p1a-0' }, 0, (await backend.getChunks(s.id, 0))[0]!);
+    await expect(RunSession.load(backend, bundle, s.id)).rejects.toBeInstanceOf(IncompatibleRun);
   });
 });

@@ -10,7 +10,8 @@ import fontBenchmarksJson from '../../data/routes/fontainebleau_benchmarks.json'
 import { BackgroundSchema, CragSchema, NamesSchema, ProfileSchema, RouteSchema, TraitSchema } from './schema';
 import type { Background, Crag, CragStyleProfile, DataBundle, NameBank, Route, Trait } from '../sim/types';
 
-export const DATA_VERSION = 'p1a-1';
+/** Content and generator version (18 §5). Bump when the same seed would build a different problem. */
+export const DATA_VERSION = 'p1a-2';
 
 const byId = <T extends { id: string }>(items: T[]): Map<string, T> => new Map(items.map((x) => [x.id, x]));
 

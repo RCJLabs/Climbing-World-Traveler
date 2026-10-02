@@ -19,6 +19,9 @@ export interface ExportFile {
   actions: Action[];
 }
 
+/** A saved run whose problems came from a different content or generator version and so cannot be replayed. */
+export class IncompatibleRun extends Error {}
+
 export class RunSession {
   private constructor(
     private backend: SaveBackend,
@@ -50,6 +53,11 @@ export class RunSession {
   static async load(backend: SaveBackend, bundle: DataBundle, id: string): Promise<RunSession> {
     const record = await backend.getRun(id);
     if (!record) throw new Error(`no saved run ${id}`);
+    // Procedural problems are rebuilt from their seeds, so a log from another generator version would replay
+    // moves onto different holds. P1a does not keep old generators; such runs stay listed but cannot continue.
+    if (record.data_version !== bundle.version) {
+      throw new IncompatibleRun(`made with game data ${record.data_version}; this version (${bundle.version}) builds its problems differently`);
+    }
     const stale = record.version !== REDUCER_VERSION;
     if (stale) await backend.deleteSnapshots(id);
     const snap = stale ? undefined : await backend.latestSnapshot(id);

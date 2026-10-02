@@ -19,9 +19,34 @@ import {
 
 export const BOULDER_WIDTH = 2.0;
 
+/**
+ * Line-tracing shape (06 §2.3). Font problems are mostly four to seven hand moves (the docs' "six-move problem"),
+ * so the tracer uses most of the reach on each static move, steps feet high rather than often, and refuses
+ * hand moves that gain little height until the feet have come up.
+ */
+export const TRACE = {
+  staticReach: [0.88, 1.0] as const,
+  deadpointReach: [1.0, 1.1] as const,
+  dynoReach: [1.18, 1.35] as const,
+  /** Feet step when they trail the hands by more than this × body scale (first foot, second foot, forced). */
+  footSpan: [0.95, 1.25, 0.6] as const,
+  /** Where in the reachable band a new static foothold goes: 0 = just above the old one, 1 = hip height. */
+  footHeight: [0.75, 1.0] as const,
+  /** A hand move gaining less than this (m) steps the feet up first. */
+  minGain: 0.22,
+  /** Start-hold height range (m): mostly standing starts, as at Font, with the odd low start. */
+  startY: [1.25, 1.7] as const,
+  /** Heel-hook frequency multiplier on the profile grammar weight. */
+  heelBias: 1.0,
+  /** Fewest hand moves a line may have; shorter traces are retried with a new seed. */
+  minHandMoves: 3,
+};
+
 /** Generator diagnostics: why attempts were discarded. Read by the probe and calibration scripts. */
 export const GEN_STATS: Record<string, number> = {};
 const note = (reason: string): null => { GEN_STATS[reason] = (GEN_STATS[reason] ?? 0) + 1; return null; };
+/** Diagnostic counters for the generator probes (scripts/dev); never read by the game. */
+const count = (key: string, by = 1): void => { GEN_STATS[key] = (GEN_STATS[key] ?? 0) + by; };
 const SPACING = 0.18;
 
 export interface GenRequest {
@@ -141,7 +166,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
   const nid = () => `h${n++}`;
   const W = BOULDER_WIDTH;
   const x0 = rng.range(-0.3, 0.3);
-  const ys = rng.range(1.0, 1.3);
+  const ys = rng.range(TRACE.startY[0], TRACE.startY[1]);
   const start: Record<Limb, string> = { LH: '', RH: '', LF: '', RF: '' };
   const add = (x: number, y: number, type: HoldType, limb: Limb): Hold => {
     const h = makeHold(nid(), x, y, type, limb, profile, rng);
@@ -176,15 +201,17 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
     const feet: Limb[] = (['LF', 'RF'] as Limb[]).sort((a, b) => geom.holds.get(st.anchors[a]!)!.s - geom.holds.get(st.anchors[b]!)!.s);
     let moved = 0;
     for (const foot of feet) {
+      // A forced step (the hands stalled) moves only the lowest foot: one good step, then try the hands again.
+      if (force && moved > 0) break;
       const fbp = bodyPoints(geom, ath, freeState(st, foot));
       const curF = geom.holds.get(st.anchors[foot]!)!;
       // Feet step up when they hang too far below the hands (span scaled to the reference body).
       const span = (fbp.C_hands?.s ?? fbp.hip.s + 0.9) - curF.s;
       const scale = ath.body.height_cm / 170;
-      if (span < (force ? 0.6 : moved === 0 ? 0.85 : 1.1) * scale) continue;
+      if (span < (force ? TRACE.footSpan[2] : moved === 0 ? TRACE.footSpan[0] : TRACE.footSpan[1]) * scale) continue;
       const Rf = reachRadius(ath, 'foot', st.posture);
       const segAngle = segmentAt(wall, yOfS(wall, fbp.hip.s)).angle;
-      const wantHeel = segAngle >= 110 && rng.bool((grammar.heel_hook ?? 0) * 1.5);
+      const wantHeel = segAngle >= 110 && rng.bool((grammar.heel_hook ?? 0) * TRACE.heelBias);
       const wantHigh = !wantHeel && segAngle <= 130 && rng.bool((grammar.high_step ?? 0) * 1.2);
       const side = foot === 'RF' ? 1 : -1;
       const cx = fbp.C_hands?.x ?? fbp.hip.x;
@@ -194,7 +221,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
       const high = wantHigh || staticHi < lo;
       let fs = wantHeel ? Math.max(lo, fbp.hip.s - rng.range(0.0, 0.2))
         : high ? Math.max(lo, fbp.hip.s + HIGH_STEP_ABOVE_HIP + rng.range(0.02, 0.2))
-        : rng.range(lo, staticHi);
+        : lo + (staticHi - lo) * rng.range(TRACE.footHeight[0], TRACE.footHeight[1]);
       const df = Math.hypot(fx - fbp.hip.x, fs - fbp.hip.s);
       if (df > 0.88 * Rf) {
         const k = (0.88 * Rf) / df;
@@ -210,6 +237,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
       if (reuse) {
         const rp = prepareMove(geom, ath, st, foot, reuse.id);
         if (rp) {
+          count('foot_reuse');
           beta.push({ limb: foot, hold: reuse.id, class: rp.cls });
           st = applyMove(geom, ath, st, foot, reuse.id, rp.cls);
           moved++;
@@ -225,6 +253,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
       geom = geomOf();
       const fprep = prepareMove(geom, ath, st, foot, fh.id, wantHeel ? 'heel_hook' : undefined) ?? prepareMove(geom, ath, st, foot, fh.id);
       if (!fprep) { holds.pop(); geom = geomOf(); continue; }
+      count(`foot_${fprep.cls}`);
       beta.push({ limb: foot, hold: fh.id, class: fprep.cls });
       st = applyMove(geom, ath, st, foot, fh.id, fprep.cls);
       moved++;
@@ -243,7 +272,8 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
     if (!prevDyn && dynCount < 1 && bp.feetOn >= 1 && rng.bool(dynWeight / Math.max(0.01, dynWeight + (grammar.static ?? 0.5)))) {
       cls = rng.weighted<MoveClass>({ deadpoint: grammar.deadpoint ?? 0.01, dyno: grammar.dyno ?? 0 });
     }
-    const factor = cls === 'static' ? rng.range(0.78, 0.98) : cls === 'deadpoint' ? rng.range(0.98, 1.1) : rng.range(1.18, 1.35);
+    const reach = cls === 'static' ? TRACE.staticReach : cls === 'deadpoint' ? TRACE.deadpointReach : TRACE.dynoReach;
+    const factor = rng.range(reach[0], reach[1]);
     let d = factor * R;
     const drift = Math.min(0.35, Math.max(-0.35, rng.normal(0, 0.15) - 0.3 * (cur.x - x0)));
     let tx = Math.min(x0 + profile.drift_max_m, Math.max(x0 - profile.drift_max_m, cur.x + drift));
@@ -263,8 +293,9 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
     else if (ty > topY - 0.3) ty = Math.max(cur.y + 0.1, topY - 0.3);
     // A hand move that barely gains height means the feet are trailing: step them up first.
     const gain = ty - Math.max(cur.y, other.y - 0.05);
-    if (!finishing && gain < 0.12 && stalls < 3) {
+    if (!finishing && gain < TRACE.minGain && stalls < 3) {
       stalls++;
+      count('stall');
       if (stepFeet(true) > 0) { iter--; continue; }
     }
     stalls = 0;
@@ -291,6 +322,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
     }
     if (!prep) {
       // Pull the hold in towards the shoulder until the reference body can reach it.
+      count('pull_in');
       for (let k = 0; k < 4 && !prep; k++) {
         placed.x = bp.shoulder.x + (placed.x - bp.shoulder.x) * 0.85;
         const s = bp.shoulder.s + (sOfY(wall, placed.y) - bp.shoulder.s) * 0.85;
@@ -300,6 +332,8 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
       }
       if (!prep) return note('unreachable');
     }
+    count(`hand_${prep.cls}`);
+    count('hand_gain_cm', Math.round(100 * (placed.y - Math.max(cur.y, other.y))));
     beta.push({ limb: hand, hold: placed.id, class: prep.cls });
     handSteps.push(beta.length - 1);
     if (prep.cls === 'deadpoint' || prep.cls === 'dyno') dynCount++;
@@ -314,6 +348,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
     stepFeet(false);
   }
   if (!route.finish_hold) return note('no_finish');
+  if (handSteps.length < TRACE.minHandMoves) return note('too_short');
   route.beta_line = beta;
   return { route, handSteps };
 }
@@ -362,7 +397,8 @@ function solveHold(hold: Hold, spec: MoveSpec, mdTarget: number, profile: CragSt
   hold.quality = Math.min(0.9, Math.max(0.15, 0.5 - (mdTarget - r2) / 4));
 }
 
-function cruxIndexes(handSteps: number[], position: CragStyleProfile['crux_position'], rng: Rng): Set<number> {
+/** Which hand move carries the crux (06 §2.4), by the profile's crux position; any hand move if that third is empty. */
+export function cruxIndexes(handSteps: number[], position: CragStyleProfile['crux_position'], rng: Rng): Set<number> {
   const n = handSteps.length;
   if (n === 0) return new Set();
   const third = Math.max(1, Math.floor(n / 3));
@@ -371,7 +407,7 @@ function cruxIndexes(handSteps: number[], position: CragStyleProfile['crux_posit
   else if (position === 'mid') pool = handSteps.slice(third, Math.max(third + 1, n - third));
   else if (position === 'high') pool = handSteps.slice(Math.max(0, n - third));
   else pool = handSteps;
-  return new Set([rng.pick(pool)]);
+  return new Set([rng.pick(pool.length ? pool : handSteps)]);
 }
 
 function solveAll(route: Route, traced: Traced, ath: Athlete, req: GenRequest, rng: Rng): Set<number> {

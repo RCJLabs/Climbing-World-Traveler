@@ -4,6 +4,7 @@ import { loadBundle } from '../src/data/bundle';
 import { athleteOf, autoClimbAction, limbOptions, routeEntry } from '../src/sim/attempt';
 import { BotDriver, PROJECT_POLICY } from '../src/sim/bot';
 import { estimateBoulderDI } from '../src/sim/estimate';
+import { workedExampleBuilds } from '../src/harness/sim';
 import { evWalk, referenceAthlete } from '../src/sim/grade';
 import { DEFAULT_OPTIONS, PRESETS, presetSpec } from '../src/sim/presets';
 import { applyAction, createRun, InvalidAction, reduce, replay, sectorList } from '../src/sim/run';
@@ -165,15 +166,16 @@ describe('replay (18 §5, 19 §6)', () => {
 });
 
 describe('exit criterion (01 §4): two builds on the same 6B+', () => {
-  it('Slab Wizard and Compression Monster fail in different places on Font 6B+ problems', () => {
+  const problems = ['cuvier_rempart', 'bas_cuvier', 'apremont', 'cul_de_chien'].map((sector) => routeEntry(`fontainebleau/${sector}:0:4242:15.5`, bundle));
+
+  it('the Slab Wizard and Compression Monster presets fail in different places on Font 6B+ problems', () => {
+    // The presets start near Font 5–6A, so neither sends a 6B+ yet; what differs is where each one fails.
     const slab = athleteOf(createRun('exit', presetSpec('slab_wizard', AUTO), bundle), bundle);
     const comp = athleteOf(createRun('exit', presetSpec('compression_monster', AUTO), bundle), bundle);
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
     const hand = { slab: [] as number[], comp: [] as number[] };
     const foot = { slab: [] as number[], comp: [] as number[] };
-    let splitSend = 0;
-    for (const sector of ['cuvier_rempart', 'bas_cuvier', 'apremont', 'cul_de_chien']) {
-      const { route, geom } = routeEntry(`fontainebleau/${sector}:0:4242:15.5`, bundle);
+    for (const { route, geom } of problems) {
       expect(Math.abs(route.di_graded - 15.5)).toBeLessThanOrEqual(1);
       const ws = evWalk(geom, slab);
       const wc = evWalk(geom, comp);
@@ -183,12 +185,21 @@ describe('exit criterion (01 §4): two builds on the same 6B+', () => {
         kind.slab.push(ws.margins[k]!);
         kind.comp.push(wc.margins[k]!);
       }
-      if (wc.p_send >= 0.2 && ws.p_send < 0.05) splitSend++;
     }
     // The slab build stands on its feet and cannot hold the slopers; the compression build is the reverse.
     expect(mean(foot.slab) - mean(foot.comp)).toBeGreaterThan(1);
     expect(mean(hand.comp) - mean(hand.slab)).toBeGreaterThan(3);
-    // On at least one of the problems the compression build is in the game and the slab build is not.
-    expect(splitSend).toBeGreaterThanOrEqual(1);
+  });
+
+  it('the 05b §14.1 builds, climbers at that grade, split sends on the same problems', () => {
+    const { A, B } = workedExampleBuilds();
+    let split = 0;
+    for (const { geom } of problems) {
+      const pa = evWalk(geom, A).p_send;
+      const pb = evWalk(geom, B).p_send;
+      if (Math.max(pa, pb) >= 0.2 && Math.min(pa, pb) < 0.05) split++;
+    }
+    // On at least two of the four problems one build is in the game and the other is not.
+    expect(split).toBeGreaterThanOrEqual(2);
   });
 });
