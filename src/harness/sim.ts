@@ -1,23 +1,40 @@
 // Shared harness helpers (docs/19): synthetic runs for arbitrary athletes, single dice attempts through the
-// real attempt loop, and the commit-window timing models of 19 §3.
+// real attempt loop, and the Swing and Catch skill models that stand in for players (19 §3, docs/23 §3.4).
 
 import { autoClimbAction, doCommit, doMove, doWallAction, registerRoute, startAttempt } from '../sim/attempt';
 import { NEUTRAL_MODS, refMass, type Athlete } from '../sim/character';
 import { REFERENCE_BODY } from '../sim/grade';
 import { DEFAULT_OPTIONS, presetSpec } from '../sim/presets';
 import { stream, type Rng } from '../sim/rng';
+import { fly, goodSwing, launchVelocity, type SwingPerf, type SwingSetup } from '../sim/swing';
 import { createRun } from '../sim/run';
 import type { AttemptResult, RunState } from '../sim/state';
 import { ALL_ATTRS, type AttrId, type DataBundle, type Route } from '../sim/types';
 
 export type Timing = 'auto' | 'novice' | 'average' | 'expert' | 'oracle';
 
-/** 19 §3: tap offset ~ N(μ, σ) around the target centre, in ms. */
-export const TIMING: Record<Exclude<Timing, 'auto' | 'oracle'>, { mu: number; sd: number }> = {
-  novice: { mu: 35, sd: 95 },
-  average: { mu: 12, sd: 55 },
-  expert: { mu: 4, sd: 28 },
+/**
+ * A player's Swing and Catch: pull and direction scattered around the good launch (relative sd of the pull, sd of the
+ * angle in degrees), and the grab scattered around the dead point (mean lateness and sd, ms). (tune, docs/19 C8)
+ */
+export const SWING_SKILL: Record<Exclude<Timing, 'auto' | 'oracle'>, { power: number; angle: number; mu: number; sd: number }> = {
+  novice: { power: 0.12, angle: 8, mu: 45, sd: 80 },
+  average: { power: 0.06, angle: 4, mu: 18, sd: 45 },
+  expert: { power: 0.03, angle: 2, mu: 5, sd: 22 },
 };
+
+/** The swing a harness player of skill `timing` makes on this dyno; null = Auto-commit. */
+export function harnessSwing(st: SwingSetup, timing: Timing, rng: Rng): SwingPerf | null {
+  if (timing === 'auto') return null;
+  if (timing === 'oracle') return goodSwing(st);
+  const m = SWING_SKILL[timing];
+  const power = Math.min(1, Math.max(0.05, st.p_need * (1 + rng.normal(0, m.power))));
+  const angle_deg = st.angle_good + rng.normal(0, m.angle);
+  const f = fly(st, launchVelocity(st, power, angle_deg));
+  // A player grabs when the hold looks in reach: at the dead point of their own flight, give or take.
+  const aim = f.slowest ?? (st.v_top * power * Math.sin((angle_deg * Math.PI) / 180)) / 9.81;
+  return { power, angle_deg, catch_ms: Math.round(aim * 1000 + rng.normal(m.mu, m.sd)) };
+}
 
 /** A run whose climber is exactly `ath` (attributes, body, no traits), on a neutral sending-temperature day. */
 export function syntheticRun(ath: Athlete, seed: string, bundle: DataBundle, traits: string[] = []): RunState {
@@ -62,14 +79,7 @@ export function diceAttempt(base: RunState, route: Route, k: number, bundle: Dat
   for (let guard = 0; guard < 150 && run.attempt; guard++) {
     const at = run.attempt;
     if (at.pending && timing !== 'auto') {
-      const w = at.pending.window;
-      let offset: number;
-      if (timing === 'oracle') offset = 0;
-      else {
-        const m = TIMING[timing];
-        offset = Math.max(-w.centre_ms, Math.min(w.effective_ms - w.centre_ms, rng.normal(m.mu, m.sd)));
-      }
-      doCommit(run, Math.round(offset), bundle);
+      doCommit(run, harnessSwing(at.pending.swing, timing, rng), bundle);
       continue;
     }
     const a = autoClimbAction(run, bundle, { bot: true });

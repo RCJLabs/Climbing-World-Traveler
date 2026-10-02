@@ -73,7 +73,7 @@ export function Planner({ run }: { run: RunState }) {
 
         <div class="meters">
           <Meter label="Energy" value={run.res.energy} right={`${Math.round(run.res.energy)}/${Math.round(energyCap(run))}`} colour="var(--good)" />
-          <Meter label="Skin" value={run.res.skin} colour="#E2B9A0" />
+          <Meter label="Skin" value={run.res.skin} colour="var(--skin)" />
           <Meter label="Stoke" value={run.res.stoke} colour="var(--accent)" />
           <Meter label="Burnout" value={run.res.burnout} colour="var(--warn)" />
         </div>

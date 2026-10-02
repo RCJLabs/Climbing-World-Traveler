@@ -220,7 +220,7 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
             <span class="tiny muted">Same seed, same choices: the same weather and the same problems.</span>
             <div class="col small">Difficulty<Seg label="Difficulty" value={d.difficulty} onChange={(v) => patch({ difficulty: v })} options={[['story', 'Story'], ['standard', 'Standard'], ['hard', 'Hard']]} /></div>
             <div class="col small">Dynamic moves<Seg label="Commit window" value={d.auto_commit ? 'auto' : 'tap'} onChange={(v) => patch({ auto_commit: v === 'auto' })} options={[['tap', 'Tap to time'], ['auto', 'Auto-commit']]} /></div>
-            {!d.auto_commit && <div class="col small">Sweep speed<Seg label="Sweep speed" value={d.sweep_speed} onChange={(v) => patch({ sweep_speed: v })} options={[[1.3, 'Slower'], [1, 'Normal'], [0.8, 'Faster']]} /></div>}
+            {!d.auto_commit && <div class="col small">Dyno speed<Seg label="Dyno speed" value={d.sweep_speed} onChange={(v) => patch({ sweep_speed: v })} options={[[1.3, 'Slower'], [1, 'Normal'], [0.8, 'Faster']]} /></div>}
             <span class="tiny muted">Death is off in this version: Fontainebleau boulders over pads cannot kill you.</span>
             <div class="card">
               <div class="row between"><span class="card-title">{bg.name}</span><span class="mono small">{d.body.sex === 'f' ? 'F' : 'M'} · {d.body.age_start} · {d.body.height_cm} cm</span></div>

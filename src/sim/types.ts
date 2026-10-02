@@ -1,3 +1,4 @@
+import type { SwingPerf } from './swing';
 // Canonical types for the simulation. Mirrors docs/schemas.md; P1a uses a subset.
 // Identifiers must not be invented here without adding them to docs/schemas.md first.
 
@@ -346,7 +347,7 @@ export type Action =
   | { t: 'end_day' }
   | { t: 'attempt_start'; route_seed: string; mode: AttemptMode }
   | { t: 'move'; limb: Limb; hold: string; class: MoveClass }
-  | { t: 'commit'; tap_offset_ms: number | null }
+  | { t: 'commit'; swing: SwingPerf | null }
   | { t: 'wall_action'; kind: 'rest' | 'chalk' | 'jump_off' }
   | { t: 'retire' }
   | { t: 'settings'; patch: Partial<Pick<RunOptions, 'auto_commit' | 'sweep_speed'>> };

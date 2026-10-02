@@ -560,7 +560,7 @@ type Action =
   | { t: 'end_day' }
   | { t: 'attempt_start'; route_seed: string; mode: 'onsight' | 'flash' | 'redpoint' | 'work' }   // auto-climb is a UI policy that emits ordinary moves
   | { t: 'move'; limb: Limb; hold: string; class: MoveClass }   // class is explicit; the UI offers the classes geometry allows (05b §2)
-  | { t: 'commit'; tap_offset_ms: number | null }      // null = Auto-commit
+  | { t: 'commit'; swing: SwingPerf | null }            // the dyno's Swing and Catch (docs/23 §3.3); null = Auto-commit
   | { t: 'wall_action'; kind: 'rest' | 'chalk' | 'jump_off' }
   | { t: 'retire' }
   | { t: 'settings'; patch: Partial<Pick<RunOptions, 'auto_commit' | 'sweep_speed'>> };
@@ -572,16 +572,18 @@ interface NewRunSpec { name: string; background: string; body: Body; traits: str
 //   { t: 'risky_choice'; kind: 'solo' | 'dws_s3' | 'highball_reckless' | 'ignore_gear_warning' | 'alpine_commit'; route?: string }
 //   { t: 'buy' | 'sell'; item: string } · block kinds social, travel, admin, physio, comp_round, climb_bigwall, alpine_day
 
-// Proposed (docs/23 §3.4), not yet implemented: real-time controls log their result on the move; no perf = Auto.
+// SwingPerf (docs/23 §3.3): power 0–1 of the dyno's top launch speed, launch direction in degrees from +x (90 = up the
+// rock), and the grab time in flight ms (game time), null for no grab.
+interface SwingPerf { power: number; angle_deg: number; catch_ms: number | null }
+
+// Proposed (docs/23 §3.4), not yet implemented: Reach and Balance log their result on the move; no perf = Auto.
 //   { t: 'move'; limb: Limb; hold: string; class: MoveClass; perf?: MovePerf }
-//   type MovePerf =
-//     | { kind: 'reach'; time_ms: number; place_cm: number }
-//     | { kind: 'balance'; out_ms: number }
-//     | { kind: 'dyno'; power: number; angle_deg: number; catch_ms: number | null };   // power 0–1 of top launch speed
-//   RunOptions gains one_thumb: boolean, pause_drift: boolean, flight_speed: number (0.3–1); the 'commit' action and
-//   sweep_speed go when the dyno lands.
+//   type MovePerf = { kind: 'reach'; time_ms: number; place_cm: number } | { kind: 'balance'; out_ms: number };
+//   RunOptions gains one_thumb: boolean and pause_drift: boolean.
 
 interface RunOptions { death_enabled: boolean; auto_commit: boolean; sweep_speed: number; difficulty: 'story' | 'standard' | 'hard'; daily_seed?: string; }
+// sweep_speed (0.6–1.6, shown as Dyno speed) now only slows or speeds the dyno's flight on screen (playback 0.6 / sweep_speed);
+// it never changes an outcome, because the grab time is logged in flight time.
 
 interface RunSummary {                   // P1a shape (src/sim/types.ts); later phases make hardest per discipline
   climber: string; background: string; days: number; age_end: number;

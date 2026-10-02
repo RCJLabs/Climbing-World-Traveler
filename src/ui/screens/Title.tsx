@@ -28,13 +28,14 @@ export function Title({ current }: { current: RunState | null }) {
           </div>
         ))}
         {meta.value.hall_of_fame.length > 0 && <button class="btn" onClick={() => goto({ name: 'hall' })}>Hall of Fame</button>}
+        <button class="btn" onClick={() => { location.hash = 'proto-dyno'; }}>Dyno prototype</button>
         <span class="kicker">Settings</span>
         <div class="col small">Haptics<Seg label="Haptics" value={s.haptics ? 'on' : 'off'} onChange={(v) => void saveSettings({ ...s, haptics: v === 'on' })} options={[['on', 'On'], ['off', 'Off']]} /></div>
         <div class="col small">Motion<Seg label="Motion" value={s.reduce_motion ? 'less' : 'full'} onChange={(v) => void saveSettings({ ...s, reduce_motion: v === 'less' })} options={[['full', 'Full'], ['less', 'Reduced']]} /></div>
         {current && !current.ended && (
           <>
             <div class="col small">Dynamic moves (this run)<Seg label="Commit window" value={current.options.auto_commit ? 'auto' : 'tap'} onChange={(v) => void act({ t: 'settings', patch: { auto_commit: v === 'auto' } })} options={[['tap', 'Tap to time'], ['auto', 'Auto-commit']]} /></div>
-            <div class="col small">Sweep speed<Seg label="Sweep speed" value={current.options.sweep_speed} onChange={(v) => void act({ t: 'settings', patch: { sweep_speed: v } })} options={[[1.3, 'Slower'], [1, 'Normal'], [0.8, 'Faster']]} /></div>
+            <div class="col small">Dyno speed<Seg label="Dyno speed" value={current.options.sweep_speed} onChange={(v) => void act({ t: 'settings', patch: { sweep_speed: v } })} options={[[1.3, 'Slower'], [1, 'Normal'], [0.8, 'Faster']]} /></div>
             <button class="btn" onClick={() => { if (confirm(`Retire ${current.name}? The run ends and goes into the Hall of Fame.`)) void act({ t: 'retire' }).then((ok) => ok && goto({ name: 'summary' })); }}>Retire {current.name}</button>
           </>
         )}

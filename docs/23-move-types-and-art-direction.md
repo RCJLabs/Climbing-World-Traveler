@@ -2,9 +2,9 @@
 
 The climbing overhaul. Different moves ask different things of a climber, so they get different controls: a dyno is aimed, launched and caught; a balance move is held in balance; an ordinary reach is gripped and placed. The look moves to **Flat Dusk** on the three-quarter camera. The character builder, the career, training, the route generator and the grade engine stay; this doc says how the new controls feed the same engine.
 
-**Status:** design. Only a throwaway dyno prototype exists (§6). Until the steps in §5 land, P1a keeps the turn-based wall of [05b](05b-move-resolution-and-attempt-loop.md) and [17](17-ui-ux.md).
+**Status:** steps 1–3 of §5 are built: the dyno prototype (§6), the Flat Dusk look, and Swing and Catch for dynos and deadpoints in the game (§3.3). Reach and Balance are still design; until they land, other moves keep the tap-to-select wall of [05b](05b-move-resolution-and-attempt-loop.md) and [17](17-ui-ux.md).
 
-**Supersedes, once built:** [05b §8](05b-move-resolution-and-attempt-loop.md#8-commit-window) (the commit window) and [17 §2–§4](17-ui-ux.md) (wall input, HUD, commit bar). **Amends:** [01 §3](01-pillars-scope-roadmap.md#3-non-goals) (non-goals) and the input rules in `CLAUDE.md`.
+**Supersedes:** [05b §8](05b-move-resolution-and-attempt-loop.md#8-commit-window) (the commit window; replaced by §3.3, Auto-commit kept) and [17 §4](17-ui-ux.md) (the commit bar); [17 §2–§3](17-ui-ux.md) (wall input, HUD) once Reach and Balance are built. **Amends:** [01 §3](01-pillars-scope-roadmap.md#3-non-goals) (non-goals) and the input rules in `CLAUDE.md`.
 
 Related: [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Resolution](05b-move-resolution-and-attempt-loop.md) · [05c Grade Engine](05c-grade-engine.md) · [17 UI/UX](17-ui-ux.md) · [18 Tech Architecture](18-tech-architecture.md) · [19 Balance Testing](19-balance-and-simulation-testing.md) · [schemas](schemas.md)
 
@@ -26,7 +26,7 @@ Related: [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Reso
 |---|---|---|---|---|---|
 | **Reach** | `static`, `high_step`, `heel_hook`, `toe_hook`, `match`, `jam`, `bump`, `mantle` | Default for any move that is not Balance or Dyno | **Two-Thumb Grip** (§2.1) | `{ kind: 'reach', time_ms, place_cm }` | time at 60% of the grip budget, `place_cm = 2` |
 | **Balance** | the same static classes | The stance test (§2.2) fails | **Lean** (§2.2) | `{ kind: 'balance', out_ms }` | drift paused, `out_ms` from stats |
-| **Dyno** | `deadpoint`, `dyno` | Always | **Swing and Catch** (§2.3) | `{ kind: 'dyno', power, angle_deg, catch_ms }` | the 05b §8.4 roll, unchanged |
+| **Dyno** (built) | `deadpoint`, `dyno` | Always | **Swing and Catch** (§2.3) | on the `commit` action: `swing: { power, angle_deg, catch_ms }` | `swing: null`, the 05b §8.4 roll, unchanged |
 
 ### 2.1 Reach: Two-Thumb Grip
 
@@ -74,27 +74,35 @@ out of base  Δ = −0.3 × min(1, out_ms / 600);  out_ms > 900 → barn door (s
 Auto         drift paused; Δ = −0.05 − 0.10 × (1 − footwork/100)
 ```
 
-### 3.3 Dyno (prototyped, §6)
+### 3.3 Dyno (built)
+
+The flight is in the engine's surface coordinates (`x` across the rock, `s` up it, gravity along `−s`), from the engine's own body points and reach, so the hold the generator checked as in reach for a dyno is the hold the flight can reach. The pull a dyno needs comes from its margin, not from a second stat formula, so margins, grades and the Auto rule do not move. Code: `src/sim/swing.ts`.
 
 ```
-top speed    v_max (m/s) = (2.6 + 0.024 × power) × (1 − 0.3 × pump/100) × (0.88 + 0.12 × commitment/100)
-launch       v = power_fraction × v_max at angle_deg                                         power_fraction from the pull
-flight       centre of mass ballistic from the loaded position; shoulder 0.5 m along the line to the hold
-in reach     |hold − shoulder| ≤ arm × ape_index        (arm = 0.66 m, to come from the body model of 05a §4)
-catch speed  s_max (m/s) = 1.0 + 0.03 × contact_strength
-outcome      catch_ms outside the in-reach window by ≤ 60 ms → slap; further, or no tap → cut (05b §8.3)
-             inside: hand speed > s_max → slap; < 0.6 × s_max → apex (deadpoint); else caught
-Auto         05b §8.4 unchanged (p_apex roll, 0.10 tax), so dyno grades do not move
+setup        com0 = CoM, shoulder = |shoulder − CoM| with the launching hand released (05a §4.2); R = hand reach (05a §5)
+in reach     |hold − CoM(t)| ≤ shoulder + R                                                 a disc around the hold
+good launch  apex on the line to the hold, 0.10 m inside the disc (at least 0.05 m above com0): v_s = √(2g·rise), v_x = run / (v_s/g)
+need         p_need = clamp(0.62 − 0.18 × margin/T + 0.10 × pump/100, 0.40, 0.95)            hard dyno: nearly a full pull
+top speed    v_top = |v_good| / p_need;  launch v = power × v_top at angle_deg                power and angle from the pull
+catch speed  apex_speed = |v_x of the good launch|
+             s_max = apex_speed + clamp((0.35 + 0.003 × contact_strength + 0.1 × margin/T) × commit_window_width, 0.15, 0.8) × (|v_good| − apex_speed)
+outcome      never in reach → cut ("short"); no grab → cut
+             grab ≤ 80 ms outside the in-reach window → slap; further → cut
+             inside: speed > s_max → slap ("ripped off"); speed ≤ apex_speed + 0.35 × (s_max − apex_speed) → apex; else caught
+power cost   × clamp(power / p_need, 0.7, 1.5)                                              overpowering is paid for
+Auto         swing: null → the 05b §8.4 roll (p_apex, 0.10 tax), unchanged
 ```
 
-`power_fraction` also scales the move's power cost, so overpowering a dyno is paid for.
+The 05b §8.3 outcomes then apply as before: apex `margin +0.4` and pump ×0.8, slap forced sketchy with pump ×1.5 and skin ×2, cut releases the hand and, on steep ground, the feet. A good launch leaves an in-reach window of about 290 ms of flight (p10–p90 280–300 ms on synthetic dynos); the game plays it at 60% speed by default (*Dyno speed* in settings: slower 46%, faster 75%), so about 480 ms on screen.
+
+The prototype (§6) used a stat-based top speed (`(2.6 + 0.024 × power) × …`) and a fixed arm; it is kept for feel, not for judging.
 
 ### 3.4 Logging, replay and grading
 
-- The `move` action gains an optional `perf` ([schemas §8](schemas.md), proposed). Absent `perf` means Auto. `commit` actions go away with the commit window; old logs stay readable through a reducer version bump ([18 §5](18-tech-architecture.md)).
+- Dyno: choosing a dynamic move still sets the attempt `pending`, now with the swing setup it will be judged against; the `commit` action carries the swing (`null` = Auto). `REDUCER_VERSION` 2 and `DATA_VERSION` `p1a-12`: runs saved before cannot continue ([22 §4](22-p1a-implementation-notes.md)). Reach and Balance are proposed as an optional `perf` on `move` ([schemas §8](schemas.md)).
 - Replay recomputes everything from the logged numbers: the flight and the drift are pure functions of `perf` and the state.
 - The grade engine ([05c](05c-grade-engine.md)) evaluates every move with Auto. The generator's legality and margin checks ([06 §2.3](06-procedural-routes.md)) are unchanged.
-- [19](19-balance-and-simulation-testing.md) C8 generalises: for each move type, expert minus novice send rate `≤ 8` points, and Auto within `±2` of an average player. The harness gets a skill model per type.
+- [19](19-balance-and-simulation-testing.md) C8 runs on Swing and Catch skill models (19 §3): on the normal sample Auto 32%, novice 28%, average 31%, expert 34%, expert − novice 6.1 points (6.9 with the commit bar); on the 30-problem full sample 6.6 (7.9). It generalises per move type as Reach and Balance land.
 
 ---
 
@@ -136,9 +144,9 @@ Auto         05b §8.4 unchanged (p_apex roll, 0.10 tax), so dyno grades do not 
 
 | Step | What | Exit |
 |---|---|---|
-| 1 | Dyno prototype (§6), throwaway | The feel is judged on a phone; the numbers in §3.3 are confirmed or retuned here |
-| 2 | Flat Dusk renderer: palette, figure, sky, move-type chip | 390 and 360 px screenshots; no engine change |
-| 3 | `perf` in the schema and engine; Dyno replaces the commit window | C1–C9 pass; replay identity; old saves rejected cleanly by version |
+| 1 ✓ | Dyno prototype (§6), throwaway | The feel is judged on a phone; the numbers in §3.3 are confirmed or retuned here |
+| 2 ✓ | Flat Dusk renderer: palette, figure, sky (the move-type chip waits for Reach and Balance) | 390 and 360 px screenshots; no engine change |
+| 3 ✓ | Swing and Catch in the engine and on the wall; the commit window removed | C1–C9 pass; replay identity; old saves rejected cleanly by version |
 | 4 | Reach: Two-Thumb Grip and its one-thumb mode | playtest: crux moves feel quicker, not slower |
 | 5 | Balance: stance test, Lean, BASE inset | the stance test flags 5–15% of moves on Font problems (harness) |
 | 6 | Harness: per-type skill models; C8 per type | C8 within limits for every type |
@@ -161,10 +169,11 @@ Measured on the model (game time, best launch): a strong build (power 75, contac
 
 ## Open questions
 
-- **Flight speed.** A real dyno reaches its dead point in about 0.35 s. At full speed a 250 ms window may be too short to read on a phone; the prototype defaults to 60%. Whether slow motion is a setting, a stat (commitment slows time) or fixed is open.
+- **Flight speed.** A real dyno reaches its dead point in about 0.35 s. The game plays flights at 60% by default with a setting either side; whether it should also be a stat (commitment slows time) is open.
 - **How much arc to show.** Showing the whole arc makes aiming trivial; showing none makes it guesswork. The prototype shows 0.2 s; route reading could lengthen it.
 - **Pace.** If most crux moves ask for Two-Thumb Grip, a problem may take longer than today. Auto-climb covers safe moves; a playtest decides.
 - **The stance test.** The `0.08 m` edge and the smear rule are guesses; the harness should report how often Balance triggers, by style.
 - **Dyno Auto.** Keeping 05b §8.4 leaves grades untouched; deriving Auto from the flight model instead would make Auto honour reach and power directly but would move dyno grades and need a recalibration.
-- **Arm length.** The prototype uses 0.66 m × ape index; the engine should take it from the body model ([05a §4](05a-wall-and-kinematics.md)) so the reach the dyno uses matches the reach the generator checked.
+- **Power and the pull.** The pull a dyno needs comes from its margin, so a strong climber and a weak one with the same margin pull the same share. A stat-based top speed (as in the prototype) would make power felt in the pull directly, but would let manual play and Auto disagree about what is reachable.
+- **Reduced motion.** Swing and Catch has no reduced-motion form beyond Auto; a stepped flight could be one.
 - **Time-of-day palettes.** Session time or the device clock.

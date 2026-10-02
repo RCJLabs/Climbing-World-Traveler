@@ -27,6 +27,8 @@ export const meta = signal<MetaState>(emptyMeta());
 export const settings = signal<Settings>(DEFAULT_SETTINGS);
 export const runs = signal<RunRecord[]>([]);
 export const toast = signal<string | null>(null);
+/** Set when a new version of the app is installed and waiting; calling it reloads into the new version. */
+export const updateReady = signal<(() => void) | null>(null);
 export const storageNote = signal<string | null>(null);
 
 let backend: SaveBackend | null = null;

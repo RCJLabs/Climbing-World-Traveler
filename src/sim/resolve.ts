@@ -304,47 +304,12 @@ export function restDelta(ath: Athlete, r: RestInput): number {
   return -(R10 * fresh) + holdCost(r);
 }
 
-// ---------------------------------------------------------------- commit window (05b §8)
-
-export interface CommitWindow {
-  sweep_ms: number;
-  effective_ms: number;
-  target_width: number;
-  target_ms: number;
-  inner_ms: number;
-  slap_ms: number;
-  centre_ms: number;
-  p_apex_auto: number;
-}
-
-export function commitWindow(ath: Athlete, margin: number, T: number, pump: number, overgrip: number, sweepSpeed: number): CommitWindow {
-  const sweep_ms = Math.min(1200, Math.max(450, 750 * sweepSpeed));
-  const speed = (1 + overgrip) * (1 + pump / 200);
-  const effective_ms = sweep_ms / speed;
-  const marginFactor = Math.min(1.5, Math.max(0.5, 1 + 0.5 * margin / T));
-  const target_width = Math.min(0.9, 0.22 * (0.6 + ath.a.commitment / 250 + ath.a.dynamic_movement / 250) * marginFactor * ath.mods.commit_window_width);
-  const target_ms = target_width * effective_ms;
-  return {
-    sweep_ms, effective_ms, target_width, target_ms,
-    inner_ms: 0.35 * target_ms,
-    slap_ms: 0.12 * effective_ms,
-    centre_ms: 0.62 * effective_ms,
-    p_apex_auto: autoCommitPApex(ath),
-  };
-}
+// ---------------------------------------------------------------- Auto-commit (05b §8.4); the swing itself is in swing.ts
 
 export const autoCommitPApex = (ath: Athlete): number => 0.25 + 0.25 * (ath.a.commitment + ath.a.dynamic_movement) / 200;
 
 export type CommitOutcome = 'apex' | 'caught' | 'slap' | 'cut';
 
-/** Outcome of a tap at `offset` ms from the target centre (05b §8.3). */
-export function commitOutcome(w: CommitWindow, offset: number): CommitOutcome {
-  const d = Math.abs(offset);
-  if (d <= w.inner_ms / 2) return 'apex';
-  if (d <= w.target_ms / 2) return 'caught';
-  if (d <= w.target_ms / 2 + w.slap_ms) return 'slap';
-  return 'cut';
-}
 
 // ---------------------------------------------------------------- fear (05b §9)
 
