@@ -10,11 +10,11 @@ import { routeGeom, type RouteGeom } from './wall';
 
 const LEVELS = [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
 
-interface Bench { level: number; di: number; geom: RouteGeom }
+export interface Bench { level: number; di: number; geom: RouteGeom }
 const benchCache = new Map<string, Bench[]>();
 
-/** Generate the benchmark set for a crag: one problem per style profile per level, from fixed seeds. */
-export function generateBenchmarks(cragId: string, bundle: DataBundle): Route[] {
+/** Generate the benchmark set for a crag: one problem per style profile per level, from fixed seeds. `salt` builds another set, for probes. */
+export function generateBenchmarks(cragId: string, bundle: DataBundle, salt = ''): Route[] {
   const crag = bundle.crags.get(cragId);
   if (!crag) throw new Error(`unknown crag ${cragId}`);
   const profiles = [...new Set(crag.sectors.flatMap((s) => s.style_profiles))];
@@ -27,7 +27,7 @@ export function generateBenchmarks(cragId: string, bundle: DataBundle): Route[] 
       // A style is not benchmarked above the hardest DI it can be built to (06 §2.1).
       if (level > (profile.di_max ?? Infinity)) continue;
       try {
-        const route = generateBoulder({ crag, sector, profile, di_target: level, seed: `bench:${cragId}:${pid}:${level}`, bundle });
+        const route = generateBoulder({ crag, sector, profile, di_target: level, seed: `bench${salt}:${cragId}:${pid}:${level}`, bundle });
         out.push({ ...route, di_target: level });
       } catch {
         // A benchmark that fails to generate is skipped; the level keeps its other profiles.
@@ -44,14 +44,20 @@ export function benchmarks(cragId: string, bundle: DataBundle): Bench[] {
   if (out) return out;
   const shipped = bundle.benchmarks.get(cragId);
   const routes = shipped?.length ? shipped : generateBenchmarks(cragId, bundle);
-  out = routes.map((r) => ({ level: r.di_target, di: r.di_graded, geom: routeGeom(r) }));
+  out = benchFrom(routes);
   benchCache.set(key, out);
   return out;
 }
 
+export const benchFrom = (routes: Route[]): Bench[] => routes.map((r) => ({ level: r.di_target, di: r.di_graded, geom: routeGeom(r) }));
+
 /** Estimated boulder DI (redpoint-style, per-attempt X_SEND) for an athlete at a crag. */
 export function estimateBoulderDI(ath: Athlete, cragId: string, bundle: DataBundle): number {
-  const bench = benchmarks(cragId, bundle);
+  return estimateFrom(ath, benchmarks(cragId, bundle));
+}
+
+/** The estimate against a given benchmark set. */
+export function estimateFrom(ath: Athlete, bench: Bench[]): number {
   const pts: { x: number; p: number }[] = [];
   let runMin = 1;
   for (const level of LEVELS) {
