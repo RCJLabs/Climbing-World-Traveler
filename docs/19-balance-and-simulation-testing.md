@@ -70,6 +70,18 @@ Every other move is dragged with Two-Thumb Grip ([23 §3.1](23-move-types-and-ar
 
 Drag times are floored at 250 ms. Against the budget, the novice overruns on about 17% of hand moves (pump × (1 + overrun)) and almost never lets go.
 
+Moves the stance test flags are leaned and then reached ([23 §3.2](23-move-types-and-art-direction.md)). A harness player leans until a distance inside the base's edge (or stays where they are, if the stance starts deeper), then reaches with a `REACH_SKILL` drag time while the body drifts out at the move's `v_d`; time past the drift's grace is time out of balance (`BALANCE_SKILL`) **(tune on device logs)**:
+
+| Model | Lean inside the edge μ (m) | σ (m) | Out of balance |
+|---|---|---|---|
+| novice | 0.015 | 0.010 | `max(0, drag − lean / v_d)` |
+| average | 0.030 | 0.012 | the same |
+| expert | 0.045 | 0.012 | the same |
+| oracle | — | — | 0 |
+| auto | no `perf` | — | — |
+
+On 10 slab problems near DI 16 with no dynamic moves the novice barn-doors on about 3% of attempts (`scripts/dev/probe-skill.ts`).
+
 **Variance explained by timing.** Run the same 2,000 builds and seeds under novice, average, expert and auto. For every attempt on a route containing at least one dynamic move, record send/fail. Fit `send ~ build_margin + timing_model` (logistic) and compute the share of explained deviance attributable to `timing_model` (type-II). **Target: ≤ 10% of send variance explained by timing**, and expert vs novice send-rate gap on a route at the climber's estimated grade ≤ 8 percentage points **(tune)**. If exceeded, deepen the dead point, widen the slap margin or raise the catch speed in [23 §3.3](23-move-types-and-art-direction.md), or lengthen the grip budget or narrow the placement term in 23 §3.1, not the frequency of dynos. Auto-commit must land within ±2 points of the average model's send rate.
 
 ---

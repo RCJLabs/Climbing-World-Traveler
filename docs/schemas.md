@@ -563,7 +563,7 @@ type Action =
   | { t: 'commit'; swing: SwingPerf | null }            // the dyno's Swing and Catch (docs/23 §3.3); null = Auto-commit
   | { t: 'wall_action'; kind: 'rest' | 'chalk' | 'jump_off' }
   | { t: 'retire' }
-  | { t: 'settings'; patch: Partial<Pick<RunOptions, 'auto_commit' | 'sweep_speed'>> };
+  | { t: 'settings'; patch: Partial<Pick<RunOptions, 'auto_commit' | 'sweep_speed' | 'pause_drift'>> };
 
 interface NewRunSpec { name: string; background: string; body: Body; traits: string[]; attr_alloc: Partial<Record<AttrId, number>>; options: RunOptions }
 
@@ -576,14 +576,17 @@ interface NewRunSpec { name: string; background: string; body: Body; traits: str
 // rock), and the grab time in flight ms (game time), null for no grab.
 interface SwingPerf { power: number; angle_deg: number; catch_ms: number | null }
 
-// MovePerf (docs/23 §3.1): what the player did on a move that is not a dyno. Reach: how long the limb was off its hold
-// (ms, summed over every try at the move) and where it landed as a share of the on-screen placement ring (0 = centre,
-// 1 = its edge). Finite and ≥ 0, never on a deadpoint or dyno, or the action is invalid.
-type MovePerf = { kind: 'reach'; time_ms: number; place: number };
-// Proposed (docs/23 §3.2), not yet implemented: Balance adds | { kind: 'balance'; out_ms: number }, and RunOptions gains
-// pause_drift: boolean. One-thumb mode is a device setting (Settings.one_thumb), not part of the run: it changes no outcome.
+// MovePerf (docs/23 §3.1–§3.2): what the player did on a move that is not a dyno. Reach: how long the limb was off its
+// hold (ms, summed over every try at the move). Balance: how long the centre of mass was out of the base during the
+// reach (ms). Both: where the limb landed as a share of the on-screen placement ring (0 = centre, 1 = its edge).
+// `kind` must match the move's type (the stance test, docs/23 §2.2, decides Balance); numbers finite and ≥ 0; never on a
+// deadpoint or dyno; otherwise the action is invalid.
+type MovePerf = { kind: 'reach'; time_ms: number; place: number } | { kind: 'balance'; out_ms: number; place: number };
+// One-thumb mode is a device setting (Settings.one_thumb), not part of the run: it changes no outcome.
 
-interface RunOptions { death_enabled: boolean; auto_commit: boolean; sweep_speed: number; difficulty: 'story' | 'standard' | 'hard'; daily_seed?: string; }
+interface RunOptions { death_enabled: boolean; auto_commit: boolean; sweep_speed: number; difficulty: 'story' | 'standard' | 'hard'; daily_seed?: string; pause_drift?: boolean; }
+// pause_drift (shown as Balance moves: No drift): the centre of mass on a Balance move moves only when the player moves it
+// (docs/23 §2.2). Absent = drift on.
 // sweep_speed (0.6–1.6, shown as Dyno speed) now only slows or speeds the dyno's flight on screen (playback 0.6 / sweep_speed);
 // it never changes an outcome, because the grab time is logged in flight time.
 

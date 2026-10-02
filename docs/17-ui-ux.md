@@ -19,7 +19,7 @@ Related: [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Reso
 
 ## 2. Wall view
 
-> **Input superseded by [23](23-move-types-and-art-direction.md)** (move types, Flat Dusk) as its build order lands: dynos and deadpoints use Swing and Catch, every other move is dragged with Two-Thumb Grip after it is picked (*Go* is now *Auto*), and the look is Flat Dusk ([23 §4](23-move-types-and-art-direction.md)). Picking a limb and a hold, the decision triangle, the camera and motion below stay.
+> **Input superseded by [23](23-move-types-and-art-direction.md)** (move types, Flat Dusk) as its build order lands: dynos and deadpoints use Swing and Catch, moves the stance test flags use Lean, every other move is dragged with Two-Thumb Grip after it is picked (*Go* is now *Auto*), and the look is Flat Dusk ([23 §4](23-move-types-and-art-direction.md)). Picking a limb and a hold, the decision triangle, the camera and motion below stay.
 
 The core loop, left to right in time:
 
