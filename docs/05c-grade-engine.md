@@ -168,7 +168,7 @@ All run headless in the harness ([19](19-balance-and-simulation-testing.md)), in
 | C6 | Style neutrality | Mean `di_graded − di_target` per dominant hold family | families within `±0.3` of each other (no systematic sandbag of one hold type) |
 | C7 | Signature routes | Every `signature: true` route | engine within `±1.0` of `di_target` ([schemas §9](schemas.md#9-validation-rules-enforced-by-the-content-validator-see-20) rule 6) |
 | C8 | Timing share | Replace Auto-commit with novice/average/expert tap distributions | timing explains ≤ 10 % of send variance ([19](19-balance-and-simulation-testing.md)) |
-| C9 | Build divergence | The two builds of 05b §14.1 on 100 generated DI-16 Font problems | mean `|P_send(A) − P_send(B)| ≥ 0.3` — the P1a success criterion in numbers |
+| C9 | Build divergence | The two builds of 05b §14.1 on 100 generated DI-16 Font problems | mean `|P_send(A) − P_send(B)| ≥ 0.3` — the P1a success criterion in numbers — and Spearman rank correlation of their `P_send` across the problems `≤ 0.5`, so the builds differ in which problems they find hard, not only in level (a stronger copy of one build scores about 0.9) |
 
 ---
 
