@@ -1,7 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import type { Limb } from '../../sim/types';
-import { drawWall, hitHold, type FrameExtras, type Layout, type WallView } from './render';
+import { C, drawWall, hitHold, type FrameExtras, type Layout, type WallView } from './render';
 import {
   drop, ease, fallenPose, frameFor, lerpPose, poseOf, toppedPose, wallBounds, ZOOM_RANGE, type MotionStyle, type P, type Pose,
 } from './pose';
@@ -88,8 +88,8 @@ export function WallCanvas(props: {
       const to = e.kind === 'send' ? toppedPose(e.from, top) : fallenPose(e.from);
       // Falls accelerate; a top-out eases. The word goes where the body is not: below a top-out, above a fall.
       pose = lerpPose(e.from, to, t, {}, e.kind === 'send' ? ease : drop);
-      banner = e.kind === 'send' ? { text: 'SENT', colour: '#8FCB9B', alpha: Math.min(1, t * 2), y: 0.78 }
-        : { text: e.kind === 'off' ? 'OFF' : 'FELL', colour: '#F08A5D', alpha: Math.min(1, t * 2), y: 0.2 };
+      banner = e.kind === 'send' ? { text: 'SENT', colour: C.safe, alpha: Math.min(1, t * 2), y: 0.78 }
+        : { text: e.kind === 'off' ? 'OFF' : 'FELL', colour: C.danger, alpha: Math.min(1, t * 2), y: 0.2 };
       running = running || t < 1;
     }
     shown.current = pose;

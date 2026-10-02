@@ -32,18 +32,45 @@ export interface FrameExtras { envelope: boolean; banner?: { text: string; colou
 
 const SIZE_M: Record<SizeClass, number> = { xs: 0.05, s: 0.08, m: 0.12, l: 0.17, xl: 0.24 };
 
-const C = {
-  bg: '#101A16', ground: '#7D6F4E', pad: '#2B5C86', rockBody: '#665D4B', lip: '#4E4639',
-  hold: '#D6CBB0', holdEdge: '#20302A', target: '#E9B85C', body: '#F2EEE4', bodyFar: '#A9A496', limbSel: '#E9B85C', text: '#EEF1EC',
+/** Flat Dusk (docs/23 §4). Signals: yellow = where to go, teal = holding and safe, coral = danger. */
+export const C = {
+  ink: '#1B1B3A', text: '#F5F2FF', target: '#FFE066', safe: '#2EC4B6', danger: '#FF8C6B',
+  sky: ['#2B2D42', '#46385E', '#7A4B6E', '#C0607A', '#F28F6B', '#F7B267'], sun: '#FFD08A', hills: '#3D3A5C', trees: '#26263F',
+  ground: '#2A2A45', pad: '#1B998B', padTop: '#23B5A5', rockBody: '#8E3B46', rockEdge: '#C8553D', lip: '#FFC48A',
+  hold: '#FFE8C2', holdShade: '#B8553E', pocket: '#8E3B46',
+  jacket: '#2EC4B6', jacketShade: '#20A396', skin: '#F4C095', skinFar: '#E0A97F', trousers: '#1B1B3A', trousersFar: '#121230',
+  shoe: '#FFE066', shoeFar: '#E6C84F', hair: '#1B1B3A',
 };
 
-/** Face colour by angle: pale on slabs, darker as the rock steepens, so steepness reads at a glance. */
+/** Face tone by angle: pale on slabs, deeper as the rock steepens, so steepness reads at a glance. */
+const FACE_STOPS: [number, [number, number, number]][] = [[70, [246, 181, 110]], [90, [242, 166, 90]], [115, [229, 143, 78]], [150, [212, 106, 67]]];
 function faceColour(angle: number): string {
-  const t = Math.min(1, Math.max(0, (angle - 75) / 90));
-  const a = [168, 157, 130];
-  const b = [92, 84, 68];
-  const c = a.map((v, i) => Math.round(v + (b[i]! - v) * t));
+  const a = Math.min(FACE_STOPS[FACE_STOPS.length - 1]![0], Math.max(FACE_STOPS[0]![0], angle));
+  let i = 0;
+  while (i < FACE_STOPS.length - 2 && a > FACE_STOPS[i + 1]![0]) i++;
+  const [a0, c0] = FACE_STOPS[i]!;
+  const [a1, c1] = FACE_STOPS[i + 1]!;
+  const t = (a - a0) / (a1 - a0);
+  const c = c0.map((v, j) => Math.round(v + (c1[j]! - v) * t));
   return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+}
+
+/** Sky in bands fixed to the screen; sun, hills and trees stand on the ground line, so they leave with it. */
+function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, gy: number): void {
+  const cuts = [0, 0.17, 0.32, 0.47, 0.61, 0.72, 1];
+  C.sky.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(0, h * cuts[i]!, w, h * (cuts[i + 1]! - cuts[i]!) + 1); });
+  if (gy > h + 0.2 * h) return;
+  const u = Math.min(w, h);
+  ctx.fillStyle = C.sun;
+  ctx.beginPath(); ctx.arc(w * 0.18, gy - 0.1 * u, 0.1 * u, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = C.hills;
+  ctx.beginPath(); ctx.moveTo(0, gy);
+  [[0, 0.1], [0.15, 0.2], [0.33, 0.12], [0.51, 0.24], [0.72, 0.13], [1, 0.26]].forEach(([fx, fh]) => ctx.lineTo(w * fx!, gy - u * fh!));
+  ctx.lineTo(w, gy); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = C.trees;
+  for (const [fx, fw, fh] of [[0.04, 0.06, 0.32], [0.12, 0.05, 0.22]] as const) {
+    ctx.beginPath(); ctx.moveTo(w * fx, gy); ctx.lineTo(w * (fx + fw / 2), gy - u * fh); ctx.lineTo(w * (fx + fw), gy); ctx.closePath(); ctx.fill();
+  }
 }
 
 export function drawWall(ctx: CanvasRenderingContext2D, w: number, h: number, v: WallView, pose: Pose, cam: Cam, extras: FrameExtras): Layout {
@@ -55,18 +82,17 @@ export function drawWall(ctx: CanvasRenderingContext2D, w: number, h: number, v:
   const xs = geom.list.map((hd) => hd.x);
   const x0 = Math.min(-1.0, Math.min(...xs) - 0.25);
   const x1 = Math.max(1.0, Math.max(...xs) + 0.25);
+  const [, gy] = S(0, 0);
 
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = C.bg;
-  ctx.fillRect(0, 0, w, h);
+  drawSky(ctx, w, h, gy);
 
-  // Rock body behind the face, then the face segment by segment, shaded by steepness.
+  // Rock body behind the face, then the face segment by segment, toned by steepness, with a shaded right edge.
   const edge = (x: number, y: number) => S(...project(wall, x, y));
   const ys: number[] = [];
   for (let i = 0; i <= 24; i++) ys.push((top * i) / 24);
   const right = ys.map((y) => edge(x1, y));
   const topRight = right[right.length - 1]!;
-  const [, gy] = S(0, 0);
   ctx.fillStyle = C.rockBody;
   ctx.beginPath();
   ys.forEach((y, i) => { const p = edge(x0, y); if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
@@ -74,18 +100,20 @@ export function drawWall(ctx: CanvasRenderingContext2D, w: number, h: number, v:
   ctx.lineTo(Math.max(right[0]![0] + 0.6 * scale, topRight[0] + 0.6 * scale), gy);
   ctx.closePath();
   ctx.fill();
-  for (const seg of wall) {
+  const band = (xa: number, xb: number, y0: number, y1: number, fill: string) => {
     const n = 6;
-    const pts: [number, number][] = [];
-    for (let i = 0; i <= n; i++) pts.push(edge(x0, seg.y0 + ((seg.y1 - seg.y0) * i) / n));
-    for (let i = n; i >= 0; i--) pts.push(edge(x1, seg.y0 + ((seg.y1 - seg.y0) * i) / n));
-    ctx.fillStyle = faceColour(seg.angle);
     ctx.beginPath();
-    pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+    for (let i = 0; i <= n; i++) { const p = edge(xa, y0 + ((y1 - y0) * i) / n); if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }
+    for (let i = n; i >= 0; i--) { const p = edge(xb, y0 + ((y1 - y0) * i) / n); ctx.lineTo(p[0], p[1]); }
     ctx.closePath();
+    ctx.fillStyle = fill;
     ctx.fill();
+  };
+  for (const seg of wall) {
+    band(x0, x1, seg.y0, seg.y1, faceColour(seg.angle));
+    band(x1 - 0.18, x1, seg.y0, seg.y1, C.rockEdge);
   }
-  ctx.strokeStyle = C.lip;
+  ctx.strokeStyle = C.rockEdge;
   ctx.lineWidth = 2;
   for (const seg of wall.slice(1)) {
     const a = edge(x0, seg.y0);
@@ -93,8 +121,8 @@ export function drawWall(ctx: CanvasRenderingContext2D, w: number, h: number, v:
     ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
   }
   const lipL = edge(x0, top);
-  ctx.strokeStyle = '#B9AE93';
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = C.lip;
+  ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(lipL[0], lipL[1]); ctx.lineTo(topRight[0], topRight[1]); ctx.stroke();
 
   // Ground and pads.
@@ -103,8 +131,11 @@ export function drawWall(ctx: CanvasRenderingContext2D, w: number, h: number, v:
   for (const p of geom.route.protection.filter((x) => x.kind === 'pad_zone')) {
     const pw = p.width_m ?? 2;
     const [a] = S(...project(wall, (p.x ?? 0) - pw / 2, 0));
+    const pwPx = pw * 0.5 * scale + 0.9 * scale;
     ctx.fillStyle = C.pad;
-    ctx.fillRect(a - 0.7 * scale, gy - 0.09 * scale, pw * 0.5 * scale + 0.9 * scale, 0.09 * scale);
+    ctx.fillRect(a - 0.7 * scale, gy - 0.09 * scale, pwPx, 0.09 * scale);
+    ctx.fillStyle = C.padTop;
+    ctx.fillRect(a - 0.7 * scale, gy - 0.09 * scale, pwPx, 0.03 * scale);
   }
 
   // Reach envelope for the selected limb (a circle in surface space, projected).
@@ -120,11 +151,11 @@ export function drawWall(ctx: CanvasRenderingContext2D, w: number, h: number, v:
       if (i) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy);
     }
     ctx.closePath();
-    ctx.fillStyle = 'rgba(134, 200, 242, 0.13)';
+    ctx.fillStyle = 'rgba(46, 196, 182, 0.14)';
     ctx.fill();
     ctx.setLineDash([5, 5]);
-    ctx.strokeStyle = 'rgba(134, 200, 242, 0.7)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(46, 196, 182, 0.85)';
+    ctx.lineWidth = 2;
     ctx.stroke();
     ctx.setLineDash([]);
   }
@@ -149,10 +180,11 @@ export function drawWall(ctx: CanvasRenderingContext2D, w: number, h: number, v:
 
   if (extras.banner && extras.banner.alpha > 0) {
     ctx.globalAlpha = extras.banner.alpha;
-    ctx.font = '700 34px "Barlow Condensed", "IBM Plex Sans", sans-serif';
+    ctx.font = '800 38px "Barlow Condensed", "Arial Narrow", sans-serif';
     ctx.textAlign = 'center';
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = C.bg;
+    ctx.lineWidth = 7;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = C.ink;
     ctx.strokeText(extras.banner.text, w / 2, h * extras.banner.y);
     ctx.fillStyle = extras.banner.colour;
     ctx.fillText(extras.banner.text, w / 2, h * extras.banner.y);
@@ -198,24 +230,26 @@ function holdShape(ctx: CanvasRenderingContext2D, type: HoldType, x: number, y: 
   }
 }
 
+/** Flat holds: a shade under, the hold on top, no outline. Smears are friction, not holds: a dashed patch. Pockets are holes. */
 function drawHold(ctx: CanvasRenderingContext2D, hold: HoldG, x: number, y: number, scale: number): void {
   const r = holdRadius(hold, scale);
-  holdShape(ctx, hold.type, x, y, r, hold.orientation);
   if (hold.type === 'smear') {
-    ctx.fillStyle = 'rgba(214, 203, 176, 0.35)';
-    ctx.fill();
-    ctx.setLineDash([2, 3]);
-    ctx.strokeStyle = 'rgba(238, 241, 236, 0.5)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.setLineDash([]);
-  } else {
-    ctx.fillStyle = hold.type.startsWith('pocket') ? '#3B352A' : C.hold;
-    ctx.fill();
-    ctx.strokeStyle = C.holdEdge;
+    holdShape(ctx, hold.type, x, y, r, hold.orientation);
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = C.hold;
     ctx.lineWidth = 1.5;
     ctx.stroke();
+    ctx.setLineDash([]);
+    return;
   }
+  const drop = Math.max(2, 0.02 * scale);
+  holdShape(ctx, hold.type, x, y + drop, r, hold.orientation);
+  ctx.fillStyle = C.holdShade;
+  ctx.fill();
+  holdShape(ctx, hold.type, x, y, r, hold.orientation);
+  ctx.fillStyle = hold.type.startsWith('pocket') ? C.pocket : C.hold;
+  ctx.fill();
+  if (hold.type.startsWith('pocket')) { ctx.strokeStyle = C.hold; ctx.lineWidth = 2; ctx.stroke(); }
 }
 
 function drawRings(
@@ -224,34 +258,36 @@ function drawRings(
 ): void {
   const r = holdRadius(hold, scale);
   if (o.finish) {
-    // The top hold is marked in white, not the amber that means "you can move here".
-    ctx.fillStyle = C.text;
-    ctx.font = '600 10px "IBM Plex Mono", monospace';
+    // The top hold is labelled in white, not the yellow that means "you can move here".
+    ctx.font = '800 11px "Barlow Condensed", "Arial Narrow", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('▲ TOP', x, y - r - 6);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = C.ink;
+    ctx.strokeText('TOP', x, y - r - 7);
+    ctx.fillStyle = C.text;
+    ctx.fillText('TOP', x, y - r - 7);
   }
   if (o.occupied) {
     ctx.beginPath();
     ctx.arc(x, y, r + 4, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255,255,255,0.65)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = C.safe;
+    ctx.lineWidth = 2.5;
     ctx.stroke();
   }
   if (o.target) {
-    ctx.beginPath();
-    ctx.arc(x, y, r + 6, 0, Math.PI * 2);
-    ctx.strokeStyle = C.target;
-    ctx.lineWidth = o.selected ? 4 : 2;
-    if (o.target === 'dynamic') ctx.setLineDash([4, 4]);
-    ctx.stroke();
-    ctx.setLineDash([]);
     if (o.selected) {
       ctx.beginPath();
-      ctx.arc(x, y, r + 14, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(233, 184, 92, 0.45)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.arc(x, y, r + 7, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 224, 102, 0.22)';
+      ctx.fill();
     }
+    ctx.beginPath();
+    ctx.arc(x, y, r + 7, 0, Math.PI * 2);
+    ctx.strokeStyle = C.target;
+    ctx.lineWidth = o.selected ? 4.5 : 3;
+    if (o.target === 'dynamic') ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 }
 
@@ -272,9 +308,9 @@ function joint(a: [number, number], b: [number, number], l1: number, l2: number,
 }
 
 /**
- * The figure: torso, head, two-bone arms and legs with hands and feet. The far-side limbs (left, seen from the
- * climber's right) are drawn behind the torso in a darker tone so the four limbs stay distinguishable. Returns the limb
- * ends on screen.
+ * The figure, flat: teal jacket, dark trousers, yellow shoes, no outlines. The far-side limbs (left, seen from the
+ * climber's right) are drawn behind the torso a tone darker; the selected limb turns yellow. Returns the limb ends on
+ * screen.
  */
 function drawFigure(
   ctx: CanvasRenderingContext2D, pose: Pose, S: (X: number, Y: number) => [number, number], scale: number, selected: Limb | null,
@@ -298,7 +334,8 @@ function drawFigure(
   const fore = 0.3 * k * scale;
   const thigh = 0.43 * k * scale;
   const shin = 0.42 * k * scale;
-  const bone = Math.max(3.5, 0.06 * k * scale);
+  const arm = Math.max(4, 0.07 * k * scale);
+  const leg = Math.max(5, 0.085 * k * scale);
   const line = (pts: [number, number][], colour: string, width: number) => {
     ctx.beginPath();
     pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
@@ -309,7 +346,7 @@ function drawFigure(
     ctx.stroke();
   };
   const ends: Layout['limbs'] = [];
-  const parts: { limb: Limb; far: boolean; pts: [number, number][] }[] = [];
+  const parts: { limb: Limb; far: boolean; pts: [[number, number], [number, number], [number, number]] }[] = [];
   for (const l of LIMBS) {
     const side = l === 'LH' || l === 'LF' ? -1 : 1;
     const end = S(...pose.ends[l]);
@@ -327,57 +364,67 @@ function drawFigure(
     ends.push({ limb: l, px: end[0], py: end[1] });
   }
   const limb = (p: (typeof parts)[number]) => {
-    const colour = p.limb === selected ? C.limbSel : p.far ? C.bodyFar : C.body;
-    line(p.pts, C.bg, bone + 3);
-    line(p.pts, colour, bone);
-    const end = p.pts[2]!;
+    const sel = p.limb === selected;
+    const [a, j, end] = p.pts;
     if (limbKind(p.limb) === 'hand') {
+      // Sleeve to the elbow, skin below, so hands read against the rock.
+      line([a, j], sel ? C.target : p.far ? C.jacketShade : C.jacket, arm * 1.15);
+      line([j, end], sel ? C.target : p.far ? C.skinFar : C.skin, arm);
       ctx.beginPath();
-      ctx.arc(end[0], end[1], Math.max(3, 0.04 * k * scale), 0, Math.PI * 2);
-      ctx.fillStyle = colour;
+      ctx.arc(end[0], end[1], Math.max(3.5, 0.05 * k * scale), 0, Math.PI * 2);
+      ctx.fillStyle = sel ? C.target : p.far ? C.skinFar : C.skin;
       ctx.fill();
     } else {
-      // The foot points into the wall (+x on screen).
-      line([end, [end[0] + 0.1 * k * scale, end[1] + 0.01 * scale]], colour, Math.max(3, bone * 0.8));
+      line(p.pts, sel ? C.target : p.far ? C.trousersFar : C.trousers, leg);
+      // The shoe points into the wall (+x on screen).
+      ctx.beginPath();
+      ctx.ellipse(end[0] + 0.04 * k * scale, end[1], Math.max(5, 0.08 * k * scale), Math.max(2.5, 0.04 * k * scale), 0, 0, Math.PI * 2);
+      ctx.fillStyle = p.far ? C.shoeFar : C.shoe;
+      ctx.fill();
     }
   };
   // Far limbs, torso, near limbs, head.
   for (const p of parts.filter((q) => q.far)) limb(p);
-  // The torso is a rounded capsule from hip to shoulder, slightly wider at the chest.
-  const chestW = Math.max(9, 0.17 * k * scale);
-  const waistW = Math.max(8, 0.14 * k * scale);
+  // The torso is a rounded capsule from hip to shoulder, slightly wider at the chest, shaded on the wall side.
+  const chestW = Math.max(10, 0.2 * k * scale);
+  const waistW = Math.max(9, 0.17 * k * scale);
   const inset = (p: [number, number], q: [number, number], f: number): [number, number] => [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
   const chest = inset(sh, hip, Math.min(0.45, (chestW / 2) / al));
   const waist = inset(hip, sh, Math.min(0.45, (waistW / 2) / al));
-  line([chest, waist], C.bg, chestW + 3);
-  line([chest, inset(chest, waist, 0.5)], C.body, chestW);
-  line([inset(chest, waist, 0.4), waist], C.body, waistW);
+  line([chest, inset(chest, waist, 0.5)], C.jacket, chestW);
+  line([inset(chest, waist, 0.4), waist], C.jacket, waistW);
+  const off = (p: [number, number], d: number): [number, number] => [p[0] + px * d, p[1] + py * d];
+  line([off(chest, chestW * 0.3), off(waist, waistW * 0.28)], C.jacketShade, chestW * 0.3);
   for (const p of parts.filter((q) => !q.far)) limb(p);
   const head: [number, number] = [sh[0] + (ax / al) * 0.2 * k * scale - 0.03 * scale, sh[1] + (ay / al) * 0.2 * k * scale];
+  const hr = Math.max(6, 0.095 * k * scale);
   ctx.beginPath();
-  ctx.arc(head[0], head[1], Math.max(5, 0.085 * k * scale), 0, Math.PI * 2);
-  ctx.fillStyle = C.body;
+  ctx.arc(head[0], head[1], hr, 0, Math.PI * 2);
+  ctx.fillStyle = C.skin;
   ctx.fill();
-  ctx.strokeStyle = C.bg;
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  // Hair over the back and crown of the head (the climber faces the wall, to the right).
+  ctx.beginPath();
+  ctx.arc(head[0] - hr * 0.2, head[1] - hr * 0.25, hr * 0.92, Math.PI * 0.75, Math.PI * 1.85);
+  ctx.closePath();
+  ctx.fillStyle = C.hair;
+  ctx.fill();
   return ends;
 }
 
 /** Limb tags beside each end; at small scales only the selected limb is tagged, so tags never pile up. */
 function drawLimbTags(ctx: CanvasRenderingContext2D, ends: Layout['limbs'], scale: number, selected: Limb | null): void {
-  ctx.font = '600 9px "IBM Plex Mono", monospace';
+  ctx.font = '800 11px "Barlow Condensed", "Arial Narrow", sans-serif';
   ctx.textAlign = 'center';
   for (const e of ends) {
     if (scale < 110 && e.limb !== selected) continue;
     const lx = e.px - 16;
-    const ly = e.py + (limbKind(e.limb) === 'hand' ? -12 : 14);
-    ctx.fillStyle = e.limb === selected ? C.limbSel : C.bg;
+    const ly = e.py + (limbKind(e.limb) === 'hand' ? -13 : 15);
+    ctx.fillStyle = e.limb === selected ? C.target : C.ink;
     ctx.beginPath();
-    ctx.roundRect(lx - 11, ly - 8, 22, 15, 4);
+    ctx.roundRect(lx - 12, ly - 8, 24, 16, 6);
     ctx.fill();
-    ctx.fillStyle = e.limb === selected ? '#1A1408' : C.text;
-    ctx.fillText(e.limb, lx, ly + 3);
+    ctx.fillStyle = e.limb === selected ? C.ink : C.text;
+    ctx.fillText(e.limb, lx, ly + 4);
   }
 }
 

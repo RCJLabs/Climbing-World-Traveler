@@ -1,18 +1,20 @@
-/* P1a theme: the mockup palette (forest night, sandstone, chalk). Mobile-first portrait (17 §1). */
+/* Flat Dusk theme (docs/23 §4): dusk ground, yellow for where to go, teal for safe, coral for danger. Mobile-first portrait (17 §1). */
 :root {
-  --bg: #101a16;
-  --surface: #1a2722;
-  --raised: #23352d;
-  --line: #34493f;
-  --text: #eef1ec;
-  --soft: #d3dcd7;
-  --muted: #aebdb5;
-  --accent: #e9b85c;
-  --accent-ink: #1a1408;
-  --sky: #86c8f2;
-  --warn: #f08a5d;
-  --good: #8fcb9b;
-  --rock: #8e836c;
+  --bg: #1b1b3a;
+  --surface: #26264a;
+  --raised: #2d2d55;
+  --line: #3d3d6b;
+  --text: #f5f2ff;
+  --soft: #d8d4f0;
+  --muted: #b9b4d6;
+  --accent: #ffe066;
+  --accent-ink: #1b1b3a;
+  --sky: #8fd3f4;
+  --warn: #ff8c6b;
+  --good: #2ec4b6;
+  --rock: #e58f4e;
+  --skin: #f4c095;
+  --chalk: #f5f2ff;
   --font: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --cond: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -60,7 +62,7 @@ p { margin: 0; line-height: 1.4; }
 .chip-btn[aria-pressed='true'] { background: var(--raised); border-color: var(--accent); color: var(--accent); }
 
 .card { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; width: 100%; }
-button.card:hover { border-color: #4a6558; }
+button.card:hover { border-color: #55558a; }
 .card.selected { background: var(--raised); border: 2px solid var(--accent); padding: 11px 13px; }
 .card.dim { opacity: 0.6; }
 .card-title { font-weight: 700; font-size: 16px; }
@@ -80,7 +82,7 @@ button.card:hover { border-color: #4a6558; }
 .meter-label { display: flex; justify-content: space-between; font-family: var(--cond); font-size: 12px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
 .meter-track { height: 8px; border-radius: 4px; background: var(--raised); overflow: hidden; position: relative; }
 .meter-fill { height: 100%; border-radius: 4px; background: var(--sky); }
-.meter-band { position: absolute; top: 0; bottom: 0; background: rgba(143, 203, 155, 0.25); border-left: 1px solid var(--good); border-right: 1px solid var(--good); }
+.meter-band { position: absolute; top: 0; bottom: 0; background: rgba(46, 196, 182, 0.25); border-left: 1px solid var(--good); border-right: 1px solid var(--good); }
 .meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 10px 14px; }
 .meter-label span:last-child { margin-left: 6px; flex-shrink: 0; }
 .meter-label span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -103,6 +105,7 @@ button.card:hover { border-color: #4a6558; }
 .stepper button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; }
 .text-input { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; }
 
+.update-bar { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; background: var(--raised); border: 1px solid var(--accent); color: var(--text); padding: 8px 10px 8px 14px; border-radius: 12px; font-size: 14px; z-index: 60; max-width: calc(100vw - 32px); }
 .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--raised); border: 1px solid var(--warn); color: var(--text); padding: 10px 14px; border-radius: 10px; font-size: 14px; max-width: min(440px, calc(100vw - 32px)); z-index: 50; }
 
 /* attempt screen */
@@ -136,7 +139,7 @@ button.card:hover { border-color: #4a6558; }
 .hud .triangle .big .sub { font-size: 13px; color: var(--accent); }
 .hud .triangle .tiny { white-space: nowrap; }
 
-.commit { position: absolute; left: 12px; right: 12px; bottom: 12px; background: rgba(16, 26, 22, 0.94); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.commit { position: absolute; left: 12px; right: 12px; bottom: 12px; background: rgba(27, 27, 58, 0.94); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .commit-bar { position: relative; height: 54px; border-radius: 8px; background: var(--raised); overflow: hidden; touch-action: manipulation; }
 .commit-bar .zone { position: absolute; top: 0; bottom: 0; }
 .commit-bar .marker { position: absolute; top: -2px; bottom: -2px; width: 4px; background: var(--text); border-radius: 2px; transform: translateX(-2px); }

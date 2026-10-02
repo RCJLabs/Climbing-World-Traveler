@@ -153,8 +153,8 @@ export function Attempt({ run }: { run: RunState }) {
         <div class="meters" style={{ gridTemplateColumns: 'minmax(0, 1.4fr) repeat(3, minmax(0, 1fr))' }}>
           <Meter label="Pump" value={at.pump} colour={at.pump > 70 ? 'var(--warn)' : 'var(--sky)'} />
           <Meter label="Power" value={at.power} max={Math.max(1, ath.a.anaerobic_capacity)} colour="var(--accent)" />
-          <Meter label="Skin" value={run.res.skin} colour="#E2B9A0" />
-          <Meter label="Chalk" value={at.chalk} colour="#EEF1EC" />
+          <Meter label="Skin" value={run.res.skin} colour="var(--skin)" />
+          <Meter label="Chalk" value={at.chalk} colour="var(--chalk)" />
         </div>
         <div class="col" style={{ gap: '4px' }}>
           <Meter label="Fear" value={fear.fear} band={[bandZ.lo, bandZ.hi]} colour={fear.fear > bandZ.hi ? 'var(--warn)' : fear.fear < bandZ.lo ? 'var(--muted)' : 'var(--good)'} />
