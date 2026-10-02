@@ -27,6 +27,15 @@ export default defineConfig({
       workbox: { globPatterns: ['**/*.{js,css,html,svg,json}'] },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Generated route data changes with every generator change and is most of the app's size; its own chunk keeps
+        // the code chunk under Vite's 500 kB warning and lets either be re-cached without the other.
+        manualChunks: (id) => (id.includes('/data/routes/') ? 'routes' : undefined),
+      },
+    },
+  },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
