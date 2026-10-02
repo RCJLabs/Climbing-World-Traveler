@@ -82,7 +82,7 @@ const SPECS: Spec[] = [
   },
   {
     id: 'sig_rainbow_rocket', name: 'Rainbow Rocket', area: 'franchard_isatis', di_target: 25, polish: 0.15,
-    angles: [{ upTo: 0.3, angle: 95 }, { upTo: 1.6, angle: 100 }, { upTo: 9, angle: 104 }],
+    angles: [{ upTo: 0.3, angle: 95 }, { upTo: 1.6, angle: 110 }, { upTo: 9, angle: 125 }],
     start: {
       LH: { id: 's_lh', x: -0.3, y: 1.4, type: 'sloper', o: 40 }, RH: { id: 's_rh', x: 0.25, y: 1.45, type: 'sloper', o: -40 },
       LF: { id: 's_lf', x: -0.2, y: 0.55, type: 'smear' }, RF: { id: 's_rf', x: 0.25, y: 0.6, type: 'foot_chip' },
@@ -92,7 +92,7 @@ const SPECS: Spec[] = [
       { limb: 'RH', cls: 'dyno', type: 'sloper', size: 's', r: 0.99, dx: -0.1, finish: true },
     ],
     decoys: [{ id: 'd1', x: 0.6, y: 2.0, type: 'sloper', size: 's', q: 0.2 }, { id: 'd2', x: -0.65, y: 1.95, type: 'crimp', size: 'xs', q: 0.2 }],
-    tags: ['vertical', 'sloper', 'dynamic', 'power'],
+    tags: ['overhang', 'sloper', 'dynamic', 'power'],
     fa: 'One move, one rocket, one rainbow of chalk on the lip. The game credits no real person.',
   },
 ];

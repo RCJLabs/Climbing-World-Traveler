@@ -441,7 +441,7 @@ function solveAll(route: Route, traced: Traced, ath: Athlete, req: GenRequest, r
       const dynamic = prep.cls === 'deadpoint' || prep.cls === 'dyno';
       const target = kind === 'foot'
         ? req.di_target - 1.5
-        : req.di_target + (crux.has(i) ? 0.6 : -0.3) - 0.3 + (dynamic ? -0.4 : 0);
+        : req.di_target + (crux.has(i) ? 0.6 : -0.3) - 0.05 + (dynamic ? -0.4 : 0);
       solveHold(hold, prep.spec, target, req.profile, rng, kind, hold.id === route.finish_hold);
       geom = routeGeom(route);
       const again = prepareMove(geom, ath, st, step.limb, step.hold, prep.cls) ?? prepareMove(geom, ath, st, step.limb, step.hold);
