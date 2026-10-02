@@ -1,0 +1,1244 @@
+[
+ {
+  "id": "gecko_skin",
+  "name": "Gecko Skin",
+  "category": "body",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "skin",
+   "friction",
+   "sharp",
+   "boulder"
+  ],
+  "effect": {
+   "attr_add": {
+    "skin_durability": 10
+   },
+   "ceiling_add": {
+    "skin_durability": 5
+   },
+   "resource_mult": {
+    "skin": 1.25
+   }
+  },
+  "excludes": [
+   "paper_skin"
+  ],
+  "flavour": "Sharp crimps are somebody else's problem."
+ },
+ {
+  "id": "paper_skin",
+  "name": "Paper Skin",
+  "category": "body",
+  "kind": "creation",
+  "cost": -5,
+  "phase": "P1a",
+  "tags": [
+   "skin",
+   "sharp"
+  ],
+  "effect": {
+   "attr_add": {
+    "skin_durability": -10
+   },
+   "ceiling_add": {
+    "skin_durability": -5
+   },
+   "resource_mult": {
+    "skin": 0.8
+   }
+  },
+  "excludes": [
+   "gecko_skin"
+  ],
+  "flavour": "Three goes on the gritty sloper and you are bleeding."
+ },
+ {
+  "id": "sweaty_hands",
+  "name": "Sweaty Hands",
+  "category": "body",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P1a",
+  "tags": [
+   "skin",
+   "humid",
+   "heat",
+   "friction"
+  ],
+  "effect": {
+   "condition_mult": {
+    "humid": 0.94,
+    "heat": 0.95
+   },
+   "resource_mult": {
+    "chalk": 0.7
+   },
+   "flags": [
+    "sending_temp_shift=-3"
+   ]
+  },
+  "excludes": [
+   "dry_hands"
+  ],
+  "flavour": "Your chalk bag is a budget line."
+ },
+ {
+  "id": "rubber_hips",
+  "name": "Rubber Hips",
+  "category": "body",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1a",
+  "tags": [
+   "flexibility",
+   "footwork",
+   "slab",
+   "overhang"
+  ],
+  "effect": {
+   "attr_add": {
+    "hip_mobility": 10
+   },
+   "ceiling_add": {
+    "hip_mobility": 10
+   },
+   "move_mult": {
+    "high_step": 1.05,
+    "heel_hook": 1.03,
+    "kneebar": 1.03
+   }
+  },
+  "excludes": [
+   "tight_hips"
+  ],
+  "flavour": "Feet go where other people put their hands."
+ },
+ {
+  "id": "tight_hips",
+  "name": "Tight Hips",
+  "category": "body",
+  "kind": "creation",
+  "cost": -5,
+  "phase": "P1a",
+  "tags": [
+   "flexibility",
+   "footwork"
+  ],
+  "effect": {
+   "attr_add": {
+    "hip_mobility": -10
+   },
+   "ceiling_add": {
+    "hip_mobility": -10
+   },
+   "move_mult": {
+    "high_step": 0.94,
+    "heel_hook": 0.97
+   }
+  },
+  "excludes": [
+   "rubber_hips"
+  ],
+  "flavour": "The high step is a rumour."
+ },
+ {
+  "id": "monkey_arms",
+  "name": "Monkey Arms",
+  "category": "body",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1a",
+  "tags": [
+   "reach",
+   "overhang",
+   "roof",
+   "compression"
+  ],
+  "effect": {
+   "flags": [
+    "reach_mult=1.03"
+   ],
+   "move_mult": {
+    "static": 1.02
+   },
+   "hold_mult": {
+    "smear": 0.98
+   }
+  },
+  "excludes": [
+   "t_rex_arms"
+  ],
+  "flavour": "Stacks on the ape-index slider. Skips the intermediate; wobbles on the slab."
+ },
+ {
+  "id": "t_rex_arms",
+  "name": "T-Rex Arms",
+  "category": "body",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P1a",
+  "tags": [
+   "reach",
+   "slab"
+  ],
+  "effect": {
+   "flags": [
+    "reach_mult=0.97"
+   ],
+   "move_mult": {
+    "static": 0.98
+   },
+   "hold_mult": {
+    "smear": 1.02
+   }
+  },
+  "excludes": [
+   "monkey_arms"
+  ],
+  "flavour": "Every problem has one more move for you."
+ },
+ {
+  "id": "light_frame",
+  "name": "Light Frame",
+  "category": "body",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "weight",
+   "power",
+   "overhang",
+   "roof"
+  ],
+  "effect": {
+   "attr_add": {
+    "pull_power": 4,
+    "finger_strength": 3,
+    "lockoff": 3
+   },
+   "ceiling_add": {
+    "pull_power": 3,
+    "finger_strength": 3,
+    "lockoff": 3
+   },
+   "injury_risk_mult": 1.08,
+   "condition_mult": {
+    "cold": 0.96
+   }
+  },
+  "excludes": [
+   "heavy_bones"
+  ],
+  "flavour": "Everything is strength-to-weight until you hit the ground."
+ },
+ {
+  "id": "heavy_bones",
+  "name": "Heavy Bones",
+  "category": "body",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P1a",
+  "tags": [
+   "weight",
+   "injury",
+   "crack"
+  ],
+  "effect": {
+   "attr_add": {
+    "pull_power": -4,
+    "finger_strength": -3
+   },
+   "injury_risk_mult": 0.92,
+   "hold_mult": {
+    "crack_offwidth": 1.04,
+    "crack_fist": 1.02
+   }
+  },
+  "excludes": [
+   "light_frame"
+  ],
+  "flavour": "Dense. Durable. Last one up the roof."
+ },
+ {
+  "id": "fast_twitch",
+  "name": "Fast Twitch",
+  "category": "body",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1a",
+  "tags": [
+   "power",
+   "dynamic",
+   "contact",
+   "boulder"
+  ],
+  "effect": {
+   "ceiling_add": {
+    "contact_strength": 8,
+    "leg_power": 8,
+    "anaerobic_capacity": 6,
+    "aerobic_capacity": -6,
+    "finger_endurance": -6
+   },
+   "adapt_rate_mult": {
+    "contact_strength": 1.15,
+    "finger_endurance": 0.9
+   }
+  },
+  "excludes": [
+   "slow_twitch"
+  ],
+  "flavour": "Stacks on fibre_bias. Four moves of fireworks, then a sit-down."
+ },
+ {
+  "id": "crusher_hands",
+  "name": "Crusher Hands",
+  "category": "body",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1a",
+  "tags": [
+   "crimp",
+   "edge",
+   "power"
+  ],
+  "effect": {
+   "attr_add": {
+    "finger_strength": 6
+   },
+   "ceiling_add": {
+    "finger_strength": 6
+   }
+  },
+  "excludes": [
+   "soft_fingers"
+  ],
+  "flavour": "Born on a 20 mm edge."
+ },
+ {
+  "id": "soft_fingers",
+  "name": "Soft Fingers",
+  "category": "body",
+  "kind": "creation",
+  "cost": -6,
+  "phase": "P1a",
+  "tags": [
+   "crimp",
+   "edge"
+  ],
+  "effect": {
+   "attr_add": {
+    "finger_strength": -6
+   },
+   "ceiling_add": {
+    "finger_strength": -6
+   }
+  },
+  "excludes": [
+   "crusher_hands"
+  ],
+  "flavour": "Good for piano. Not for the 7 mm crimp."
+ },
+ {
+  "id": "crimp_machine",
+  "name": "Crimp Machine",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1a",
+  "tags": [
+   "crimp",
+   "edge",
+   "vertical",
+   "power"
+  ],
+  "effect": {
+   "attr_add": {
+    "tech_crimps": 8,
+    "finger_strength": 2
+   },
+   "hold_mult": {
+    "crimp": 1.06,
+    "edge": 1.04
+   },
+   "adapt_rate_mult": {
+    "tech_crimps": 1.15
+   }
+  },
+  "excludes": [],
+  "flavour": "Smaller is better. Sharper is best."
+ },
+ {
+  "id": "sloper_whisperer",
+  "name": "Sloper Whisperer",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "sloper",
+   "friction",
+   "compression",
+   "boulder"
+  ],
+  "effect": {
+   "attr_add": {
+    "tech_slopers": 8,
+    "contact_strength": 2
+   },
+   "hold_mult": {
+    "sloper": 1.08
+   },
+   "adapt_rate_mult": {
+    "tech_slopers": 1.15
+   }
+  },
+  "excludes": [],
+  "flavour": "Holds nothing, stays on anyway. Fontainebleau will adopt you."
+ },
+ {
+  "id": "pinch_grip",
+  "name": "Pinch Grip",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1a",
+  "tags": [
+   "pinch",
+   "compression",
+   "power"
+  ],
+  "effect": {
+   "attr_add": {
+    "tech_pinches": 8
+   },
+   "hold_mult": {
+    "pinch": 1.08
+   }
+  },
+  "excludes": [],
+  "flavour": "Thumbs are a hand's second opinion."
+ },
+ {
+  "id": "dyno_monkey",
+  "name": "Dyno Monkey",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "dynamic",
+   "power",
+   "boulder",
+   "comp"
+  ],
+  "effect": {
+   "attr_add": {
+    "dynamic_movement": 8,
+    "commitment": 4
+   },
+   "move_mult": {
+    "dyno": 1.06,
+    "deadpoint": 1.04
+   },
+   "flags": [
+    "commit_window_width=1.10"
+   ]
+  },
+  "excludes": [
+   "static_master"
+  ],
+  "flavour": "Why reach when you can fly."
+ },
+ {
+  "id": "static_master",
+  "name": "Static Master",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "static",
+   "vertical",
+   "slab",
+   "trad"
+  ],
+  "effect": {
+   "attr_add": {
+    "lockoff": 6,
+    "body_position": 4
+   },
+   "move_mult": {
+    "static": 1.04,
+    "high_step": 1.03,
+    "dyno": 0.96
+   }
+  },
+  "excludes": [
+   "dyno_monkey"
+  ],
+  "flavour": "Slow is smooth. Smooth is sent."
+ },
+ {
+  "id": "core_of_steel",
+  "name": "Core of Steel",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1a",
+  "tags": [
+   "core",
+   "roof",
+   "overhang",
+   "compression"
+  ],
+  "effect": {
+   "attr_add": {
+    "core_tension": 10
+   },
+   "ceiling_add": {
+    "core_tension": 6
+   },
+   "move_mult": {
+    "toe_hook": 1.04
+   },
+   "flags": [
+    "feet_cut_recovery=+15"
+   ]
+  },
+  "excludes": [],
+  "flavour": "Feet cut. Feet go back on. Nobody mentions it."
+ },
+ {
+  "id": "heel_hook_savant",
+  "name": "Heel Hook Savant",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1a",
+  "tags": [
+   "footwork",
+   "flexibility",
+   "overhang",
+   "boulder"
+  ],
+  "effect": {
+   "attr_add": {
+    "hip_mobility": 3
+   },
+   "move_mult": {
+    "heel_hook": 1.1
+   }
+  },
+  "excludes": [],
+  "flavour": "Sees a heel where others see a rest they cannot use."
+ },
+ {
+  "id": "smear_faith",
+  "name": "Smear Faith",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1a",
+  "tags": [
+   "slab",
+   "smear",
+   "footwork",
+   "friction"
+  ],
+  "effect": {
+   "attr_add": {
+    "tech_slab": 6
+   },
+   "hold_mult": {
+    "smear": 1.08,
+    "foot_chip": 1.04
+   }
+  },
+  "excludes": [],
+  "flavour": "There is no foothold. Stand on it anyway."
+ },
+ {
+  "id": "quiet_feet",
+  "name": "Quiet Feet",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "footwork",
+   "slab",
+   "vertical"
+  ],
+  "effect": {
+   "attr_add": {
+    "footwork": 8
+   },
+   "adapt_rate_mult": {
+    "footwork": 1.15
+   }
+  },
+  "excludes": [
+   "clumsy_feet"
+  ],
+  "flavour": "You never hear them climb."
+ },
+ {
+  "id": "clumsy_feet",
+  "name": "Clumsy Feet",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": -5,
+  "phase": "P1a",
+  "tags": [
+   "footwork"
+  ],
+  "effect": {
+   "attr_add": {
+    "footwork": -8
+   },
+   "adapt_rate_mult": {
+    "footwork": 0.9
+   }
+  },
+  "excludes": [
+   "quiet_feet",
+   "dancer"
+  ],
+  "flavour": "Scrape, scrabble, swing. Repeat."
+ },
+ {
+  "id": "eagle_eye",
+  "name": "Eagle Eye",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "reading",
+   "onsight"
+  ],
+  "effect": {
+   "attr_add": {
+    "route_reading": 10
+   }
+  },
+  "excludes": [
+   "beta_blind"
+  ],
+  "flavour": "Reads the sequence from the car."
+ },
+ {
+  "id": "topout_tidy",
+  "name": "Topout Tidy",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 3,
+  "phase": "P1a",
+  "tags": [
+   "boulder",
+   "highball"
+  ],
+  "effect": {
+   "move_mult": {
+    "mantle": 1.1
+   }
+  },
+  "excludes": [
+   "topout_terror"
+  ],
+  "flavour": "The belly-flop is optional."
+ },
+ {
+  "id": "topout_terror",
+  "name": "Topout Terror",
+  "category": "aptitude",
+  "kind": "evolving",
+  "cost": -3,
+  "phase": "P1a",
+  "tags": [
+   "boulder",
+   "highball",
+   "fear"
+  ],
+  "effect": {
+   "move_mult": {
+    "mantle": 0.9
+   },
+   "flags": [
+    "fear_source_mult:height=1.3"
+   ]
+  },
+  "excludes": [
+   "topout_tidy"
+  ],
+  "flavour": "The hard part is over. Now the terrifying part."
+ },
+ {
+  "id": "ice_in_the_veins",
+  "name": "Ice in the Veins",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 8,
+  "phase": "P1a",
+  "tags": [
+   "fear",
+   "focus",
+   "highball",
+   "trad",
+   "risk"
+  ],
+  "effect": {
+   "attr_add": {
+    "composure": 12
+   },
+   "fear_add": -8
+  },
+  "excludes": [
+   "afraid_of_falling",
+   "jittery",
+   "unflappable"
+  ],
+  "flavour": "Heart rate on the runout: resting."
+ },
+ {
+  "id": "afraid_of_falling",
+  "name": "Afraid of Falling",
+  "category": "mental",
+  "kind": "evolving",
+  "cost": -6,
+  "phase": "P1a",
+  "tags": [
+   "fear",
+   "boulder",
+   "sport",
+   "highball"
+  ],
+  "effect": {
+   "attr_add": {
+    "composure": -6,
+    "commitment": -4
+   },
+   "fear_add": 10,
+   "flags": [
+    "fear_source_mult:last_fall=1.5"
+   ]
+  },
+  "excludes": [
+   "ice_in_the_veins",
+   "falls_well"
+  ],
+  "flavour": "The pad is right there. The pad is very far away."
+ },
+ {
+  "id": "flow_prone",
+  "name": "Flow Prone",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "flow",
+   "focus",
+   "boulder"
+  ],
+  "effect": {
+   "resource_mult": {
+    "focus_meter": 1.1
+   },
+   "flags": [
+    "flow_chance_mult=1.5"
+   ]
+  },
+  "excludes": [],
+  "flavour": "Cannot remember the send. Was definitely there."
+ },
+ {
+  "id": "choker",
+  "name": "Choker",
+  "category": "mental",
+  "kind": "evolving",
+  "cost": -6,
+  "phase": "P1a",
+  "tags": [
+   "competition",
+   "focus",
+   "redpoint",
+   "comp"
+  ],
+  "effect": {
+   "attr_add": {
+    "confidence": -4
+   },
+   "flags": [
+    "stakes_mult=0.94"
+   ]
+  },
+  "excludes": [
+   "clutch"
+  ],
+  "flavour": "Flawless in the warm-up. Different person in the final."
+ },
+ {
+  "id": "rage_quitter",
+  "name": "Rage Quitter",
+  "category": "mental",
+  "kind": "creation",
+  "cost": -5,
+  "phase": "P1a",
+  "tags": [
+   "patience",
+   "flow"
+  ],
+  "effect": {
+   "attr_add": {
+    "resilience": -6
+   },
+   "flags": [
+    "quit_after_fails=3",
+    "quit_chance=0.3",
+    "stoke_hit=8"
+   ]
+  },
+  "excludes": [
+   "zen"
+  ],
+  "flavour": "The shoes came off with some force."
+ },
+ {
+  "id": "projector",
+  "name": "Projector",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1a",
+  "tags": [
+   "redpoint",
+   "patience",
+   "boulder",
+   "sport"
+  ],
+  "effect": {
+   "flags": [
+    "familiarity_k_mult=1.3",
+    "project_stoke_immunity"
+   ]
+  },
+  "excludes": [
+   "onsight_purist"
+  ],
+  "flavour": "Attempt forty-one. Feels close."
+ },
+ {
+  "id": "swagger",
+  "name": "Swagger",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1a",
+  "tags": [
+   "fear",
+   "sponsor"
+  ],
+  "effect": {
+   "attr_add": {
+    "confidence": 10
+   }
+  },
+  "excludes": [
+   "imposter"
+  ],
+  "flavour": "Has not sent it yet. Has already told people."
+ },
+ {
+  "id": "imposter",
+  "name": "Imposter",
+  "category": "mental",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P1a",
+  "tags": [
+   "fear"
+  ],
+  "effect": {
+   "attr_add": {
+    "confidence": -10
+   }
+  },
+  "excludes": [
+   "swagger"
+  ],
+  "flavour": "Sent it. Assumes it is soft."
+ },
+ {
+  "id": "laser_focus",
+  "name": "Laser Focus",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1a",
+  "tags": [
+   "focus",
+   "onsight",
+   "comp"
+  ],
+  "effect": {
+   "attr_add": {
+    "focus": 10
+   }
+  },
+  "excludes": [
+   "scatterbrain"
+  ],
+  "flavour": "The crag could be on fire."
+ },
+ {
+  "id": "scatterbrain",
+  "name": "Scatterbrain",
+  "category": "mental",
+  "kind": "creation",
+  "cost": -5,
+  "phase": "P1a",
+  "tags": [
+   "focus"
+  ],
+  "effect": {
+   "attr_add": {
+    "focus": -10
+   }
+  },
+  "excludes": [
+   "laser_focus"
+  ],
+  "flavour": "Mid-crux, remembers the parking meter."
+ },
+ {
+  "id": "dirtbag",
+  "name": "Dirtbag",
+  "category": "lifestyle",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P2",
+  "tags": [
+   "money",
+   "travel",
+   "patience"
+  ],
+  "effect": {
+   "cost_mult": 0.7,
+   "flags": [
+    "city_stoke=-2",
+    "sponsor_appeal_mult=0.9"
+   ]
+  },
+  "excludes": [
+   "trust_fund",
+   "frugal",
+   "shiny_things"
+  ],
+  "flavour": "Rice, beans, a tarp and the best season of your life."
+ },
+ {
+  "id": "gym_kid",
+  "name": "Gym Kid",
+  "category": "history",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "gym",
+   "comp",
+   "dynamic",
+   "boulder"
+  ],
+  "effect": {
+   "attr_add": {
+    "dynamic_movement": 6,
+    "body_position": 4,
+    "route_reading": 2
+   },
+   "flags": [
+    "plastic_mult=1.05"
+   ]
+  },
+  "excludes": [
+   "late_starter"
+  ],
+  "flavour": "Raised on volumes. Rock is a texture upgrade."
+ },
+ {
+  "id": "gymnast",
+  "name": "Gymnast",
+  "category": "history",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1a",
+  "tags": [
+   "core",
+   "flexibility",
+   "dynamic",
+   "power"
+  ],
+  "effect": {
+   "attr_add": {
+    "core_tension": 8,
+    "shoulder_mobility": 6,
+    "body_position": 4
+   }
+  },
+  "excludes": [
+   "desk_jockey"
+  ],
+  "flavour": "Front lever on day one. Finger strength to follow."
+ },
+ {
+  "id": "dancer",
+  "name": "Dancer",
+  "category": "history",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "footwork",
+   "flexibility",
+   "slab",
+   "flow"
+  ],
+  "effect": {
+   "attr_add": {
+    "footwork": 8,
+    "hip_mobility": 6,
+    "body_position": 3
+   }
+  },
+  "excludes": [
+   "clumsy_feet",
+   "desk_jockey"
+  ],
+  "flavour": "Climbs like it is choreographed. It is."
+ },
+ {
+  "id": "late_starter",
+  "name": "Late Starter",
+  "category": "history",
+  "kind": "creation",
+  "cost": -3,
+  "phase": "P1a",
+  "tags": [
+   "learning",
+   "patience"
+  ],
+  "effect": {
+   "attr_add": {
+    "composure": 4,
+    "logistics": 4
+   },
+   "adapt_rate_mult": {
+    "footwork": 0.9,
+    "body_position": 0.9,
+    "dynamic_movement": 0.9,
+    "tech_crimps": 0.9,
+    "tech_slopers": 0.9,
+    "tech_pinches": 0.9,
+    "tech_pockets": 0.9,
+    "tech_cracks": 0.9,
+    "tech_slab": 0.9
+   }
+  },
+  "excludes": [
+   "gym_kid",
+   "climber_parents",
+   "podium_kid"
+  ],
+  "flavour": "First shoes at thirty. Zero bad habits, zero good ones.",
+  "requires_age": [
+   28,
+   45
+  ]
+ },
+ {
+  "id": "desk_jockey",
+  "name": "Desk Jockey",
+  "category": "history",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P1a",
+  "tags": [
+   "flexibility",
+   "money"
+  ],
+  "effect": {
+   "attr_add": {
+    "hip_mobility": -6,
+    "shoulder_mobility": -4,
+    "core_tension": -3
+   }
+  },
+  "excludes": [
+   "gymnast",
+   "dancer",
+   "farm_strong",
+   "feral_childhood"
+  ],
+  "flavour": "Fifteen years in a chair. The hips remember."
+ },
+ {
+  "id": "lucky",
+  "name": "Lucky",
+  "category": "health",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "health",
+   "injury",
+   "risk"
+  ],
+  "effect": {
+   "injury_risk_mult": 0.9,
+   "flags": [
+    "reroll_bad_outcome=0.15",
+    "good_event_mult=1.2"
+   ]
+  },
+  "excludes": [
+   "unlucky"
+  ],
+  "flavour": "The foot pops. The other foot finds something."
+ },
+ {
+  "id": "unlucky",
+  "name": "Unlucky",
+  "category": "health",
+  "kind": "creation",
+  "cost": -5,
+  "phase": "P1a",
+  "tags": [
+   "injury",
+   "risk"
+  ],
+  "effect": {
+   "injury_risk_mult": 1.1,
+   "flags": [
+    "reroll_good_outcome=0.15",
+    "bad_event_mult=1.2"
+   ]
+  },
+  "excludes": [
+   "lucky"
+  ],
+  "flavour": "The one hold that snaps is the one you are on."
+ },
+ {
+  "id": "reckless",
+  "name": "Reckless",
+  "category": "quirk",
+  "kind": "creation",
+  "cost": 0,
+  "phase": "P1a",
+  "tags": [
+   "risk",
+   "fear",
+   "dynamic"
+  ],
+  "effect": {
+   "attr_add": {
+    "risk_judgement": -8,
+    "commitment": 8
+   },
+   "fear_add": -5,
+   "injury_risk_mult": 1.15
+  },
+  "excludes": [
+   "cautious",
+   "cool_head"
+  ],
+  "flavour": "The highball looked shorter from the ground. Went anyway."
+ },
+ {
+  "id": "tunnel_vision",
+  "name": "Tunnel Vision",
+  "category": "quirk",
+  "kind": "creation",
+  "cost": 0,
+  "phase": "P1a",
+  "tags": [
+   "focus",
+   "reading"
+  ],
+  "effect": {
+   "attr_add": {
+    "focus": 8,
+    "route_reading": -6
+   }
+  },
+  "excludes": [],
+  "flavour": "Nails the sequence. Misses the jug a metre left."
+ },
+ {
+  "id": "heavy_chalker",
+  "name": "Heavy Chalker",
+  "category": "quirk",
+  "kind": "creation",
+  "cost": 0,
+  "phase": "P1a",
+  "tags": [
+   "friction",
+   "skin"
+  ],
+  "effect": {
+   "resource_mult": {
+    "chalk": 0.7
+   },
+   "flags": [
+    "chalk_friction_base=+0.02",
+    "overchalk_penalty_mult=2.0"
+   ]
+  },
+  "excludes": [],
+  "flavour": "Leaves a cloud. Leaves a mess."
+ },
+ {
+  "id": "falls_ok",
+  "name": "Falls OK",
+  "category": "mental",
+  "kind": "acquired",
+  "cost": 0,
+  "phase": "P1a",
+  "tags": [
+   "fear"
+  ],
+  "effect": {},
+  "excludes": [],
+  "flavour": "Still not fun. Fine though."
+ },
+ {
+  "id": "falls_well",
+  "name": "Falls Well",
+  "category": "mental",
+  "kind": "acquired",
+  "cost": 0,
+  "phase": "P1a",
+  "tags": [
+   "fear",
+   "sport",
+   "boulder"
+  ],
+  "effect": {
+   "attr_add": {
+    "composure": 4
+   },
+   "fear_add": -5,
+   "flags": [
+    "fear_source_mult:last_fall=0.5"
+   ]
+  },
+  "excludes": [
+   "afraid_of_falling"
+  ],
+  "flavour": "Falls like it was the plan."
+ }
+]

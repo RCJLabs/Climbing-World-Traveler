@@ -110,6 +110,14 @@ export interface BodyPoints {
 const centroid = (pts: Pt[]): Pt | null =>
   pts.length === 0 ? null : { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, s: pts.reduce((s, p) => s + p.s, 0) / pts.length };
 
+/** The state with one limb released: reach is measured for a free limb (05a §5.1). */
+export function freeState(st: ClimbState, limb: Limb): ClimbState {
+  const anchors = { ...st.anchors };
+  const otherOfKind = limbKind(limb) === 'hand' ? anchors[otherHand(limb)] : anchors[otherHand(limb)];
+  if (otherOfKind || limbKind(limb) === 'foot') delete anchors[limb];
+  return { ...st, anchors };
+}
+
 export function bodyPoints(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyPoints {
   const k = kinematics(ath.body);
   const scale = k.height_m / 1.7;
@@ -182,8 +190,9 @@ export function terrainTags(angle: number, posture: Posture, feature: Feature): 
 function handednessOk(limb: Limb, hold: HoldG, bp: BodyPoints, ath: Athlete): boolean {
   if (hold.feature === 'arete' || hold.feature === 'hueco') return true;
   if (hold.type === 'sidepull') {
+    // Face points right (90): a right-hand sidepull on the right of the body; 270 mirrors it (05a §5.3).
     const right = Math.abs(norm180(hold.orientation - 90)) <= 90;
-    return right ? limb === 'RH' || hold.x >= bp.C.x - 0.1 : limb === 'LH' || hold.x <= bp.C.x + 0.1;
+    return right ? limb === 'RH' && hold.x >= bp.C.x - 0.1 : limb === 'LH' && hold.x <= bp.C.x + 0.1;
   }
   if (hold.type === 'gaston') {
     if (ath.a.shoulder_mobility < 20) return false;
@@ -193,6 +202,9 @@ function handednessOk(limb: Limb, hold: HoldG, bp: BodyPoints, ath: Athlete): bo
   if (hold.type === 'undercling') return hold.s < bp.shoulder.s + 0.1;
   return true;
 }
+
+/** A foot placed this far above the free-limb hip is a high step (05b §2; P1a tuning, see docs). */
+export const HIGH_STEP_ABOVE_HIP = 0.05;
 
 const HEEL_TYPES: readonly HoldType[] = ['jug', 'edge', 'sloper', 'horn', 'volume', 'pocket3', 'sidepull', 'crack_hand', 'crack_fist', 'crack_offwidth'];
 const TOE_TYPES: readonly HoldType[] = ['jug', 'horn', 'volume', 'undercling', 'edge', 'crack_hand', 'crack_fist', 'crack_offwidth'];
@@ -225,7 +237,7 @@ export function classesFor(geom: RouteGeom, st: ClimbState, bp: BodyPoints, limb
   }
   if (!hold.feet_ok) return [];
   if (r > 1.0) return [];
-  if (hold.s >= bp.hip.s - 0.1 && hold.angle <= 130) return ['high_step'];
+  if (hold.s >= bp.hip.s + HIGH_STEP_ABOVE_HIP && hold.angle <= 130) return ['high_step'];
   const lateral = Math.abs(hold.x - bp.hip.x);
   if (hold.angle >= 100 && HEEL_TYPES.includes(hold.type) && hold.quality >= 0.4 && hold.s >= bp.hip.s - 0.3 && lateral >= 0.2) out.push('heel_hook');
   if (hold.angle >= 120 && TOE_TYPES.includes(hold.type) && hold.quality >= 0.5) out.push('toe_hook');
@@ -235,7 +247,7 @@ export function classesFor(geom: RouteGeom, st: ClimbState, bp: BodyPoints, limb
 
 const LIMB_NAME: Record<Limb, string> = { LH: 'left hand', RH: 'right hand', LF: 'left foot', RF: 'right foot' };
 
-/** Verdict for one limb onto one hold (05a §5.2). `bp` must be the body points of `st`. */
+/** Verdict for one limb onto one hold (05a §5.2). `bp` must be the body points of `freeState(st, limb)`. */
 export function judgeOption(geom: RouteGeom, ath: Athlete, st: ClimbState, bp: BodyPoints, limb: Limb, hold: HoldG): Option {
   const kind = limbKind(limb);
   const root = kind === 'hand' ? bp.shoulder : bp.hip;
@@ -269,7 +281,7 @@ export function judgeOption(geom: RouteGeom, ath: Athlete, st: ClimbState, bp: B
 
 /** Reach verdicts for every hold for a limb (05a §5.2). */
 export function optionsFor(geom: RouteGeom, ath: Athlete, st: ClimbState, limb: Limb): Option[] {
-  const bp = bodyPoints(geom, ath, st);
+  const bp = bodyPoints(geom, ath, freeState(st, limb));
   return geom.list.filter((h) => h.id !== st.anchors[limb]).map((h) => judgeOption(geom, ath, st, bp, limb, h));
 }
 

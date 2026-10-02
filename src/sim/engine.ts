@@ -7,7 +7,7 @@ import {
   autoCommitPApex, evaluate, pComplete, probs, recoveryChance, type Conditions, type Evaluation, type MoveSpec, type MoveState, type Probs,
 } from './resolve';
 import {
-  bodyPoints, choosePosture, judgeOption, limbKind, orientationTerm, positionQuality, type ClimbState, type HoldG, type Option, type RouteGeom,
+  bodyPoints, choosePosture, freeState, judgeOption, limbKind, orientationTerm, positionQuality, type ClimbState, type HoldG, type Option, type RouteGeom,
 } from './wall';
 import type { Limb, MoveClass } from './types';
 
@@ -39,7 +39,7 @@ export function prepareMove(geom: RouteGeom, ath: Athlete, st: ClimbState, limb:
     const option: Option = { limb, hold, verdict: 'reachable', reason: '', d: 0, R: 1, classes: ['mantle'] };
     return { option, cls: 'mantle', spec };
   }
-  const bp = bodyPoints(geom, ath, st);
+  const bp = bodyPoints(geom, ath, freeState(st, limb));
   const option = judgeOption(geom, ath, st, bp, limb, hold);
   if (option.classes.length === 0) return null;
   const chosen = cls && option.classes.includes(cls) ? cls : cls ? null : option.classes[0]!;

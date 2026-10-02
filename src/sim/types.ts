@@ -286,6 +286,27 @@ export interface Crag {
   phase: Phase;
 }
 
+export interface NameBank {
+  masc: string[];
+  fem: string[];
+  adj_masc: string[];
+  adj_fem: string[];
+  place: string[];
+  suffix: string[];
+}
+
+/** All authored content the simulation reads. Built and validated by src/data/bundle.ts. */
+export interface DataBundle {
+  traits: ReadonlyMap<string, Trait>;
+  backgrounds: ReadonlyMap<string, Background>;
+  crags: ReadonlyMap<string, Crag>;
+  profiles: ReadonlyMap<string, CragStyleProfile>;
+  signatures: ReadonlyMap<string, Route>;
+  names: Readonly<Record<string, NameBank>>;
+  /** Content version; replays pin it (schemas §8 data_version). */
+  version: string;
+}
+
 // ---------------------------------------------------------------- run, actions, saves
 
 export type Difficulty = 'story' | 'standard' | 'hard';
