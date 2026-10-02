@@ -1,6 +1,6 @@
 # CLAUDE.md — conventions for this repository
 
-This repo is a climbing career RPG (2D side-view, hold-to-hold, turn-based with a hybrid commit window; career runs with meta-unlocks; real crags, fictional people). P1a (the Fontainebleau slice) is implemented: `src/sim` (pure engine and run reducer), `src/save`, `src/ui`, `src/harness`, `scripts/`. Read `README.md` for the doc index and commands, `docs/01-pillars-scope-roadmap.md` for the phases, and `docs/22-p1a-implementation-notes.md` for where the code departs from the design and why.
+This repo is a climbing career simulation (build a climber, plan the training, and the climbing plays out by itself on a 2D side-view wall, hold to hold; career runs with meta-unlocks; real crags, fictional people; `docs/24`). P1a (the Fontainebleau slice) is implemented: `src/sim` (pure engine and run reducer), `src/save`, `src/ui`, `src/harness`, `scripts/`. Read `README.md` for the doc index and commands, `docs/01-pillars-scope-roadmap.md` for the phases, and `docs/22-p1a-implementation-notes.md` for where the code departs from the design and why.
 
 ## Source of truth
 
@@ -16,7 +16,7 @@ This repo is a climbing career RPG (2D side-view, hold-to-hold, turn-based with 
 - All randomness goes through the seeded PRNG in `sim/rng` using purpose-named streams (see `docs/18`). Seeds for on-wall rolls derive from `(run_seed, route, attempt, moveIndex)` so reloading never re-rolls.
 - Saves are event-sourced: seed plus action log plus snapshots (`docs/schemas.md §8`). Any state change must be expressible as an `Action`.
 - Data lives in `data/*.json`, validated by Zod schemas that mirror `docs/schemas.md`. Run the validator before committing data changes (`docs/20`).
-- Mobile-first portrait layout; everything works with one thumb (Two-Thumb Grip has a one-thumb mode, `docs/23` §2.1). No timing-based input is ever required: every real-time move type has an Auto path (`docs/23` §1: Auto-commit for dynos, the Auto button for Reach and Balance moves, and *No drift* for Balance).
+- Mobile-first portrait layout; everything works with one thumb. There is no input on the wall: every attempt is simulated by the climber's own tactics (`docs/24` §3), and the wall only plays attempts back.
 - Offline-first PWA via `vite-plugin-pwa`; deploy to GitHub Pages via Actions; package for Play with Bubblewrap (check the current `targetSdk` requirement before each release).
 
 ## Content rules

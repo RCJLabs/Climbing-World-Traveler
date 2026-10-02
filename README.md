@@ -2,9 +2,9 @@
 
 Build a climber. Live a climbing life. See how far your body, head and heart take you.
 
-A climbing career RPG for phone and browser. Create a climber from anthropometrics, trainable attributes and Project-Zomboid-style traits (positives cost points, negatives refund them). Travel a world of real crags. Climb hold by hold on a 2D wall where every choice is resolved by your build. Age, get injured, go broke, get sponsored, retire or do not. Then build another one.
+A climbing career simulation for phone and browser. Create a climber from anthropometrics, trainable attributes and Project-Zomboid-style traits (positives cost points, negatives refund them). Plan their training and their days; every climb plays out by itself, hold by hold on a 2D wall, resolved by the build. Travel a world of real crags. Age, get injured, go broke, get sponsored, retire or do not. Then build another one.
 
-**Status:** P1a, the Fontainebleau vertical slice, is playable. Create a climber, live day by day in the forest, and climb procedural and signature boulders hold by hold. The full design set is in `docs/`; what P1a implements differently, and the measured balance numbers, are in [docs/22](docs/22-p1a-implementation-notes.md).
+**Status:** P1a, the Fontainebleau vertical slice, is playable as a simulation ([docs/24](docs/24-simulation-game.md)). Create a climber, plan their training week, and simulate days, weeks or months in the forest; every attempt on a procedural or signature boulder is simulated, and any single attempt can be watched on the wall. The full design set is in `docs/`; what P1a implements differently, and the measured balance numbers, are in [docs/22](docs/22-p1a-implementation-notes.md).
 
 Platform: offline-first PWA on GitHub Pages, later a Trusted Web Activity on Google Play. Stack: Vite, TypeScript, Preact, Canvas2D. See [docs/18-tech-architecture.md](docs/18-tech-architecture.md).
 
@@ -26,7 +26,7 @@ Code map: `src/sim` is the pure, seeded simulation (engine, generator, grade eng
 
 ## Design documents
 
-Read in this order for a first pass: 00 → 01 → 02 → 05b → 03.
+Read in this order for a first pass: 00 → 01 → 24 → 02 → 05b → 03.
 
 | # | Document | What it covers |
 |---|---|---|
@@ -50,13 +50,14 @@ Read in this order for a first pass: 00 → 01 → 02 → 05b → 03.
 | 14 | [Economy, Gear and Logistics](docs/14-economy-gear-logistics.md) | Income, costs, sponsorship, gear, permits, travel |
 | 15 | [Social, Reputation and Events](docs/15-social-reputation-events.md) | NPC lifecycle, partners, reputation, ethics, event system |
 | 16 | [Meta-progression and Runs](docs/16-meta-progression-and-runs.md) | Run creation, difficulty, unlocks, legacy NPCs, Hall of Fame |
-| 17 | [UI and UX](docs/17-ui-ux.md) | Mobile-first screens, wall interaction, commit-window bar, onboarding, accessibility |
+| 17 | [UI and UX](docs/17-ui-ux.md) | Mobile-first screens, the wall, onboarding, accessibility (wall input superseded by 24) |
 | 18 | [Tech Architecture](docs/18-tech-architecture.md) | Stack, determinism, event-sourced saves, PWA/TWA pipeline, performance budgets |
 | 19 | [Balance and Simulation Testing](docs/19-balance-and-simulation-testing.md) | Headless career harness, trait re-costing, calibration tests, CI gates |
 | 20 | [Content Pipeline](docs/20-content-pipeline.md) | How to add crags, traits, backgrounds, events, routes; validation |
 | 21 | [Glossary](docs/21-glossary.md) | Climbing and game terms |
 | 22 | [P1a Implementation Notes](docs/22-p1a-implementation-notes.md) | Where the Fontainebleau slice departs from the design, why, and the measured harness results |
-| 23 | [Move Types and Art Direction](docs/23-move-types-and-art-direction.md) | The climbing overhaul: per-move controls (grip, balance, dyno), how they feed the engine, Flat Dusk, and the dyno prototype |
+| 23 | [Move Types and Art Direction](docs/23-move-types-and-art-direction.md) | Flat Dusk, the art direction; the per-move controls it also describes are retired (24) |
+| 24 | [The Simulation Game](docs/24-simulation-game.md) | How the game is played: the week plan, the climber's own tactics, simulated days, reports, watching an attempt |
 
 ## Conventions
 

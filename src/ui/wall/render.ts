@@ -428,14 +428,4 @@ function drawLimbTags(ctx: CanvasRenderingContext2D, ends: Layout['limbs'], scal
   }
 }
 
-/** Nearest visible hold to a tap, within `radius` px. */
-export function hitHold(layout: Layout, x: number, y: number, radius = 28): string | null {
-  let best: string | null = null;
-  let bestD = radius;
-  for (const h of layout.holds) {
-    const d = Math.hypot(h.px - x, h.py - y);
-    if (d < bestD) { bestD = d; best = h.id; }
-  }
-  return best;
-}
 

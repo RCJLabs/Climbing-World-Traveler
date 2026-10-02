@@ -8,7 +8,7 @@ import { ALL_ATTRS } from '../../src/sim/types';
 const bundle = loadBundle();
 const id = process.argv[2] ?? 'power_boulderer';
 const days = Number(process.argv[3] ?? 365);
-const run = createRun('gains', presetSpec(id, { death_enabled: false, auto_commit: true, sweep_speed: 1, difficulty: 'standard' }), bundle);
+const run = createRun('gains', presetSpec(id, { death_enabled: false, difficulty: 'standard' }), bundle);
 run.res.money = 1e6;
 const start = Object.fromEntries(ALL_ATTRS.map((a) => [a, run.attrs[a].value]));
 const bot = new BotDriver(run, bundle, PROJECT_POLICY);

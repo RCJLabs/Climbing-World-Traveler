@@ -4,6 +4,8 @@ The game is played one-handed on a phone in portrait, in sessions of five to twe
 
 Related: [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Resolution](05b-move-resolution-and-attempt-loop.md) · [02 Character Model](02-character-model.md) · [03 Traits](03-traits.md) · [16 Meta-progression](16-meta-progression-and-runs.md) · [18 Tech Architecture](18-tech-architecture.md)
 
+> **Simulated play ([24](24-simulation-game.md)):** the wall plays attempts back and takes no input. Limb selection, previews, *Go*, the commit-window bar and the auto-climb toggle (§2–§4) are gone; what stays from §2–§3 is the camera, the rig, the HUD meters and the fear sources. The screen map gains the training week and simulate controls on the Planner, a Watch screen and a Report screen ([24](24-simulation-game.md) §2–§5).
+
 > **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
 
 ---
@@ -28,7 +30,7 @@ The core loop, left to right in time:
 | Idle | The route, the climber rig posed on current holds, holds drawn as type silhouettes ([05a](05a-wall-and-kinematics.md)). Current holds carry the limb glyph (LH/RH/LF/RF). | Pinch to zoom 0.6×–2.5×, drag to pan; double-tap recentres on the climber |
 | Limb select | Tap the climber's hand or foot, a limb glyph, or one of four limb buttons in the bottom bar. The **reach envelope** for that limb shades the wall; reachable holds brighten, unreachable holds dim and show a reason on long-press ("too far 0.3 m", "blocked by LH", "wrong side"). | Tap limb; tap again to deselect |
 | Hold highlight | Tap a reachable hold. The **preview triangle** appears beside it: success band · pump cost · resulting position quality. Move class is named ("deadpoint") with a small icon; a commit-window glyph appears if the move is dynamic. | Tap hold |
-| Confirm | A large **Go** button in the thumb zone; the rig ghosts into the resulting pose. | Tap Go, or tap another hold to re-preview |
+| Confirm | A large **Go** button in the thumb zone; a pale ghost of the rig shows the pose a clean landing leaves until the move is played. | Tap Go, or tap another hold to re-preview |
 | Resolve | Outcome text and meter deltas animate (≤ 400 ms); on dynamic moves the commit window opens first (§4). | — |
 
 Other actions (match, bump, shake, chalk, clip, place gear, kneebar, downclimb, take, jump off) sit in a horizontal action strip above Go, each with its pump/time cost; a disabled action answers a tap with why it is off. The **preview triangle** uses three fixed slots so the eye learns positions: left success band (text and icon: *solid* / *probably* / *sketchy* / *desperate*, or a percentage above the `route_reading` threshold), centre pump cost as a bar segment drawn onto the pump meter itself, right position quality as a 1–5 stance icon. Rest value is shown on hold long-press as "shake −1.1 pump": the change in pump from a first shake hanging on that hold, negative when it recovers, the same number the Shake button shows for the current stance. Long-press is off while a Reach or Balance move is armed, so a thumb resting before its drag is never read as a question.
@@ -126,7 +128,7 @@ Navigation: a bottom tab bar with five entries (Planner, Crag, Climber, Social, 
 - **Adjustable sweep speed.** `sweep_speed` 0.6×–1.6× with a live preview bar in settings; no scoring effect.
 - **Text scaling.** Respects the OS font scale up to 200%; layouts reflow, the preview triangle collapses to a vertical list above 150%.
 - **Haptics and audio** are independently switchable; nothing depends on hearing.
-- **Reduced motion** replaces the sweep with a discrete 8-step marker and removes rig ghosting.
+- **Reduced motion** replaces the sweep with a discrete 8-step marker and keeps the ghost pose, which is a still image.
 - **Screen-reader labels** on every control; the wall exposes a hold list by distance for non-visual play of static moves.
 
 ---

@@ -2,25 +2,15 @@ import type { ComponentChildren } from 'preact';
 import { goto, screen } from './store';
 import type { CircuitColour } from '../sim/types';
 
-/**
- * A labelled bar. `preview` is the change the selected move would make (17 §2): a gain is hatched on past the fill, a
- * cost is hatched over the end of it.
- */
-export function Meter(props: { label: string; value: number; max?: number; colour?: string; band?: [number, number]; right?: string; preview?: number | null; previewColour?: string | undefined }) {
+export function Meter(props: { label: string; value: number; max?: number; colour?: string; band?: [number, number]; right?: string }) {
   const max = props.max ?? 100;
-  const at = (v: number) => Math.max(0, Math.min(100, (v / max) * 100));
-  const w = at(props.value);
-  const p = props.preview ?? 0;
-  const seg = p > 0 ? { left: w, width: at(props.value + p) - w } : p < 0 ? { left: at(props.value + p), width: w - at(props.value + p) } : null;
+  const w = Math.max(0, Math.min(100, (props.value / max) * 100));
   return (
     <div class="meter">
       <div class="meter-label"><span>{props.label}</span><span class="mono">{props.right ?? Math.round(props.value)}</span></div>
       <div class="meter-track" role="meter" aria-label={props.label} aria-valuenow={Math.round(props.value)} aria-valuemin={0} aria-valuemax={max}>
         {props.band && <div class="meter-band" style={{ left: `${props.band[0]}%`, width: `${Math.max(0, props.band[1] - props.band[0])}%` }} />}
         <div class="meter-fill" style={{ width: `${w}%`, background: props.colour ?? 'var(--sky)' }} />
-        {seg && seg.width > 0 && (
-          <div class={`meter-preview${p < 0 ? ' cost' : ''}`} style={{ left: `${seg.left}%`, width: `${Math.max(2, seg.width)}%`, color: props.previewColour ?? props.colour ?? 'var(--sky)' }} />
-        )}
       </div>
     </div>
   );

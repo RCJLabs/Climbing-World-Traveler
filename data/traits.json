@@ -443,10 +443,7 @@
    "move_mult": {
     "dyno": 1.06,
     "deadpoint": 1.04
-   },
-   "flags": [
-    "commit_window_width=1.10"
-   ]
+   }
   },
   "excludes": [
    "static_master"

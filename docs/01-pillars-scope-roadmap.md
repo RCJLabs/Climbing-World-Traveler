@@ -11,7 +11,7 @@ Related: [00 Vision](00-vision.md) · [18 Tech Architecture](18-tech-architectur
 1. **Builds are destiny.** Every Body slider, attribute point and trait must be felt on the wall and in the career. If a trait cannot be seen in the harness output, it is cut or re-costed. Two different builds on the same route must produce visibly different attempts.
 2. **Real-world fidelity.** Crags, rock, weather, grades, training adaptation, injury timelines and climbing culture follow the sourced research in the plan appendix. Where the research is silent we make a design choice and label it `(tune)`.
 3. **Runs tell stories.** A career has a beginning, a peak, setbacks and an end. The game records and retells it: tick lists, injuries, partners, places, the one that got away. Retired climbers persist as NPCs.
-4. **Readable hold-to-hold tension.** The climbing engine is turn-based and legible: you can always see why a move is risky, why you are pumped, and what the fall would cost. The only real-time input is a short commit window on dynamic moves, and it can be turned off.
+4. **Readable results.** Every climb is simulated hold to hold, and every result has a reason you can see: why the move went, why the climber was pumped, what the fall cost. The player plans and the climber climbs ([24](24-simulation-game.md)).
 
 ### Tie-breakers
 When pillars conflict: fidelity yields to readability on the wall; readability yields to builds mattering; story never overrides the other three but is the reason they exist.
@@ -22,9 +22,9 @@ When pillars conflict: fidelity yields to readability on the wall; readability y
 
 | Decision | Choice | Why |
 |---|---|---|
-| Moment-to-moment climbing | 2D side-view, hold-to-hold, turn-based move selection | Builds decide outcomes; phone-friendly; deterministic and testable |
-| Real-time element | Commit window on dynamic moves only; Auto-commit option | Tension without a reflex test; accessibility |
-| Climber representation | Four limb anchors + centre of mass, two-bone IK pose; a ballistic arc for dynos and a drift for balance moves ([23](23-move-types-and-art-direction.md)), no ragdoll | Avoids the ragdoll tuning sink |
+| Moment-to-moment climbing | 2D side-view, hold-to-hold, simulated by the climber's own tactics; any attempt can be watched ([24](24-simulation-game.md)) | Builds decide outcomes; phone-friendly; deterministic and testable |
+| Player input on the wall | None. Dynos resolve by Auto-commit (05b §8.4) | The build and the plan are the game (decided 2026-10-02, replacing the commit window and the per-move controls of 23) |
+| Climber representation | Four limb anchors + centre of mass, two-bone IK pose, no ragdoll | Avoids the ragdoll tuning sink |
 | Difficulty | One `MoveDifficulty` function shared by resolution and grading, calibrated to a Reference Climber | Generated grades stay honest |
 | Content scaling | Procedural routes from crag style profiles plus a few signature routes per crag | Content is data, not hand-drawn walls |
 | Run structure | Career runs with meta-unlocks | Replay pressure; the Zomboid feel |
@@ -41,7 +41,7 @@ Early exploration considered generating the app in a hosted vibe-coding studio. 
 ## 3. Non-goals
 
 - Multiplayer, leaderboards that need a server, or any online dependency beyond the initial load.
-- A physics engine, ragdolls, 3D. Per-move real-time controls with physics-lite motion (a ballistic dyno, a drifting centre of mass) are in scope from [23](23-move-types-and-art-direction.md): the engine still resolves every move, and every real-time move has an Auto path.
+- A physics engine, ragdolls, 3D, and input on the wall of any kind ([24](24-simulation-game.md); the per-move controls of [23](23-move-types-and-art-direction.md) were built and then retired).
 - Real climbers as characters, or licensed brands.
 - A route editor for players in the first release (the content pipeline is for the developer; a player editor is a P5 consideration).
 - Speed climbing as a core mode (it is a comp sub-format at best).
@@ -57,7 +57,7 @@ All docs in `docs/` written, cross-linked and consistent with [schemas.md](schem
 
 ### P1a — Fontainebleau slice
 **Status:** implemented on the P1a branch; measured results and deviations in [22](22-p1a-implementation-notes.md).
-**In:** character creation with full Body sliders, attribute allocation and ~40 P1a-live traits across 5 backgrounds; Fontainebleau only, with circuits and 6–8 named areas; procedural boulders plus 3 signature problems; the turn-based engine with reach envelope, matrix resolution, pump/power/skin/fear meters, auto-climb, commit window and Auto-commit; sessions and days; friction as a seeded daily scalar; a fixed daily-cost money stub; headless harness and grade calibration; event-sourced saves; run end by voluntary retirement or skin/energy exhaustion loop, with one meta unlock.
+**In:** character creation with full Body sliders, attribute allocation and ~40 P1a-live traits across 5 backgrounds; Fontainebleau only, with circuits and 6–8 named areas; procedural boulders plus 3 signature problems; the turn-based engine with reach envelope, matrix resolution, pump/power/skin/fear meters, simulated attempts with Auto-commit, a week plan and simulated days ([24](24-simulation-game.md)); sessions and days; friction as a seeded daily scalar; a fixed daily-cost money stub; headless harness and grade calibration; event-sourced saves; run end by voluntary retirement or skin/energy exhaustion loop, with one meta unlock.
 **Out:** travel, other crags, injuries beyond skin, NPCs beyond a default spotter stub, events, sponsorship, full weather.
 **Exit criterion:** two different builds (a Slab Wizard preset and a Compression Monster preset) produce visibly different outcomes on the same Font 6B+ problem within a 20-minute phone session, and the harness reports generated boulders within ±1 DI of target at ≥ 90%.
 
@@ -103,7 +103,7 @@ The grade engine and generator come before the attempt loop on purpose: the engi
 | Grade engine drifts from resolution | Medium | High | Single shared function; calibration tests in CI |
 | Low-end Android performance | Medium | Medium | Canvas2D, bundle and frame budgets in [18](18-tech-architecture.md) |
 | Play Store targetSdk churn | Certain | Low | Checked at each TWA release; noted in 18 |
-| Commit window makes outcomes feel twitchy | Low | Medium | ≤ 10–15% of moves; harness caps timing at ≤ 10% of send variance; Auto-commit |
+| With no input on the wall the game feels passive | Medium | High | The plan, the projects and the build carry the decisions; any attempt can be watched; reports say why ([24](24-simulation-game.md)) |
 | Real-name sensitivity | Low | Medium | Validator rejects real climbers' names; routes and crags only |
 
 ---

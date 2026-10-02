@@ -1,12 +1,16 @@
 // App state for the UI: the save backend, the live run session, the current screen. Every game action goes
-// through `act`, which serialises dispatches so a tap during auto-climb can never interleave with it.
+// through `act` or `simulate`, which serialise writes so two taps can never interleave.
 
 import { signal } from '@preact/signals';
 import { bundle } from '../data/bundle';
 import { DEFAULT_SETTINGS, emptyMeta, IdbBackend, MemoryBackend, type MetaState, type RunRecord, type SaveBackend, type Settings } from '../save/backend';
 import { RunSession } from '../save/session';
-import type { RunState } from '../sim/state';
-import type { Action, NewRunSpec } from '../sim/types';
+import { simulateAttempt } from '../sim/attempt';
+import { applyAction } from '../sim/run';
+import type { AttemptResult, AttemptState, RunState } from '../sim/state';
+import { nextSessionAttempt, simulateDays, tired } from '../sim/tactics';
+import type { Action, AttemptMode, NewRunSpec, SessionTactic } from '../sim/types';
+import { buildReport, type Report } from './report';
 
 export type Screen =
   | { name: 'title' }
@@ -14,12 +18,15 @@ export type Screen =
   | { name: 'planner' }
   | { name: 'crag' }
   | { name: 'routes'; selected?: string }
-  | { name: 'attempt' }
+  | { name: 'watch' }
   | { name: 'result' }
+  | { name: 'report' }
   | { name: 'character' }
   | { name: 'summary' }
-  | { name: 'hall' }
-  | { name: 'playtest' };
+  | { name: 'hall' };
+
+/** One step of an attempt for the wall to play back (docs/24 §5): the attempt as it stood, and the skin left. */
+export interface Frame { at: AttemptState; skin: number }
 
 export const data = bundle();
 export const screen = signal<Screen>({ name: 'title' });
@@ -31,6 +38,12 @@ export const toast = signal<string | null>(null);
 /** Set when a new version of the app is installed and waiting; calling it reloads into the new version. */
 export const updateReady = signal<(() => void) | null>(null);
 export const storageNote = signal<string | null>(null);
+/** The attempt the wall is playing back. */
+export const playback = signal<{ seed: string; frames: Frame[] } | null>(null);
+/** The last simulated session or stretch of days, for the report screen. */
+export const report = signal<Report | null>(null);
+/** True while a simulation is being worked out and written. */
+export const busy = signal(false);
 
 let backend: SaveBackend | null = null;
 let session: RunSession | null = null;
@@ -56,7 +69,6 @@ export function say(msg: string): void {
 /** Where a loaded or updated run should be shown. */
 export function homeFor(r: RunState): Screen {
   if (r.ended) return { name: 'summary' };
-  if (r.attempt) return { name: 'attempt' };
   if (r.block?.kind === 'climb') return { name: 'routes' };
   return { name: 'planner' };
 }
@@ -124,9 +136,111 @@ export async function exportCurrent(): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/** The current run's whole action log, for the playtest stats (docs/19 §3). */
-export async function currentActions(): Promise<Action[] | null> {
-  return session ? (await session.exportFile()).actions : null;
+/**
+ * Work a stretch out on a draft and write it (docs/24 §2): simulated days or a session. Serialised with `act`.
+ * Resolves to the state before and after, or null if nothing was written.
+ */
+export function simulate(play: (draft: RunState) => Action[]): Promise<{ before: RunState; after: RunState } | null> {
+  const p = queue.then(async () => {
+    if (!session) return null;
+    busy.value = true;
+    try {
+      // Let "Simulating…" paint before the work starts.
+      await new Promise((r) => setTimeout(r, 30));
+      const before = session.state;
+      const wasEnded = !!before.ended;
+      const after = await session.simulate(play);
+      run.value = after;
+      if (!wasEnded && after.ended && backend) {
+        meta.value = await backend.getMeta();
+        runs.value = await backend.listRuns();
+      }
+      return after === before ? null : { before, after };
+    } catch (e) {
+      say((e as Error).message);
+      return null;
+    } finally {
+      busy.value = false;
+    }
+  });
+  queue = p.catch(() => undefined);
+  return p;
+}
+
+/** The frames of an attempt from a state, by the same simulation the reducer runs (docs/24 §5). */
+function framesOf(from: RunState, seed: string, mode: AttemptMode): Frame[] {
+  const draft = structuredClone(from);
+  const frames: Frame[] = [];
+  simulateAttempt(draft, seed, mode, data, (r) => { if (r.attempt) frames.push({ at: structuredClone(r.attempt), skin: r.res.skin }); });
+  return frames;
+}
+
+/** One simulated attempt (docs/24 §3): played back on the wall when Watch is on, else straight to the result. */
+export async function tryProblem(seed: string, mode: AttemptMode): Promise<void> {
+  const watch = settings.value.watch && !settings.value.reduce_motion;
+  let frames: Frame[] = [];
+  const r = await simulate((draft) => {
+    // The frames come from the very state the attempt is applied to, so the playback is the attempt.
+    if (watch) frames = framesOf(draft, seed, mode);
+    const a: Action = { t: 'attempt', route_seed: seed, mode };
+    applyAction(draft, a, data);
+    return [a];
+  });
+  if (!r) return;
+  if (watch) {
+    playback.value = { seed, frames };
+    goto({ name: 'watch' });
+  } else goto({ name: 'result' });
+}
+
+/** Attempts on one problem until it goes, the climber is tired, or `max` attempts (docs/24 §3), then the report. */
+export async function siege(seed: string, mode: AttemptMode, max = 5): Promise<void> {
+  const tries: AttemptResult[] = [];
+  const r = await simulate((draft) => {
+    const log: Action[] = [];
+    for (let i = 0; i < max && !tired(draft); i++) {
+      const a: Action = { t: 'attempt', route_seed: seed, mode: i === 0 ? mode : 'redpoint' };
+      applyAction(draft, a, data);
+      log.push(a);
+      tries.push(draft.last_attempt!);
+      if (draft.last_attempt?.outcome === 'sent') break;
+    }
+    return log;
+  });
+  if (!r) return;
+  report.value = buildReport('session', `${r.after.last_attempt?.name ?? 'The problem'}: ${tries.length} ${tries.length === 1 ? 'attempt' : 'attempts'}`, r.before, r.after, data, tries);
+  goto({ name: 'report' });
+}
+
+/** The rest of the session played by a tactic, then the session ends (docs/24 §3). */
+export async function finishSession(tactic: SessionTactic): Promise<void> {
+  const tries: AttemptResult[] = [];
+  const sector = run.value?.block?.session?.sector;
+  const r = await simulate((draft) => {
+    const log: Action[] = [];
+    for (let a = nextSessionAttempt(draft, data, tactic); a; a = nextSessionAttempt(draft, data, tactic)) {
+      const act: Action = { t: 'attempt', ...a };
+      applyAction(draft, act, data);
+      log.push(act);
+      tries.push(draft.last_attempt!);
+    }
+    applyAction(draft, { t: 'block_end' }, data);
+    log.push({ t: 'block_end' });
+    return log;
+  });
+  if (!r) return;
+  const name = data.crags.get(r.after.crag)?.sectors.find((s) => s.id === sector)?.name ?? 'The session';
+  report.value = buildReport('session', `${name}: ${tactic === 'project' ? 'projecting' : 'mileage'}`, r.before, r.after, data, tries);
+  goto({ name: 'report' });
+}
+
+/** Days played by the week plan (docs/24 §2), then the report. Stops early when the run ends. */
+export async function simulatePlan(days: number): Promise<void> {
+  const r = await simulate((draft) => simulateDays(draft, data, days));
+  if (!r) return;
+  const n = r.after.day - r.before.day;
+  report.value = buildReport('days', n === 1 ? 'One day' : n === 7 ? 'One week' : `${n} days`, r.before, r.after, data);
+  goto({ name: 'report' });
 }
 
 export function goto(s: Screen): void {

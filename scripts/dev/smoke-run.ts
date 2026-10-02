@@ -8,7 +8,7 @@ const bundle = loadBundle();
 const days = Number(process.argv[2] ?? 60);
 for (const p of PRESETS) {
   for (const policy of [PROJECT_POLICY, VOLUME_POLICY]) {
-    const spec = presetSpec(p.id, { death_enabled: false, auto_commit: true, sweep_speed: 1, difficulty: 'standard' });
+    const spec = presetSpec(p.id, { death_enabled: false, difficulty: 'standard' });
     const run = createRun(`smoke-${p.id}`, spec, bundle);
     const bot = new BotDriver(run, bundle, policy);
     bot.log.unshift({ t: 'new_run', seed: run.seed, spec });

@@ -2,15 +2,14 @@
 // open question asks). Plain JSON: it is snapshotted to IndexedDB and rebuilt by replaying the action log.
 
 import type { CommitOutcome } from './resolve';
-import type { SwingSetup } from './swing';
 import type { ClimbState } from './wall';
 import type { DayWeather, RainMark } from './weather';
 import type {
-  AttemptMode, AttrId, Attributes, BlockKind, Body, Limb, MoveClass, RunOptions, RunSummary, Tick,
+  AttemptMode, AttrId, Attributes, BlockKind, Body, Limb, MoveClass, RunOptions, RunSummary, Tick, WeekPlan,
 } from './types';
 
 /** Reducer version (18 §5). Bump when replaying an old log through the new reducer would change outcomes. */
-export const REDUCER_VERSION = 2;
+export const REDUCER_VERSION = 3;
 
 export interface Resources {
   energy: number;
@@ -58,14 +57,6 @@ export interface FearEvent {
   delta: number;
 }
 
-/** A dyno or deadpoint waiting for its Swing and Catch (docs/23 §2.3): everything it will be judged with. */
-export interface PendingCommit {
-  limb: Limb;
-  hold: string;
-  cls: MoveClass;
-  swing: SwingSetup;
-}
-
 export type MoveOutcome = 'clean' | 'sketchy' | 'slip_recovered' | 'fall' | 'pumped' | 'sent';
 
 /** What just happened on the wall, for the HUD and the move log. */
@@ -76,8 +67,6 @@ export interface MoveReport {
   cls?: MoveClass;
   outcome?: MoveOutcome;
   commit?: CommitOutcome;
-  /** A slip the player's input forced, whatever the margin: a mistimed dyno, a reach too slow for the grip, a barn door (docs/23 §3). */
-  forced?: 'cut' | 'grip' | 'barn';
   margin?: number;
   T?: number;
   p_complete?: number;
@@ -108,7 +97,6 @@ export interface AttemptState {
   beta_ptr: number;
   moves: number;
   hand_moves: number;
-  pending: PendingCommit | null;
   fear_log: FearEvent[];
   log: MoveReport[];
 }
@@ -148,6 +136,8 @@ export interface SessionState {
   xp: Partial<Record<AttrId, number>>;
   load: number;
   energy_spent: number;
+  /** Attempts on each problem this session, and whether one of them sent (by route seed), for the session tactics (docs/24 §3). */
+  tried: Record<string, { n: number; sent: boolean }>;
 }
 
 export interface BlockState {
@@ -181,6 +171,17 @@ export interface JournalEntry {
   day: number;
   text: string;
   tone?: 'good' | 'bad' | 'info';
+}
+
+/** A weekly point on the climber's progress (docs/24 §4), written at each week boundary. */
+export interface WeekPoint {
+  day: number;
+  /** Grade estimate from the last climbing session, if there was one yet. */
+  E: number | null;
+  pb: number;
+  ticks: number;
+  /** Every attribute's value, to one decimal. */
+  attrs: Partial<Record<AttrId, number>>;
 }
 
 export interface DaySummary {
@@ -226,6 +227,11 @@ export interface RunState {
   load_today: number;
   ended: RunSummary | null;
   actions: number;
+  /** The training week simulated days follow (docs/24 §2). */
+  plan: WeekPlan;
+  /** Unrounded grade estimate at the start of the latest climbing session. */
+  est: number | null;
+  history: WeekPoint[];
 }
 
 export type { CommitOutcome };

@@ -39,7 +39,7 @@ Climbing-World-Traveler/
 │  │  ├─ rng/                 sfc32, stream derivation, hashing
 │  │  ├─ character/           Body, Attributes, derived stats, age curves (02)
 │  │  ├─ wall/                reach envelope, posture, IK pose (05a)
-│  │  ├─ attempt/             move classification, resolution, commit window, pump/fear (05b)
+│  │  ├─ attempt/             move classification, resolution, Auto-commit, pump/fear, the simulated attempt (05b, 24)
 │  │  ├─ grade/               reference climber, DI grading (05c)
 │  │  ├─ routes/              procedural generation (06)
 │  │  ├─ world/               weather, seasons, travel (09, 10)
@@ -96,9 +96,9 @@ An ESLint boundary rule (`no-restricted-imports`) enforces that `src/sim` import
 
 - **Write path:** every action is appended in the same transaction that updates the in-memory state; the UI never shows a state that is not on disk. Target ≤ 50 ms per write on the reference device.
 - **Load path:** newest snapshot plus replay of the action tail; cold load of a 10-year run is bounded by one chunk of replay.
-- **Tap offsets** live in the log (`{ t: 'commit', tap_offset_ms }`), so replay reproduces commit outcomes exactly, including `null` for Auto-commit.
+- **Simulated attempts** are one action each (`{ t: 'attempt', route_seed, mode }`, [24](24-simulation-game.md)); the reducer plays the whole attempt from seeded streams, so replay reproduces it move for move. A simulated stretch of days is written as one transaction.
 - **Migrations by replay.** `SaveGame.version` names the reducer version that wrote the log. On version bump, snapshots are discarded and the whole log is replayed through the current reducer, with per-version **action adapters** (`adaptAction_v1_to_v2`) rewriting old action shapes. Data JSON is versioned too (`data_version` on the run record) and old data versions are kept in the bundle for one release cycle so replays of old runs stay faithful; after that a run is migrated by re-grading its routes and flagged in the journal.
-- **Mid-attempt resume.** On `visibilitychange → hidden` or `pagehide`: if a commit window is open, the game immediately logs `{ t: 'commit', tap_offset_ms: null }` (Auto-commit resolution), then flushes. Any attempt state is already in the log, so a killed tab resumes mid-attempt on the exact move. A toast on resume explains the auto-committed move.
+- **Resume.** An attempt is decided before its playback starts, so a killed tab never loses or repeats one: on reload the attempt is in the log and the result is shown.
 - **Export/import:** a run exports as a gzipped JSON file (`.cwt.json.gz`) for backup and bug reports; import validates with Zod and replays.
 
 ---
@@ -136,7 +136,7 @@ CI fails on bundle-size regression (`size-limit`), and a Lighthouse run on the d
 
 - **Vitest, `tests/sim`:** unit tests for every formula in 02/05b/05c with the worked examples as fixtures; property tests (fast-check) for invariants (margin monotonic in attributes, pump never negative, reach envelope symmetric under mirroring); determinism tests (same seed + log → identical state hash across Node and browser builds); reducer migration tests replaying archived logs from each schema version.
 - **Golden snapshots, `tests/golden`:** a fixed set of seeds generates routes and 50-day careers whose JSON is committed; a diff fails CI unless the commit is tagged `balance:` and the harness report is attached.
-- **Playwright, `tests/e2e`:** mobile viewport smoke: create a Quick-build climber, plan a day, start an attempt, make three moves, trigger a commit window with Auto-commit, background the tab mid-attempt, reload, confirm resume; offline mode loads the app shell.
+- **Playwright, `tests/e2e`:** mobile viewport smoke: create a Quick-build climber, simulate a week, edit a plan day, try one problem and watch it, let the climber finish a session, reload, confirm the run continues; offline mode loads the app shell.
 - **Harness as test:** the calibration and timing-variance thresholds in [19](19-balance-and-simulation-testing.md) run as CI gates on a reduced sample (1,000 careers) and in full on a nightly workflow.
 
 ---

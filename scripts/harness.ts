@@ -1,5 +1,5 @@
 // Headless career simulator (docs/19 §1–§2) over forked worker processes.
-//   pnpm harness --n 40 --days 365 --seed 7 --policy both --timing auto --out reports
+//   pnpm harness --n 40 --days 365 --seed 7 --policy both --out reports
 // Writes <out>/harness-<seed>.md and .json and prints the report.
 import { fork } from 'node:child_process';
 import { cpus } from 'node:os';
@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { loadBundle } from '../src/data/bundle';
 import { runCareer, type CareerConfig, type CareerResult } from '../src/harness/career';
 import { sampleBuild } from '../src/harness/sampler';
-import { mean, quantile, type Timing } from '../src/harness/sim';
+import { mean, quantile } from '../src/harness/sim';
 import { fontGrade } from '../src/sim/grades';
 import { DEFAULT_OPTIONS } from '../src/sim/presets';
 import { stream } from '../src/sim/rng';
@@ -31,7 +31,6 @@ async function main(): Promise<void> {
   const days = Number(opt('days', '365'));
   const seed = opt('seed', '7');
   const policyArg = opt('policy', 'both');
-  const timing = opt('timing', 'auto') as Timing;
   const workers = Math.max(1, Math.min(Number(opt('workers', String(cpus().length))), n));
   const out = opt('out', '');
   const bundle = loadBundle();
@@ -39,9 +38,9 @@ async function main(): Promise<void> {
   const jobs: Job[] = [];
   for (let i = 0; i < n; i++) {
     const rng = stream('harness-build', seed, i);
-    const spec = sampleBuild(rng, bundle, { ...DEFAULT_OPTIONS, auto_commit: timing === 'auto' }, `H${i}`);
+    const spec = sampleBuild(rng, bundle, DEFAULT_OPTIONS, `H${i}`);
     const policy = policyArg === 'both' ? (i % 2 ? 'volume' : 'project') : (policyArg as 'project' | 'volume');
-    jobs.push({ index: i, cfg: { seed: `h${seed}-${i}`, spec, days, policy, timing, checkReplay: i < 2 } });
+    jobs.push({ index: i, cfg: { seed: `h${seed}-${i}`, spec, days, policy, checkReplay: i < 2 } });
   }
   const t0 = performance.now();
   const results: CareerResult[] = new Array(n);
@@ -58,7 +57,7 @@ async function main(): Promise<void> {
     child.send({ jobs: mine });
   })));
   process.stderr.write('\n');
-  const report = buildReport(results, { n, days, seed, policy: policyArg, timing, secs: (performance.now() - t0) / 1000, workers });
+  const report = buildReport(results, { n, days, seed, policy: policyArg, secs: (performance.now() - t0) / 1000, workers });
   console.log(report);
   if (out) {
     const { mkdirSync, writeFileSync } = await import('node:fs');
@@ -68,13 +67,13 @@ async function main(): Promise<void> {
   }
 }
 
-function buildReport(rs: CareerResult[], meta: { n: number; days: number; seed: string; policy: string; timing: string; secs: number; workers: number }): string {
+function buildReport(rs: CareerResult[], meta: { n: number; days: number; seed: string; policy: string; secs: number; workers: number }): string {
   const L: string[] = [];
   const f = (x: number) => x.toFixed(1);
   const g = (di: number) => (di > 0 ? fontGrade(di) : '—');
   L.push(`# Harness report · seed ${meta.seed}`);
   L.push('');
-  L.push(`${meta.n} careers × ${meta.days} days · policy ${meta.policy} · timing ${meta.timing} · ${meta.secs.toFixed(0)} s on ${meta.workers} workers · ${Math.round(mean(rs.map((r) => r.actions)))} actions per career`);
+  L.push(`${meta.n} careers × ${meta.days} days · policy ${meta.policy} · ${meta.secs.toFixed(0)} s on ${meta.workers} workers · ${Math.round(mean(rs.map((r) => r.actions)))} actions per career`);
   L.push('');
   L.push('## Grade estimate and personal best by month');
   L.push('');

@@ -86,22 +86,43 @@ export class RunSession {
   /** Apply an action: reduce (throws on an invalid action, nothing is written), persist, then expose. */
   async dispatch(a: Action, now = new Date()): Promise<RunState> {
     const next = reduce(this.state, a, this.bundle);
-    if (this.chunk.length >= CHUNK) { this.chunkIndex++; this.chunk = []; }
-    this.chunk.push(a);
+    await this.commit([a], next, now);
+    return next;
+  }
+
+  /**
+   * Play a stretch on a copy of the state (simulated days or a whole session, docs/24 §2): `play` applies its actions
+   * to the draft through the reducer and returns them. They are written in one transaction, then the draft becomes the
+   * state. If `play` throws, nothing is written.
+   */
+  async simulate(play: (draft: RunState) => Action[], now = new Date()): Promise<RunState> {
+    const draft = structuredClone(this.state);
+    const actions = play(draft);
+    if (!actions.length) return this.state;
+    await this.commit(actions, draft, now);
+    return draft;
+  }
+
+  private async commit(actions: readonly Action[], next: RunState, now: Date): Promise<void> {
+    let chunk = [...this.chunk];
+    let chunkIndex = this.chunkIndex;
+    const writes: [number, Action[]][] = [];
+    for (const a of actions) {
+      if (chunk.length >= CHUNK) { writes.push([chunkIndex, chunk]); chunkIndex++; chunk = []; }
+      chunk.push(a);
+    }
+    writes.push([chunkIndex, chunk]);
     const record: RunRecord = {
-      ...this.record, last_played: now.toISOString(), action_count: this.record.action_count + 1, day: next.day,
+      ...this.record, last_played: now.toISOString(), action_count: this.record.action_count + actions.length, day: next.day,
       ...(next.ended ? { summary: next.ended } : {}),
     };
-    try {
-      await this.backend.append(record, this.chunkIndex, this.chunk);
-    } catch (e) {
-      this.chunk.pop();
-      throw e;
-    }
+    await this.backend.appendChunks(record, writes);
+    this.chunk = chunk;
+    this.chunkIndex = chunkIndex;
     this.record = record;
     this.state = next;
-    this.sinceSnapshot++;
-    if (this.sinceSnapshot >= SNAPSHOT_EVERY || a.t === 'end_day' || next.ended) {
+    this.sinceSnapshot += actions.length;
+    if (this.sinceSnapshot >= SNAPSHOT_EVERY || actions.some((a) => a.t === 'end_day') || next.ended) {
       await this.backend.putSnapshot(this.id, record.action_count, next, SNAPSHOTS_KEPT);
       this.sinceSnapshot = 0;
     }
@@ -109,7 +130,6 @@ export class RunSession {
       this.state_was_ended = true;
       await recordRunEnd(this.backend, next);
     }
-    return next;
   }
 
   private state_was_ended = false;

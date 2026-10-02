@@ -9,7 +9,7 @@ export function Title({ current }: { current: RunState | null }) {
   return (
     <div class="screen">
       <Top kicker="P1a · Fontainebleau" title="Climbing World Traveler">
-        <span class="small muted">Build a climber. Live a climbing life.</span>
+        <span class="small muted">Build a climber. Plan the training. Watch the sends.</span>
       </Top>
       <div class="scroll">
         {storageNote.value && <p class="small warn">{storageNote.value}</p>}
@@ -28,20 +28,14 @@ export function Title({ current }: { current: RunState | null }) {
           </div>
         ))}
         {meta.value.hall_of_fame.length > 0 && <button class="btn" onClick={() => goto({ name: 'hall' })}>Hall of Fame</button>}
-        <button class="btn" onClick={() => { location.hash = 'proto-dyno'; }}>Dyno prototype</button>
         <span class="kicker">Settings</span>
-        <div class="col small">Haptics<Seg label="Haptics" value={s.haptics ? 'on' : 'off'} onChange={(v) => void saveSettings({ ...s, haptics: v === 'on' })} options={[['on', 'On'], ['off', 'Off']]} /></div>
-        <div class="col small">Reach moves<Seg label="Reach moves" value={s.one_thumb ? 'one' : 'two'} onChange={(v) => void saveSettings({ ...s, one_thumb: v === 'one' })} options={[['two', 'Two thumbs'], ['one', 'One thumb']]} /></div>
+        <div class="col small">Single attempts<Seg label="Single attempts" value={s.watch ? 'watch' : 'result'} onChange={(v) => void saveSettings({ ...s, watch: v === 'watch' })} options={[['watch', 'Watch on the wall'], ['result', 'Result only']]} /></div>
+        <div class="col small">Playback speed<Seg label="Playback speed" value={s.speed} onChange={(v) => void saveSettings({ ...s, speed: v })} options={[[1, '1×'], [2, '2×'], [4, '4×']]} /></div>
         <div class="col small">Motion<Seg label="Motion" value={s.reduce_motion ? 'less' : 'full'} onChange={(v) => void saveSettings({ ...s, reduce_motion: v === 'less' })} options={[['full', 'Full'], ['less', 'Reduced']]} /></div>
         {current && !current.ended && (
-          <>
-            <div class="col small">Dynamic moves (this run)<Seg label="Commit window" value={current.options.auto_commit ? 'auto' : 'tap'} onChange={(v) => void act({ t: 'settings', patch: { auto_commit: v === 'auto' } })} options={[['tap', 'Tap to time'], ['auto', 'Auto-commit']]} /></div>
-            <div class="col small">Balance moves (this run)<Seg label="Balance moves" value={current.options.pause_drift ? 'paused' : 'drift'} onChange={(v) => void act({ t: 'settings', patch: { pause_drift: v === 'paused' } })} options={[['drift', 'Drift'], ['paused', 'No drift']]} /></div>
-            <div class="col small">Dyno speed<Seg label="Dyno speed" value={current.options.sweep_speed} onChange={(v) => void act({ t: 'settings', patch: { sweep_speed: v } })} options={[[1.3, 'Slower'], [1, 'Normal'], [0.8, 'Faster']]} /></div>
-            <button class="btn" onClick={() => { if (confirm(`Retire ${current.name}? The run ends and goes into the Hall of Fame.`)) void act({ t: 'retire' }).then((ok) => ok && goto({ name: 'summary' })); }}>Retire {current.name}</button>
-          </>
+          <button class="btn" onClick={() => { if (confirm(`Retire ${current.name}? The run ends and goes into the Hall of Fame.`)) void act({ t: 'retire' }).then((ok) => ok && goto({ name: 'summary' })); }}>Retire {current.name}</button>
         )}
-        <p class="tiny muted">Real places, fictional people. Fontainebleau only in this version; travel, routes and the rest of the world come later.</p>
+        <p class="tiny muted">Build a climber, plan the training, and the climbing plays out by itself. Real places, fictional people. Fontainebleau only in this version; travel and the rest of the world come later.</p>
         <p class="tiny muted mono">Version {__BUILD__.sha} · {__BUILD__.date}</p>
       </div>
     </div>

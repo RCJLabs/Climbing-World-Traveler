@@ -30,23 +30,22 @@ export interface MetaState {
 export const emptyMeta = (): MetaState => ({ version: 1, unlocks: [], hall_of_fame: [], pyramid: {} });
 
 export interface Settings {
-  haptics: boolean;
-  left_handed: boolean;
   reduce_motion: boolean;
-  /** Reach moves with one thumb: the holding hand grips by itself (docs/23 §2.1). */
-  one_thumb: boolean;
+  /** Play a single attempt back on the wall, or go straight to its result (docs/24 §5). */
+  watch: boolean;
+  /** Playback speed on the wall: 1, 2 or 4. */
+  speed: number;
 }
 
-/** One-thumb by default where the device reports fewer than two touch points (a mouse, a single-touch screen). */
-const singleTouch = typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) < 2;
-
-export const DEFAULT_SETTINGS: Settings = { haptics: true, left_handed: false, reduce_motion: false, one_thumb: singleTouch };
+export const DEFAULT_SETTINGS: Settings = { reduce_motion: false, watch: true, speed: 1 };
 
 export interface SaveBackend {
   listRuns(): Promise<RunRecord[]>;
   getRun(id: string): Promise<RunRecord | undefined>;
   /** Write the run record and one action chunk in a single transaction (18 §5 write path). */
   append(record: RunRecord, chunkIndex: number, chunk: readonly Action[]): Promise<void>;
+  /** Write the run record and several action chunks in a single transaction (a simulated stretch of days, docs/24 §2). */
+  appendChunks(record: RunRecord, chunks: readonly (readonly [number, readonly Action[]])[]): Promise<void>;
   getChunks(id: string, fromChunk: number): Promise<Action[][]>;
   putSnapshot(id: string, actionIndex: number, state: RunState, keep: number): Promise<void>;
   latestSnapshot(id: string): Promise<{ index: number; state: RunState } | undefined>;
@@ -72,9 +71,12 @@ export class MemoryBackend implements SaveBackend {
   async listRuns() { return [...this.runs.values()].map((r) => structuredClone(r)); }
   async getRun(id: string) { const r = this.runs.get(id); return r && structuredClone(r); }
   async append(record: RunRecord, chunkIndex: number, chunk: readonly Action[]) {
+    await this.appendChunks(record, [[chunkIndex, chunk]]);
+  }
+  async appendChunks(record: RunRecord, chunks: readonly (readonly [number, readonly Action[]])[]) {
     this.writes++;
     this.runs.set(record.id, structuredClone(record));
-    this.chunks.set(`${record.id}|${chunkIndex}`, structuredClone([...chunk]));
+    for (const [i, c] of chunks) this.chunks.set(`${record.id}|${i}`, structuredClone([...c]));
   }
   async getChunks(id: string, fromChunk: number) {
     const out: Action[][] = [];
@@ -136,10 +138,14 @@ export class IdbBackend implements SaveBackend {
   async getRun(id: string) { return this.db.get('runs', id); }
 
   async append(record: RunRecord, chunkIndex: number, chunk: readonly Action[]) {
+    await this.appendChunks(record, [[chunkIndex, chunk]]);
+  }
+
+  async appendChunks(record: RunRecord, chunks: readonly (readonly [number, readonly Action[]])[]) {
     const tx = this.db.transaction(['runs', 'actions'], 'readwrite');
     await Promise.all([
       tx.objectStore('runs').put(record),
-      tx.objectStore('actions').put({ run: record.id, chunk: chunkIndex, actions: [...chunk] }),
+      ...chunks.map(([i, c]) => tx.objectStore('actions').put({ run: record.id, chunk: i, actions: [...c] })),
       tx.done,
     ]);
   }

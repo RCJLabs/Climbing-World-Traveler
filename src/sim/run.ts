@@ -2,17 +2,17 @@
 // state is a cache. `applyAction` mutates a draft in place (replay, harness); `reduce` clones first (UI).
 
 import { ageMoneyBonus, buildAttributes, ceilingFor, clamp, validateCreation, type Athlete } from './character';
-import {
-  ageOf, athleteOf, doCommit, doMove, doWallAction, InvalidAction, modsOf, routeEntry, sectorOf, startAttempt,
-} from './attempt';
+import { ageOf, athleteOf, doWallAction, InvalidAction, modsOf, routeEntry, sectorOf, simulateAttempt } from './attempt';
 import { estimateBoulderDI } from './estimate';
 import { cyrb53, stream } from './rng';
 import { routeSeed } from './routes';
-import { REDUCER_VERSION, type Counters, type DaySummary, type RouteSlot, type RunState, type SessionState } from './state';
+import { REDUCER_VERSION, type Counters, type DaySummary, type RouteSlot, type RunState, type SessionState, type WeekPoint } from './state';
 import {
   activityById, acwr, applyStimulus, applyTechniqueXp, dailyAdaptation, nutritionMult, sleepMult, type GainContext,
 } from './training';
-import { ALL_ATTRS, type Action, type AttrId, type BlockKind, type DataBundle, type Difficulty, type NewRunSpec, type RunSummary } from './types';
+import {
+  ALL_ATTRS, type Action, type AttrId, type BlockKind, type DataBundle, type Difficulty, type NewRunSpec, type PlanBlock, type RunSummary, type WeekPlan,
+} from './types';
 import { calendarDate, firstWeather, formatDate, nextWeather, sectorStatus } from './weather';
 
 export { InvalidAction };
@@ -52,6 +52,47 @@ function emptyCounters(): Counters {
 
 const emptyDay = (day: number): DaySummary => ({ day, money_delta: 0, gains: {}, notes: [] });
 
+/**
+ * The week a new climber follows until the player changes it (docs/24 §2): four days on the rock, one gym session,
+ * two rest days, odd jobs and rest when the money or the body says so. **(tune)**
+ */
+export const DEFAULT_PLAN: WeekPlan = {
+  days: [
+    { main: { kind: 'climb', tactic: 'volume' }, extra: null },
+    { main: { kind: 'climb', tactic: 'project' }, extra: null },
+    { main: { kind: 'train', activity: 'max_hangs' }, extra: { kind: 'active_recovery' } },
+    { main: { kind: 'rest' }, extra: null },
+    { main: { kind: 'climb', tactic: 'volume' }, extra: null },
+    { main: { kind: 'climb', tactic: 'project' }, extra: null },
+    { main: { kind: 'rest' }, extra: null },
+  ],
+  wet_day: { kind: 'train', activity: 'limit_boulders' },
+  auto_work: true,
+  auto_rest: true,
+};
+
+/** Why a plan cannot be followed as written, or null if it can (docs/24 §2). */
+export function planError(plan: WeekPlan): string | null {
+  if (!Array.isArray(plan.days) || plan.days.length !== 7) return 'a week plan has seven days';
+  const bad = (b: PlanBlock | null): boolean => {
+    if (b === null) return false;
+    if (b.kind === 'climb') return b.tactic !== 'project' && b.tactic !== 'volume';
+    if (b.kind === 'train') return !activityById(b.activity);
+    return b.kind !== 'rest' && b.kind !== 'active_recovery' && b.kind !== 'work';
+  };
+  if (plan.days.some((d) => !d || bad(d.main) || bad(d.extra))) return 'a planned block is not one the game knows';
+  if (plan.days.some((d) => d.extra?.kind === 'climb')) return 'one climbing session a day: the second block cannot climb';
+  if (bad(plan.wet_day) || plan.wet_day.kind === 'climb') return 'a wet day can train or rest, not climb';
+  return null;
+}
+
+/** A weekly progress point (docs/24 §4). */
+function weekPoint(run: RunState): WeekPoint {
+  const attrs: WeekPoint['attrs'] = {};
+  for (const id of ALL_ATTRS) attrs[id] = Math.round(run.attrs[id].value * 10) / 10;
+  return { day: run.day, E: run.est, pb: run.pb, ticks: run.ticks.filter((t) => t.style !== 'repeat').length, attrs };
+}
+
 export function energyCap(run: Pick<RunState, 'attrs' | 'res'>): number {
   const health = run.res.health < 50 ? 0.5 : 1;
   return clamp(100 * sleepMult(run.attrs.sleep_hygiene.value) * nutritionMult(run.attrs.nutrition.value) * health, 20, 100);
@@ -81,9 +122,12 @@ export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle): R
     blocks_today: [], block: null, attempt: null, last_attempt: null, projects: {}, ticks: [], pb: 0,
     journal: [{ day: 0, text: `${spec.name} arrives in Fontainebleau with $${Math.round(money).toLocaleString('en-US')} and a crash pad.`, tone: 'info' }],
     today: emptyDay(0), yesterday: null, counters: emptyCounters(), load_today: 0, ended: null, actions: 1,
+    plan: structuredClone(DEFAULT_PLAN), est: null, history: [],
   };
   if (run.weather.sky === 'rain' || run.weather.sky === 'storm') run.last_rain = { day: 0, mm: run.weather.precip_mm };
   run.res.energy = energyCap(run);
+  run.est = estimateDI(run, bundle);
+  run.history.push(weekPoint(run));
   return run;
 }
 
@@ -121,10 +165,12 @@ export function sessionSlots(run: RunState, sectorId: string, E: number, bundle:
 }
 
 function startSession(run: RunState, sectorId: string, bundle: DataBundle): SessionState {
-  const E = Math.round(estimateDI(run, bundle) * 2) / 2;
+  run.est = estimateDI(run, bundle);
+  const E = Math.round(run.est * 2) / 2;
   return {
     sector: sectorId, E, slots: sessionSlots(run, sectorId, E, bundle), attempts: 0, sends: 0, di_sum: 0, hard_moves: 0,
     hand_moves: 0, pump_total: 0, time_s: 0, progress_made: false, stim: {}, xp: {}, load: 6, energy_spent: CLIMB_BLOCK_BASE_ENERGY,
+    tried: {},
   };
 }
 
@@ -260,10 +306,7 @@ function startBlock(run: RunState, kind: BlockKind, target: string | undefined, 
 function endBlock(run: RunState, bundle: DataBundle): void {
   const b = run.block;
   if (!b) throw new InvalidAction('no block in progress');
-  if (run.attempt) {
-    if (run.attempt.pending) doCommit(run, null, bundle);
-    if (run.attempt) doWallAction(run, 'jump_off', bundle);
-  }
+  if (run.attempt) doWallAction(run, 'jump_off', bundle);
   if (b.session) endSession(run, b.session, bundle);
   run.block = null;
 }
@@ -337,6 +380,7 @@ function endDay(run: RunState, bundle: DataBundle): void {
   run.weather = nextWeather(run.seed, crag, run.weather, run.day, date.month, run.options.difficulty);
   if (run.weather.sky === 'rain' || run.weather.sky === 'storm') run.last_rain = { day: run.day, mm: run.weather.precip_mm };
   run.res.energy = energyCap(run);
+  if (run.day % 7 === 0) run.history.push(weekPoint(run));
 
   // Birthday (11 §3).
   if (run.day % 365 === 0) {
@@ -393,25 +437,23 @@ function endRun(run: RunState, reason: RunSummary['end_reason'], bundle: DataBun
 /** Apply one action to a draft state in place. Throws InvalidAction for actions the UI should never send. */
 export function applyAction(run: RunState, a: Action, bundle: DataBundle): void {
   if (a.t === 'new_run') throw new InvalidAction('new_run starts a run; use createRun');
-  if (run.ended && a.t !== 'settings') throw new InvalidAction('the run is over');
+  if (run.ended) throw new InvalidAction('the run is over');
   switch (a.t) {
     case 'block_start': startBlock(run, a.kind, a.target, bundle); break;
     case 'block_end': endBlock(run, bundle); break;
     case 'end_day': endDay(run, bundle); break;
-    case 'attempt_start':
+    case 'attempt':
       if (run.block?.kind !== 'climb') throw new InvalidAction('not at the crag');
       if (run.res.skin <= 0) throw new InvalidAction('no skin left');
-      startAttempt(run, a.route_seed, a.mode, bundle);
+      simulateAttempt(run, a.route_seed, a.mode, bundle);
       break;
-    case 'move': doMove(run, a.limb, a.hold, a.class, bundle, a.perf); break;
-    case 'commit': doCommit(run, a.swing, bundle); break;
-    case 'wall_action': doWallAction(run, a.kind, bundle); break;
+    case 'set_plan': {
+      const err = planError(a.plan);
+      if (err) throw new InvalidAction(err);
+      run.plan = structuredClone(a.plan);
+      break;
+    }
     case 'retire': endRun(run, 'retired', bundle); break;
-    case 'settings':
-      if (a.patch.auto_commit !== undefined) run.options.auto_commit = a.patch.auto_commit;
-      if (a.patch.sweep_speed !== undefined) run.options.sweep_speed = clamp(a.patch.sweep_speed, 0.6, 1.6);
-      if (a.patch.pause_drift !== undefined) run.options.pause_drift = a.patch.pause_drift;
-      break;
   }
   run.actions++;
 }

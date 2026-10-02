@@ -1,18 +1,16 @@
 // One headless career (docs/19 §1): a sampled or fixed build played by the bot for N days, with monthly
 // samples of estimate, personal best, money and stress, and an optional replay-identity check.
 
-import { BotDriver, PROJECT_POLICY, VOLUME_POLICY, type BotPolicy } from '../sim/bot';
-import { cyrb53, stream } from '../sim/rng';
+import { BotDriver, PROJECT_POLICY, VOLUME_POLICY } from '../sim/bot';
+import { cyrb53 } from '../sim/rng';
 import { applyAction, createRun, estimateDI, replay } from '../sim/run';
 import type { Action, DataBundle, NewRunSpec, RunSummary } from '../sim/types';
-import { harnessSwing, withPerf, type Timing } from './sim';
 
 export interface CareerConfig {
   seed: string;
   spec: NewRunSpec;
   days: number;
   policy: 'project' | 'volume';
-  timing: Timing;
   checkReplay?: boolean;
 }
 
@@ -23,7 +21,6 @@ export interface CareerResult {
   age: number;
   height: number;
   policy: string;
-  timing: Timing;
   E0: number;
   months: { day: number; E: number; pb: number; money: number; stoke: number; burnout: number }[];
   summary: RunSummary;
@@ -40,21 +37,9 @@ export interface CareerResult {
 
 export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
   const t0 = performance.now();
-  const spec = { ...cfg.spec, options: { ...cfg.spec.options, auto_commit: cfg.timing === 'auto' } };
+  const spec = cfg.spec;
   const run = createRun(cfg.seed, spec, bundle);
-  const base: BotPolicy = cfg.policy === 'project' ? PROJECT_POLICY : VOLUME_POLICY;
-  const policy: BotPolicy = cfg.timing === 'auto' ? base : {
-    ...base,
-    swing: (r) => {
-      const at = r.attempt!;
-      return harnessSwing(at.pending!.swing, cfg.timing, stream('harness-swing', r.seed, at.route_id, at.attempt_index, at.move_index));
-    },
-    perf: (r, m) => {
-      const at = r.attempt!;
-      return withPerf(r, m, cfg.timing, stream('harness-reach', r.seed, at.route_id, at.attempt_index, at.move_index), bundle);
-    },
-  };
-  const bot = new BotDriver(run, bundle, policy);
+  const bot = new BotDriver(run, bundle, cfg.policy === 'project' ? PROJECT_POLICY : VOLUME_POLICY);
   const E0 = estimateDI(run, bundle);
   const months: CareerResult['months'] = [];
   let burnoutMax = 0;
@@ -73,7 +58,7 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
   }
   return {
     seed: cfg.seed, background: spec.background, traits: run.traits, age: spec.body.age_start, height: spec.body.height_cm,
-    policy: cfg.policy, timing: cfg.timing, E0, months, summary: run.ended!, climb_days: run.counters.climb_days,
+    policy: cfg.policy, E0, months, summary: run.ended!, climb_days: run.counters.climb_days,
     attempts: run.counters.attempts, sends: run.counters.sends, train_blocks: run.counters.train_blocks, work_blocks: run.counters.work_blocks,
     burnout_max: burnoutMax, actions: run.actions, replay_ok: replayOk, ms: performance.now() - t0,
   };

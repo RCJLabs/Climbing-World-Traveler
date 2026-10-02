@@ -2,7 +2,9 @@
 
 The climbing overhaul. Different moves ask different things of a climber, so they get different controls: a dyno is aimed, launched and caught; a balance move is held in balance; an ordinary reach is gripped and placed. The look moves to **Flat Dusk** on the three-quarter camera. The character builder, the career, training, the route generator and the grade engine stay; this doc says how the new controls feed the same engine.
 
-**Status:** steps 1–5 of §5 are built: the dyno prototype (§6), the Flat Dusk look, Swing and Catch for dynos and deadpoints (§3.3), Two-Thumb Grip for most other moves (§2.1, §3.1) and Lean for the moves the stance test flags (§2.2, §3.2). Neither Two-Thumb Grip nor Lean has been played on a phone yet. Step 6 is built too: C8 measures each move type's skill share on its own, against its own limit and the old total (§3.4).
+> **Retired by [24](24-simulation-game.md) (2026-10-02):** the game no longer has per-move controls; the climbing is simulated. §1–§3, §5 and §6 describe features that were built and then removed, and are kept as a record. §4, Flat Dusk, remains the art direction.
+
+**Status (before retirement):** steps 1–5 of §5 were built: the dyno prototype (§6), the Flat Dusk look, Swing and Catch for dynos and deadpoints (§3.3), Two-Thumb Grip for most other moves (§2.1, §3.1) and Lean for the moves the stance test flags (§2.2, §3.2). Neither Two-Thumb Grip nor Lean has been played on a phone yet. Step 6 is built too: C8 measures each move type's skill share on its own, against its own limit and the old total (§3.4).
 
 **Supersedes:** [05b §8](05b-move-resolution-and-attempt-loop.md#8-commit-window) (the commit window; replaced by §3.3, Auto-commit kept) and [17 §4](17-ui-ux.md) (the commit bar); [17 §2](17-ui-ux.md)'s *Go* for every move (§2.1, §2.2). Picking a limb and a hold, the decision triangle and the HUD of 17 §2–§3 stay. **Amends:** [01 §3](01-pillars-scope-roadmap.md#3-non-goals) (non-goals) and the input rules in `CLAUDE.md`.
 
