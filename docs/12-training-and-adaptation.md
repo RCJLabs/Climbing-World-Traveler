@@ -169,7 +169,7 @@ The real-world debate (intensity-specific training and limit projecting on one s
 | Hardest redpoint after 2 sim years (harness target) | higher by ~1 DI | — |
 | Hardest onsight after 2 sim years | — | higher by ~1 DI; wider pyramid, more ticks |
 
-A Projector trait and an Onsight Purist trait ([03](03-traits.md)) tilt these multipliers by 10–15% each way; neither strategy is dominant in the harness, and the mixed schedule (alternating 3-week blocks) is the periodised middle that the research recommends.
+A Projector trait and an Onsight Purist trait ([03](03-traits.md)) tilt these multipliers by 10–15% each way. The target is that neither strategy dominates, with the mixed schedule (alternating 3-week blocks) as the periodised middle that the research recommends. The P1a harness misses it: volume draws level on hardest redpoint by two years and leads by five ([22, open question 1](22-p1a-implementation-notes.md#open-questions)).
 
 ---
 
