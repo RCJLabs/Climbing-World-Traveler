@@ -15,6 +15,14 @@ import { ALL_ATTRS, type Action, type AttrId, type DataBundle, type Route } from
 
 export type Timing = 'auto' | 'novice' | 'average' | 'expert' | 'oracle';
 
+/** A player's skill per move type (docs/23 §2); a single `Timing` plays every type at that skill. */
+export interface SkillProfile { swing: Timing; reach: Timing; balance: Timing }
+export type MoveSkill = keyof SkillProfile;
+
+export const profileOf = (t: Timing | SkillProfile): SkillProfile => (typeof t === 'string' ? { swing: t, reach: t, balance: t } : t);
+/** Skill `t` on one move type, Auto on the others: how C8 measures each type alone (docs/19 §3). */
+export const onlyType = (type: MoveSkill, t: Timing): SkillProfile => ({ swing: 'auto', reach: 'auto', balance: 'auto', [type]: t });
+
 /**
  * A player's Swing and Catch: pull and direction scattered around the good launch (relative sd of the pull, sd of the
  * angle in degrees), and the grab scattered around the dead point (mean lateness and sd, ms). (tune, docs/19 C8)
@@ -80,12 +88,13 @@ export function harnessBalance(b: { stance: Stance; drift: number }, timing: Tim
 }
 
 /** The `move` the bot chose, with a harness player's drag (Reach) or lean and drag (Balance) on it. */
-export function withPerf(run: RunState, a: Extract<Action, { t: 'move' }>, timing: Timing, rng: Rng, bundle: DataBundle): Extract<Action, { t: 'move' }> {
-  if (timing === 'auto') return a;
+export function withPerf(run: RunState, a: Extract<Action, { t: 'move' }>, timing: Timing | SkillProfile, rng: Rng, bundle: DataBundle): Extract<Action, { t: 'move' }> {
+  const p = profileOf(timing);
+  if (p.reach === 'auto' && p.balance === 'auto') return a;
   const bal = balanceSetup(run, a.limb, a.hold, a.class, bundle);
-  if (bal) { const perf = harnessBalance(bal, timing, rng); return perf ? { ...a, perf } : a; }
+  if (bal) { const perf = harnessBalance(bal, p.balance, rng); return perf ? { ...a, perf } : a; }
   const budget = reachBudget(run, a.limb, a.hold, a.class, bundle);
-  const perf = budget === null ? null : harnessReach(budget, timing, rng);
+  const perf = budget === null ? null : harnessReach(budget, p.reach, rng);
   return perf ? { ...a, perf } : a;
 }
 
@@ -119,10 +128,11 @@ export function atRoute(run: RunState, route: Route): void {
  * One attempt through the real reducer path, bot policy, at familiarity 0 (each call forgets the project).
  * `k` varies the dice: it becomes part of the run seed.
  */
-export function diceAttempt(base: RunState, route: Route, k: number, bundle: DataBundle, timing: Timing = 'auto', tapRng?: Rng): AttemptResult {
+export function diceAttempt(base: RunState, route: Route, k: number, bundle: DataBundle, timing: Timing | SkillProfile = 'auto', tapRng?: Rng): AttemptResult {
+  const p = profileOf(timing);
   const run = structuredClone(base);
   run.seed = `${base.seed}:${k}`;
-  run.options.auto_commit = timing === 'auto';
+  run.options.auto_commit = p.swing === 'auto';
   atRoute(run, route);
   delete run.projects[route.id];
   registerRoute(route);
@@ -131,13 +141,13 @@ export function diceAttempt(base: RunState, route: Route, k: number, bundle: Dat
   const rng = tapRng ?? stream('taps', run.seed);
   for (let guard = 0; guard < 150 && run.attempt; guard++) {
     const at = run.attempt;
-    if (at.pending && timing !== 'auto') {
-      doCommit(run, harnessSwing(at.pending.swing, timing, rng), bundle);
+    if (at.pending && p.swing !== 'auto') {
+      doCommit(run, harnessSwing(at.pending.swing, p.swing, rng), bundle);
       continue;
     }
     const a = autoClimbAction(run, bundle, { bot: true });
     if (!a || a.t === 'commit') { doCommit(run, null, bundle); continue; }
-    if (a.t === 'move') { const m = withPerf(run, a, timing, rng, bundle); doMove(run, m.limb, m.hold, m.class, bundle, m.perf); }
+    if (a.t === 'move') { const m = withPerf(run, a, p, rng, bundle); doMove(run, m.limb, m.hold, m.class, bundle, m.perf); }
     else if (a.t === 'wall_action') doWallAction(run, a.kind, bundle);
   }
   if (run.attempt) doWallAction(run, 'jump_off', bundle);
