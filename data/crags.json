@@ -7,7 +7,7 @@
     "altitude_m": 100,
     "rock": "sandstone_font",
     "disciplines": ["boulder"],
-    "di_range": [7, 30],
+    "di_range": [6, 30],
     "season": [2, 3, 3, 3, 2, 1, 1, 1, 2, 3, 3, 2],
     "cost_tier": 3,
     "phase": "P1a",

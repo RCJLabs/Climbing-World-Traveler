@@ -2,15 +2,15 @@
 // the reducer, so every bot career is a valid, replayable action log.
 
 import { autoClimbAction, athleteOf, routeEntry } from './attempt';
-import { applyAction, canStartBlock, sectorList } from './run';
+import { applyAction, canStartBlock, dailyCost, sectorList } from './run';
 import type { RunState } from './state';
 import type { Action, DataBundle } from './types';
 
 export interface BotPolicy {
   /** 'project' tries the hardest slots repeatedly; 'volume' climbs many easier problems once or twice. */
   style: 'project' | 'volume';
-  /** Take an odd job as the second block when money is below this. */
-  workBelow: number;
+  /** Work when money covers fewer than this many days of living costs (19 §1: 60). */
+  workBelowDays: number;
   /** Rest-day rhythm: rest after this many consecutive climbing days. */
   climbDaysInARow: number;
   /** Train on days the forest is shut (activity ids from training.ts). */
@@ -19,8 +19,8 @@ export interface BotPolicy {
   tap?: (run: RunState) => number | null;
 }
 
-export const PROJECT_POLICY: BotPolicy = { style: 'project', workBelow: 400, climbDaysInARow: 3, wetDayTraining: ['limit_boulders', 'max_hangs', 'weights'] };
-export const VOLUME_POLICY: BotPolicy = { style: 'volume', workBelow: 400, climbDaysInARow: 3, wetDayTraining: ['arc', 'skill_drills', 'repeaters'] };
+export const PROJECT_POLICY: BotPolicy = { style: 'project', workBelowDays: 60, climbDaysInARow: 3, wetDayTraining: ['limit_boulders', 'max_hangs', 'weights'] };
+export const VOLUME_POLICY: BotPolicy = { style: 'volume', workBelowDays: 60, climbDaysInARow: 3, wetDayTraining: ['arc', 'skill_drills', 'repeaters'] };
 
 export class BotDriver {
   readonly log: Action[] = [];
@@ -36,25 +36,32 @@ export class BotDriver {
   day(): void {
     const run = this.run;
     if (run.ended) return;
+    const cost = dailyCost(run, this.bundle);
+    const low = run.res.money < this.policy.workBelowDays * cost;
+    const broke = run.res.money < 20 * cost;
     const sectors = sectorList(run, this.bundle).filter((s) => s.open);
     const wantRest = this.streak >= this.policy.climbDaysInARow || run.res.skin < 35 || run.res.burnout > 60;
-    if (sectors.length && !wantRest && canStartBlock(run, 'climb', sectors[0]!.id, this.bundle).ok) {
+    const work = () => { if (canStartBlock(run, 'work', undefined, this.bundle).ok) this.dispatch({ t: 'block_start', kind: 'work' }); };
+    if (sectors.length && !wantRest && !broke && canStartBlock(run, 'climb', sectors[0]!.id, this.bundle).ok) {
       const fresh = sectors.filter((s) => !run.counters.week_sectors.includes(s.id));
       const pick = (fresh.length ? fresh : sectors)[run.day % (fresh.length ? fresh.length : sectors.length)]!;
       this.dispatch({ t: 'block_start', kind: 'climb', target: pick.id });
       this.session();
       this.dispatch({ t: 'block_end' });
       this.streak++;
-    } else if (!sectors.length && !wantRest && run.res.money > 100) {
+      if (low) work();
+    } else if (low) {
+      // A day off the rock while money is short is a working day: two odd jobs when energy allows.
+      work();
+      work();
+      this.streak = 0;
+    } else if (!sectors.length && !wantRest) {
       const act = this.policy.wetDayTraining[run.day % this.policy.wetDayTraining.length]!;
       if (canStartBlock(run, 'train', act, this.bundle).ok) this.dispatch({ t: 'block_start', kind: 'train', target: act });
       this.streak = 0;
     } else {
       this.dispatch({ t: 'block_start', kind: 'rest' });
       this.streak = 0;
-    }
-    if (run.res.money < this.policy.workBelow && canStartBlock(run, 'work', undefined, this.bundle).ok) {
-      this.dispatch({ t: 'block_start', kind: 'work' });
     }
     this.dispatch({ t: 'end_day' });
   }

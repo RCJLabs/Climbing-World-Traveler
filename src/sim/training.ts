@@ -64,10 +64,13 @@ export function applyStimulus(ctx: GainContext, stim: Partial<Record<AttrId, num
   return out;
 }
 
+/** Base technique XP per move (02 §B.2 proposes 0.06; the P1a harness put a full-time year at +7 DI with it). */
+export const TECH_BASE_GAIN = 0.015;
+
 /** Technique XP for one move (02 §B.2), before session multipliers. */
 export function techniqueXp(margin: number, novelty: number, outcome: 'clean' | 'sketchy' | 'slip' | 'fall'): number {
   const outcomeFactor = outcome === 'clean' ? 1.0 : outcome === 'sketchy' ? 0.7 : 0.5;
-  return 0.06 * novelty * Math.exp(-((margin / 0.6) ** 2)) * outcomeFactor;
+  return TECH_BASE_GAIN * novelty * Math.exp(-((margin / 0.6) ** 2)) * outcomeFactor;
 }
 
 /** Novelty from how often the climber has made this (hold type, class) move on this rock. */

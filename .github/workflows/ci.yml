@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Content validator (schemas §9, 05c C7)
+        run: pnpm validate
+      - name: Unit, golden, replay and save tests
+        run: pnpm test
+      - name: Grade calibration, reduced (19 §7)
+        run: pnpm calibrate --quick
+      - name: Build
+        run: pnpm build

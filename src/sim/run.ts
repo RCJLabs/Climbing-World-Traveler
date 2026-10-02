@@ -22,6 +22,8 @@ export const START_DOM = 1;
 export const DAILY_COST = 35; // P1a money stub (14 §1)
 export const ODD_JOB_PAY = 50; // P1a odd-jobs stub at cost tier 3 (14 §2)
 export const CLIMB_BLOCK_BASE_ENERGY = 10; // approach and warm-up
+export const SECOND_BLOCK_ENERGY = 50; // 11 §1 proposes 55; at default lifestyle (energy cap ≈ 79) that forbade a double work day (tune)
+export const CLIMB_STIM_SCALE = 0.25; // banked move stimulus → session stimulus units (tune)
 
 const LIVING_MULT: Record<Difficulty, number> = { story: 0.75, standard: 1.0, hard: 1.25 };
 const START_MONEY_MULT: Record<Difficulty, number> = { story: 1.5, standard: 1.0, hard: 0.75 };
@@ -140,7 +142,7 @@ function endSession(run: RunState, s: SessionState, bundle: DataBundle): void {
   const project = s.attempts > 0 && s.di_sum / s.attempts >= s.E - 1;
   // Physical stimulus from the moves made: hard moves train strength like limit bouldering (P1a reading of 12 §1).
   const stim: Partial<Record<AttrId, number>> = {};
-  for (const [id, v] of Object.entries(s.stim) as [AttrId, number][]) stim[id] = Math.min(10, 0.35 * v);
+  for (const [id, v] of Object.entries(s.stim) as [AttrId, number][]) stim[id] = Math.min(10, CLIMB_STIM_SCALE * v);
   stim.finger_endurance = (stim.finger_endurance ?? 0) + Math.min(8, s.pump_total / 25);
   if (project) {
     stim.route_reading = (stim.route_reading ?? 0) + 2;
@@ -183,7 +185,7 @@ export function canStartBlock(run: RunState, kind: BlockKind, target: string | u
   if (run.ended) return { ok: false, reason: 'The run is over.' };
   if (run.block) return { ok: false, reason: 'Finish the current block first.' };
   if (run.blocks_today.length >= 2) return { ok: false, reason: 'Two blocks a day is the limit.' };
-  if (run.blocks_today.length === 1 && run.res.energy < 55 && kind !== 'rest') return { ok: false, reason: 'A second block needs 55 energy.' };
+  if (run.blocks_today.length === 1 && run.res.energy < SECOND_BLOCK_ENERGY && kind !== 'rest') return { ok: false, reason: `A second block needs ${SECOND_BLOCK_ENERGY} energy.` };
   const onBreak = run.day < run.counters.forced_break_until;
   if (kind === 'climb') {
     if (onBreak) return { ok: false, reason: 'Forced break: burnout. Rest, work or recover.' };

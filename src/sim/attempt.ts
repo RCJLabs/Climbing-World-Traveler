@@ -52,6 +52,12 @@ export function routeEntry(seed: string, bundle: DataBundle): RouteEntry {
   return e;
 }
 
+/** Make a route built outside routeFromSeed (harness, calibration) resolvable by its seed. */
+export function registerRoute(route: Route): void {
+  const seed = route.seed ?? route.id;
+  routeCache.set(seed, { route, geom: routeGeom(route) });
+}
+
 export function sectorOf(run: RunState, bundle: DataBundle, id: string): Sector {
   const s = bundle.crags.get(run.crag)?.sectors.find((x) => x.id === id);
   if (!s) throw new InvalidAction(`unknown sector ${id}`);
@@ -356,7 +362,7 @@ function resolveMove(
     addFear(at, ath, 'sketchy move', 4);
     at.pq_penalty = 0.03;
   }
-  if (isDynamic(prep.cls)) nudge(run.attrs, 'commitment', 0.05);
+  if (isDynamic(prep.cls)) nudge(run.attrs, 'commitment', 0.02);
   if (ms.overgrip > 0 && outcome === 'clean') nudge(run.attrs, 'composure', 0.03);
 
   at.climb = applyMove(geom, ath, at.climb, prep.option.limb, prep.option.hold.id, prep.cls);
@@ -510,7 +516,7 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
   } else if (outcome === 'sent') {
     text = `${route.name}: topped out in working mode. No tick.`;
   } else {
-    if (progress >= 0.8) nudge(run.attrs, 'confidence', -2);
+    if (progress >= 0.8) nudge(run.attrs, 'confidence', -0.5);
     text = outcome === 'jumped' ? 'Off the wall.' : outcome === 'pumped' ? 'Pumped off.' : 'Fell.';
   }
   const result: AttemptResult = {
