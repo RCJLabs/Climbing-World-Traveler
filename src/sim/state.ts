@@ -76,6 +76,8 @@ export interface MoveReport {
   cls?: MoveClass;
   outcome?: MoveOutcome;
   commit?: CommitOutcome;
+  /** A slip the player's input forced, whatever the margin: a mistimed dyno, a reach too slow for the grip, a barn door (docs/23 §3). */
+  forced?: 'cut' | 'grip' | 'barn';
   margin?: number;
   T?: number;
   p_complete?: number;

@@ -3,9 +3,10 @@
 // and caught (§2.3). Auto plays any move without input, and auto-climb plays the sure ones and hands back at cruxes.
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import {
-  athleteOf, autoClimbAction, classPreview, displayedChance, isVisible, limbOptions, liveFear, reachBudget, restPreview, routeEntry, showsExactOdds,
+  athleteOf, autoClimbAction, balanceSetup, classPreview, displayedChance, isVisible, limbOptions, liveFear, reachBudget, restPreview, routeEntry, showsExactOdds,
 } from '../../sim/attempt';
-import type { ReachPerf } from '../../sim/reach';
+import { BARN_MS } from '../../sim/balance';
+import type { MovePerf } from '../../sim/reach';
 import { isDynamic } from '../../sim/tables';
 import { izof } from '../../sim/resolve';
 import type { AttemptState, RunState } from '../../sim/state';
@@ -123,7 +124,7 @@ export function Attempt({ run }: { run: RunState }) {
     setHold(id);
     setCls(null);
   };
-  const go = async (perf?: ReachPerf) => {
+  const go = async (perf?: MovePerf) => {
     if (!selected || !chosen || busy.current || !live) return;
     busy.current = true;
     const ok = await act({ t: 'move', limb: selected.option.limb, hold: selected.option.hold.id, class: chosen, ...(perf ? { perf } : {}) });
@@ -134,8 +135,10 @@ export function Attempt({ run }: { run: RunState }) {
   const armed = !!(live && !ending && !swinging && !auto && selected && chosen && !isDynamic(chosen));
   const moving = selected?.option.limb ?? null;
   const handMove = !!moving && limbKind(moving) === 'hand';
-  const budget = armed && handMove ? reachBudget(run, moving!, selected!.option.hold.id, chosen!, data) : null;
-  const grip = armed && handMove && !settings.value.one_thumb && at.climb.anchors[otherHand(moving!)] ? otherHand(moving!) : null;
+  // A move the stance test flags is balanced instead (§2.2): lean first, then reach; one thumb, no grip clock.
+  const bal = armed ? balanceSetup(run, moving!, selected!.option.hold.id, chosen!, data) : null;
+  const budget = armed && handMove && !bal ? reachBudget(run, moving!, selected!.option.hold.id, chosen!, data) : null;
+  const grip = armed && handMove && !bal && !settings.value.one_thumb && at.climb.anchors[otherHand(moving!)] ? otherHand(moving!) : null;
   const padLeft = grip === 'LH';
   const wall = async (kind: 'rest' | 'chalk' | 'jump_off') => {
     if (busy.current || !live) return;
@@ -169,6 +172,10 @@ export function Attempt({ run }: { run: RunState }) {
         reach={armed ? {
           limb: moving!, hold: selected!.option.hold.id, budget, spent, grip, gripHeld: () => gripRef.current, haptics: settings.value.haptics,
           onNeedGrip: () => setNudge(true), onMiss: (ms) => setSpent(ms), onDone: (perf) => void go(perf),
+          lean: bal ? {
+            base: bal.stance.base, com0: bal.stance.com, outward: bal.stance.outward, barn_ms: BARN_MS,
+            drift: run.options.pause_drift ? 0 : bal.drift, key: `${moving}:${selected!.option.hold.id}:${at.time_s}`,
+          } : null,
         } : null}
         swing={swinging ? {
           setup: at.pending!.swing, limb: at.pending!.limb, rate: DYNO_RATE / run.options.sweep_speed, haptics: settings.value.haptics,
@@ -213,7 +220,9 @@ export function Attempt({ run }: { run: RunState }) {
               <span class="classes">{classes.map((c) => <button key={c} class="chip-btn small" aria-pressed={c === chosen} onClick={() => setCls(c)}>{CLASS_LABEL[c]}</button>)}</span>
             )}
           </div>
-          {armed && <div class={`tiny one-line ${nudge ? 'warn' : 'soft'}`}>{grip ? `Hold ${grip} · drag anywhere · let go on the ring` : 'Drag anywhere · let go on the ring'}</div>}
+          {armed && <div class={`tiny one-line ${nudge ? 'warn' : 'soft'}`}>{bal
+            ? <><b class="accent">BALANCE</b> · lean in, let go, then drag {moving}</>
+            : grip ? `Hold ${grip} · drag anywhere · let go on the ring` : 'Drag anywhere · let go on the ring'}</div>}
           <div class="triangle" aria-hidden={!pv}>
             <div><span class="big" style={{ color: pv ? bandColour(shown) : undefined }}>{pv ? (exact ? pct(shown) : band(shown)) : '—'}</span><span class="tiny muted">success</span></div>
             <div>

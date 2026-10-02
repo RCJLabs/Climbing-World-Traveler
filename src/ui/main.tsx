@@ -1,4 +1,5 @@
 import { render } from 'preact';
+import type { Limb, MoveClass } from '../sim/types';
 import { registerSW } from 'virtual:pwa-register';
 import './theme.css';
 import { Attempt } from './screens/Attempt';
@@ -50,8 +51,11 @@ window.addEventListener('hashchange', () => { if ((location.hash === PROTO) !== 
 
 // Dev-only hook for browser tests: read the run and step the bot policy from the page.
 if (import.meta.env.DEV) {
-  void import('../sim/attempt').then(({ autoClimbAction }) => {
-    (window as unknown as Record<string, unknown>).__cwt = { run, act, data, next: () => run.value && autoClimbAction(run.value, data, { bot: true }) };
+  void import('../sim/attempt').then(({ autoClimbAction, balanceSetup }) => {
+    (window as unknown as Record<string, unknown>).__cwt = {
+      run, act, data, next: () => run.value && autoClimbAction(run.value, data, { bot: true }),
+      balance: (a: { limb: Limb; hold: string; class: MoveClass }) => run.value && balanceSetup(run.value, a.limb, a.hold, a.class, data),
+    };
   });
 }
 // A new version waits until every tab is closed unless the player reloads into it; say so instead of waiting silently.

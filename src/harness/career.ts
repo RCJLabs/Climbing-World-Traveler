@@ -5,7 +5,7 @@ import { BotDriver, PROJECT_POLICY, VOLUME_POLICY, type BotPolicy } from '../sim
 import { cyrb53, stream } from '../sim/rng';
 import { applyAction, createRun, estimateDI, replay } from '../sim/run';
 import type { Action, DataBundle, NewRunSpec, RunSummary } from '../sim/types';
-import { harnessSwing, withReach, type Timing } from './sim';
+import { harnessSwing, withPerf, type Timing } from './sim';
 
 export interface CareerConfig {
   seed: string;
@@ -49,9 +49,9 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
       const at = r.attempt!;
       return harnessSwing(at.pending!.swing, cfg.timing, stream('harness-swing', r.seed, at.route_id, at.attempt_index, at.move_index));
     },
-    reach: (r, m) => {
+    perf: (r, m) => {
       const at = r.attempt!;
-      return withReach(r, m, cfg.timing, stream('harness-reach', r.seed, at.route_id, at.attempt_index, at.move_index), bundle);
+      return withPerf(r, m, cfg.timing, stream('harness-reach', r.seed, at.route_id, at.attempt_index, at.move_index), bundle);
     },
   };
   const bot = new BotDriver(run, bundle, policy);

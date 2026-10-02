@@ -9,6 +9,7 @@ import {
   autoCommitPApex, evaluate, fearEffects, holdCost, izof, powerPool, probs, recoveryChance, restDelta,
   type CommitOutcome, type Conditions, type MoveState, type Probs,
 } from './resolve';
+import { driftSpeed, judgeBalance, stanceOf, type BalanceJudged, type Stance } from './balance';
 import { gripBudget, judgeReach, placeWord, validPerf, type MovePerf, type ReachJudged } from './reach';
 import { routeFromSeed } from './routes';
 import { judgeSwing, swingSetup, type SwingJudged, type SwingPerf } from './swing';
@@ -228,9 +229,18 @@ function prepare(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athlete,
   return prep;
 }
 
+/** How a move is played (docs/23 §2): a dyno is swung, a move the stance test flags is balanced, the rest are reached. */
+export type MoveType = 'reach' | 'balance' | 'dyno';
+
+export function moveTypeOf(geom: RouteGeom, ath: Athlete, st: ClimbState, limb: Limb, cls: MoveClass): MoveType {
+  if (isDynamic(cls)) return 'dyno';
+  if (cls === 'mantle') return 'reach';
+  return stanceOf(geom, ath, st, limb).balance ? 'balance' : 'reach';
+}
+
 /**
  * A `move` action. Dynamic moves wait for a `commit` action with the swing (docs/23 §3.3); every other move resolves
- * now, from the player's drag when `perf` is given (Reach, docs/23 §3.1) or as Auto when it is not.
+ * now, from the player's drag or lean when `perf` is given (Reach §3.1, Balance §3.2) or as Auto when it is not.
  */
 export function doMove(run: RunState, limb: Limb, hold: string, cls: MoveClass, bundle: DataBundle, perf?: MovePerf): void {
   const at = run.attempt;
@@ -240,8 +250,12 @@ export function doMove(run: RunState, limb: Limb, hold: string, cls: MoveClass, 
   const { geom } = routeEntry(at.route_seed, bundle);
   const ath = athleteOf(run, bundle);
   const prep = prepare(run, at, geom, ath, limb, hold, cls);
+  if (perf) {
+    const type = moveTypeOf(geom, ath, at.climb, limb, prep.cls);
+    if (type === 'dyno') throw new InvalidAction('a dyno is swung, not dragged');
+    if (perf.kind !== type) throw new InvalidAction(`a ${type} move cannot take a ${perf.kind} perf`);
+  }
   if (isDynamic(prep.cls)) {
-    if (perf) throw new InvalidAction('a dyno is swung, not dragged');
     const ms = moveStateOf(run, at, geom, ath);
     const e = evaluate(ath, prep.spec, ms, conditionsOf(run, at, bundle, ath));
     const bp = bodyPoints(geom, ath, freeState(at.climb, limb));
@@ -257,6 +271,19 @@ export function doMove(run: RunState, limb: Limb, hold: string, cls: MoveClass, 
     return;
   }
   resolveMove(run, at, geom, ath, prep, null, perf ?? null, bundle);
+}
+
+/** A Balance move's stance and drift speed (m/s) from the current state, for the screen and the harness; null if it is not one. */
+export function balanceSetup(run: RunState, limb: Limb, hold: string, cls: MoveClass, bundle: DataBundle): { stance: Stance; drift: number } | null {
+  const at = run.attempt;
+  if (!at || at.pending) return null;
+  const { geom } = routeEntry(at.route_seed, bundle);
+  const ath = athleteOf(run, bundle);
+  const prep = prepareMove(geom, ath, at.climb, limb, hold, cls);
+  if (!prep || moveTypeOf(geom, ath, at.climb, limb, prep.cls) !== 'balance') return null;
+  const stance = stanceOf(geom, ath, at.climb, limb);
+  const ms = moveStateOf(run, at, geom, ath);
+  return { stance, drift: driftSpeed(ath, stance.angle, ms.overgrip, ms.pump) };
 }
 
 /** The grip budget (ms) for a Reach move from the current state, as the reducer will judge it; null if not a Reach move. */
@@ -323,13 +350,19 @@ function resolveMove(
     if (commit.auto) margin -= 0.1; // Auto-commit tax (05b §8.4)
   }
   // Reach (docs/23 §3.1): where the hand landed moves the margin; a slow reach pumps, a very slow one lets go.
+  // Balance (§3.2): time out of balance costs margin, and long enough out of it swings you off.
   let reach: ReachJudged | null = null;
-  if (perf) {
+  let bal: BalanceJudged | null = null;
+  if (perf?.kind === 'reach') {
     reach = judgeReach(perf, gripBudget(e.margin, e.T, ms.pump), hand);
     margin += reach.delta;
     pumpMult *= reach.pumpMult;
+  } else if (perf?.kind === 'balance') {
+    bal = judgeBalance(perf);
+    margin += bal.delta;
   }
   const popped = !!reach?.pop;
+  const barned = !!bal?.barn;
   let p: Probs = probs(margin, e.T);
   if (!hand && ms.overgrip > 0 && p.slip > 0) {
     const slip = Math.min(1, p.slip * (1 + ms.overgrip));
@@ -342,7 +375,7 @@ function resolveMove(
     p = tot > 0 ? { clean: 0, sketchy: p.sketchy / tot, slip: p.slip / tot } : { clean: 0, sketchy: 1, slip: 0 };
   }
   const u = rng.next();
-  let outcome: 'clean' | 'sketchy' | 'slip' = cut || popped ? 'slip' : u < p.clean ? 'clean' : u < p.clean + p.sketchy ? 'sketchy' : 'slip';
+  let outcome: 'clean' | 'sketchy' | 'slip' = cut || popped || barned ? 'slip' : u < p.clean ? 'clean' : u < p.clean + p.sketchy ? 'sketchy' : 'slip';
 
   // Costs (05b §5), paid whatever the outcome.
   const rough = outcome === 'clean' ? 1 : 1.5;
@@ -382,6 +415,7 @@ function resolveMove(
   at.pq_penalty = 0;
 
   if (outcome === 'slip') {
+    if (cut || popped || barned) base.forced = cut ? 'cut' : popped ? 'grip' : 'barn';
     // Recovery check (05b §4.5); a cut releases the launching hand and, on steep ground, both feet (05b §8.3).
     let other = spec.otherAnchors;
     if (cut && spec.angle >= 100) other = Object.keys(at.climb.anchors).filter((l) => l !== prep.option.limb && limbKind(l as Limb) === 'hand').length;
@@ -394,11 +428,11 @@ function resolveMove(
       addFear(at, ath, 'slip', 8);
       if (!hand && spec.angle >= 110) at.climb = { ...at.climb, feet_cut: true };
       if (cut && spec.angle >= 100) at.climb = { ...at.climb, feet_cut: true };
-      report(at, { ...base, outcome: 'slip_recovered', text: cut ? 'Cut loose and caught it. Feet are off.' : popped ? 'Too slow: your grip went, but you held on.' : `${limbName(prep.option.limb)} popped. You held on.` });
+      report(at, { ...base, outcome: 'slip_recovered', text: cut ? 'Cut loose and caught it. Feet are off.' : popped ? 'Too slow: your grip went, but you held on.' : barned ? 'Barn-doored, but you held the swing.' : `${limbName(prep.option.limb)} popped. You held on.` });
       checkPump(run, at, geom, ath, bundle);
       return;
     }
-    report(at, { ...base, outcome: 'fall', text: cut ? 'Mistimed. Nothing to hold.' : popped ? `Too slow. Your ${limbName(otherHand(prep.option.limb)).toLowerCase()} opened.` : `${limbName(prep.option.limb)} slipped and you were off.` });
+    report(at, { ...base, outcome: 'fall', text: cut ? 'Mistimed. Nothing to hold.' : popped ? `Too slow. Your ${limbName(otherHand(prep.option.limb)).toLowerCase()} opened.` : barned ? 'Barn door: you swung off.' : `${limbName(prep.option.limb)} slipped and you were off.` });
     finishAttempt(run, at, geom, ath, 'fell', bundle);
     return;
   }
@@ -440,6 +474,7 @@ function moveText(prep: Prepared, c?: CommitOutcome, perf?: MovePerf | null, rea
   if (c === 'caught') return 'Caught it.';
   const to = `${limbName(prep.option.limb)} to the ${prep.option.hold.type.replace('_', ' ')}`;
   if (!perf) return `${to}.`;
+  if (perf.kind === 'balance') return `${to}, ${perf.out_ms > 0 ? 'wobbling' : 'in balance'}.`;
   return `${to}, ${placeWord(perf.place)}${reach && reach.overrun > 0 ? ', but slow' : ''}.`;
 }
 

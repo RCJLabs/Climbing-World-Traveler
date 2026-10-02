@@ -2,9 +2,9 @@
 
 The climbing overhaul. Different moves ask different things of a climber, so they get different controls: a dyno is aimed, launched and caught; a balance move is held in balance; an ordinary reach is gripped and placed. The look moves to **Flat Dusk** on the three-quarter camera. The character builder, the career, training, the route generator and the grade engine stay; this doc says how the new controls feed the same engine.
 
-**Status:** steps 1–4 of §5 are built: the dyno prototype (§6), the Flat Dusk look, Swing and Catch for dynos and deadpoints (§3.3), and Two-Thumb Grip for every other move (§2.1, §3.1). Two-Thumb Grip has not been played on a phone yet. Balance is still design; until it lands, balance moves play as Reach.
+**Status:** steps 1–5 of §5 are built: the dyno prototype (§6), the Flat Dusk look, Swing and Catch for dynos and deadpoints (§3.3), Two-Thumb Grip for most other moves (§2.1, §3.1) and Lean for the moves the stance test flags (§2.2, §3.2). Neither Two-Thumb Grip nor Lean has been played on a phone yet. Step 6 (per-type skill limits) is next.
 
-**Supersedes:** [05b §8](05b-move-resolution-and-attempt-loop.md#8-commit-window) (the commit window; replaced by §3.3, Auto-commit kept) and [17 §4](17-ui-ux.md) (the commit bar); [17 §2](17-ui-ux.md)'s *Go* for every move (§2.1); the rest of [17 §2–§3](17-ui-ux.md) (wall input, HUD) once Balance is built. **Amends:** [01 §3](01-pillars-scope-roadmap.md#3-non-goals) (non-goals) and the input rules in `CLAUDE.md`.
+**Supersedes:** [05b §8](05b-move-resolution-and-attempt-loop.md#8-commit-window) (the commit window; replaced by §3.3, Auto-commit kept) and [17 §4](17-ui-ux.md) (the commit bar); [17 §2](17-ui-ux.md)'s *Go* for every move (§2.1, §2.2). Picking a limb and a hold, the decision triangle and the HUD of 17 §2–§3 stay. **Amends:** [01 §3](01-pillars-scope-roadmap.md#3-non-goals) (non-goals) and the input rules in `CLAUDE.md`.
 
 Related: [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Resolution](05b-move-resolution-and-attempt-loop.md) · [05c Grade Engine](05c-grade-engine.md) · [17 UI/UX](17-ui-ux.md) · [18 Tech Architecture](18-tech-architecture.md) · [19 Balance Testing](19-balance-and-simulation-testing.md) · [schemas](schemas.md)
 
@@ -25,7 +25,7 @@ Related: [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Reso
 | Type | Engine classes ([05b §2](05b-move-resolution-and-attempt-loop.md#2-move-classification-from-geometry)) | When | Control | `perf` logged | Auto |
 |---|---|---|---|---|---|
 | **Reach** (built) | `static`, `high_step`, `heel_hook`, `toe_hook`, `match`, `jam`, `bump`, `mantle` | Default for any move that is not Balance or Dyno | **Two-Thumb Grip** (§2.1) | on the `move` action: `perf: { kind: 'reach', time_ms, place }` | no `perf`: the move exactly as it resolved before Reach |
-| **Balance** | the same static classes | The stance test (§2.2) fails | **Lean** (§2.2) | `{ kind: 'balance', out_ms }` | drift paused, `out_ms` from stats |
+| **Balance** (built) | the same static classes | The stance test (§2.2) flags it | **Lean** (§2.2) | on the `move` action: `perf: { kind: 'balance', out_ms, place }` | no `perf`: the move exactly as it resolved before Balance |
 | **Dyno** (built) | `deadpoint`, `dyno` | Always | **Swing and Catch** (§2.3) | on the `commit` action: `swing: { power, angle_deg, catch_ms }` | `swing: null`, the 05b §8.4 roll, unchanged |
 
 ### 2.1 Reach: Two-Thumb Grip
@@ -41,10 +41,13 @@ Not built from the first proposal: letting go of both pads as a jump-off (*Jump 
 
 ### 2.2 Balance: Lean
 
-- **Stance test** (when a move is a Balance move, **(tune)**): with the moving limb released, project the remaining anchors front-on (lateral `x`, height `y`; [05a §1](05a-wall-and-kinematics.md)) and take their convex hull as the base. The move is Balance if the wall angle at the hips is `≤ 90°` and the centre of mass sits within `0.08 m` of the base edge, or if a foot in the base is on a `smear`.
-- The centre of mass drifts at `v_d` (§3.2). The player drags the hips to keep it inside the base. The moving limb unlocks only in balance; outside the base for too long is a barn door.
-- The three-quarter camera compresses side to side, so a **BASE** inset (front view of the base and the centre of mass) is always shown on Balance moves.
-- **Pause the drift** (setting): the centre of mass moves only when the player moves it, so no timing is needed.
+- **Stance test** **(tune)**: project the anchors left when the moving limb lets go front-on (lateral `x`, height `y`; [05a §1](05a-wall-and-kinematics.md)) and take their convex hull as the base. The centre of mass is the one the body has before the limb lets go. The move is Balance when the wall at the hips is no steeper than `90°` and that centre of mass is outside the base or within `0.08 m` inside its edge. Two anchors make a line: no inside, always Balance on ground that angle.
+- **Lean, then reach.** A Balance move is armed like any other (tap the hold); a BALANCE tag shows on the hint line. Drag anywhere: the hips move with the drag (1.5 mm per screen pixel) and the figure's hips follow. Let go with the centre of mass inside the base and the lean is done; from then on a drag moves the limb to its ring, as on a Reach move. A stance that starts inside skips the lean.
+- **Drift.** From the first drag, the centre of mass drifts out at `v_d` (§3.2), along the line from the middle of the base through where it started. Out of the base during the reach, the time counts; `1.5 s` of it and you barn-door off (the move resolves as a slip). The time spent leaning in does not count.
+- **BASE inset**, top left of the wall whenever a Balance move is armed, because the three-quarter camera compresses side to side: the base front-on, the centre of mass (teal inside, coral outside) and a status line: `OUT 4 cm · LEAN IN`, `IN · NOW LET GO`, `IN BALANCE · REACH`, `BARN DOOR 0.6 s`.
+- **No drift** (run setting, *Balance moves*, at creation or on the title screen): the centre of mass moves only when the player moves it, so no timing is needed.
+- **One thumb by design:** no grip pad and no grip clock on a Balance move; the drift is its clock.
+- **Auto** plays the move with no input.
 
 ### 2.3 Dyno: Swing and Catch
 
@@ -84,14 +87,28 @@ Departures from the first proposal, and why:
 - **The budget comes from the move's margin, not the weakest holding hand's.** The move's margin already carries pump, fear, the holds and the posture; a budget per held hold (slopers draining faster, as the mockup said) is open.
 - **Base 1,600 → 3,200 ms, lower clamp 0.25 → 0.4, placement range 0.15 → 0.09 (+0.03 to −0.06).** With the proposal's budget a novice (19 §3) overran on 40% of hand moves, and Swing and Catch plus Reach put the expert − novice gap at 9.1 points on dynamic problems, against C8's 8. With a range of 0.12 the 30-problem sample read 8.0.
 
-### 3.2 Balance
+### 3.2 Balance (built)
+
+Code: `src/sim/balance.ts`; judged in `resolveMove` (`src/sim/attempt.ts`). The drift runs on the screen; the engine sees only `out_ms` and `place`.
 
 ```
-drift speed  v_d (m/s) = 0.04 × slab_term × (1 + overgrip) × (1 + pump/200) × (1 − (hip_mobility + footwork + core) / 450)
+drift speed  v_d (m/s) = 0.012 × slab_term × (1 + overgrip) × (1 + pump/200) × max(0.3, 1 − (hip_mobility + footwork + core) / 450)
   slab_term = 1 + max(0, 85 − angle) / 30                                                    the further past vertical toward slab, the faster you tip
-out of base  Δ = −0.3 × min(1, out_ms / 600);  out_ms > 900 → barn door (slip branch, the moving side)
-Auto         drift paused; Δ = −0.05 − 0.10 × (1 − footwork/100)
+out of base  Δ = placement (§3.1) − 0.2 × min(1, out_ms / 600)                                out_ms: time out of the base during the reach
+barn door    out_ms ≥ 1500 → the 05b §4.5 slip branch; the move does not land
+Auto         no perf: Δ = 0                                                                  the same as out_ms = 0, place = 1/3
 ```
+
+`v_d` runs from about 0.008 m/s (a Slab Wizard on a slab) to 0.02 (a weak, pumped climber on a 70° slab), so leaning 3 cm inside the edge buys about 1.5–4 s.
+
+The stance test on generated Font problems (`scripts/dev/probe-stance.ts`, Reference Climber at each problem's grade, 2,625 static moves): 11.5% flagged overall; slab 41%, sloper bulge 7%, roof 0%.
+
+Departures from the first proposal, and why:
+
+- **Auto is the move as it was** (as for Reach), not `−0.05 − 0.10 × (1 − footwork/100)`, so grades and saved runs do not move. Good play earns only the placement term; time out of balance only costs.
+- **No smear rule.** "A foot on a smear makes it Balance" flagged 46% of slab moves on its own (nearly every slab foot is a smear) and took the overall rate to 16.9%, over the 5–15% exit.
+- **Only the reach counts.** Time spent leaning in from a stance that starts outside is the lean itself, not a mistake.
+- **Drift 0.04 → 0.012 m/s, barn door 900 → 1,500 ms, cost 0.3 → 0.2.** At 0.025 m/s and 900 ms the novice model (19 §3) barn-doored on most slab problems and the expert − novice gap reached 11.9 points on dynamic problems and 9.1 on slabs.
 
 ### 3.3 Dyno (built)
 
@@ -119,10 +136,20 @@ The prototype (§6) used a stat-based top speed (`(2.6 + 0.024 × power) × …`
 ### 3.4 Logging, replay and grading
 
 - Dyno: choosing a dynamic move still sets the attempt `pending`, now with the swing setup it will be judged against; the `commit` action carries the swing (`null` = Auto). `REDUCER_VERSION` 2 and `DATA_VERSION` `p1a-12`: runs saved before cannot continue ([22 §4](22-p1a-implementation-notes.md)).
-- Reach: the `move` action carries an optional `perf` ([schemas §8](schemas.md)); a `perf` on a dyno, or a malformed one, is an invalid action. A move without `perf` resolves exactly as before, so no version changed and `p1a-12` runs replay as they were. Balance will add its own `perf` kind.
+- Reach and Balance: the `move` action carries an optional `perf` ([schemas §8](schemas.md)) whose `kind` must match the move's type (the stance test decides). A `perf` on a dyno, of the wrong kind, or malformed, is an invalid action. A move without `perf` resolves exactly as before, so no version changed and `p1a-12` runs replay as they were.
+- A slip the input forced (a cut dyno, a reach too slow for the grip, a barn door) is marked on the move (`forced`), so the result screen says why instead of blaming the dice.
 - Replay recomputes everything from the logged numbers: the flight and the drift are pure functions of `perf` and the state.
 - The grade engine ([05c](05c-grade-engine.md)) evaluates every move with Auto. The generator's legality and margin checks ([06 §2.3](06-procedural-routes.md)) are unchanged.
-- [19](19-balance-and-simulation-testing.md) C8 runs on Swing and Catch and Reach skill models together (19 §3), every non-dyno move dragged: on the normal sample Auto 32%, novice 28%, average 32%, expert 34%, expert − novice 6.1 points (also 6.1 with Swing and Catch alone, inside the sample's noise; 6.9 with the commit bar); on the 30-problem full sample 7.6 (Auto 33%, novice 29%, average 34%, expert 37%; 6.6 with Swing and Catch alone, 7.9 with the commit bar). Reach alone adds 1.4 points, on dynamic problems and on problems with no dynamic moves alike (`scripts/dev/probe-reach.ts`). That leaves Balance about 0.4 points under C8's bar on the full sample; per-type C8 is step 6.
+- [19](19-balance-and-simulation-testing.md) C8 runs on the Swing and Catch, Reach and Balance skill models together (19 §3), every non-dyno move played by hand. Expert − novice:
+
+  | Sample | All three | Swing and Catch + Reach | Swing and Catch alone | Commit bar |
+  |---|---|---|---|---|
+  | normal (10 dynamic problems) | 6.9 (Auto 32%, novice 27%, average 32%, expert 34%) | 6.1 | 6.1 | 6.9 |
+  | `--full` (30 dynamic problems) | **7.9** (Auto 33%, novice 29%, average 34%, expert 37%) | 7.6 | 6.6 | 7.9 |
+  | 10 slab problems, no dynos (`scripts/dev/probe-skill.ts`) | 1.7 | — | — | — |
+  | 10 other problems, no dynos | 2.1 | 1.4 (Reach alone) | — | — |
+
+  The full sample sits 0.1 under C8's bar: the three types now share it, and step 6 has to split it per type.
 
 ---
 
@@ -168,7 +195,7 @@ The prototype (§6) used a stat-based top speed (`(2.6 + 0.024 × power) × …`
 | 2 ✓ | Flat Dusk renderer: palette, figure, sky (the move-type chip waits for Reach and Balance) | 390 and 360 px screenshots; no engine change |
 | 3 ✓ | Swing and Catch in the engine and on the wall; the commit window removed | C1–C9 pass; replay identity; old saves rejected cleanly by version |
 | 4 (built) | Reach: Two-Thumb Grip and its one-thumb mode | playtest: crux moves feel quicker, not slower (**not yet played on a phone**) |
-| 5 | Balance: stance test, Lean, BASE inset | the stance test flags 5–15% of moves on Font problems (harness) |
+| 5 (built) | Balance: stance test, Lean, BASE inset | the stance test flags 5–15% of moves on Font problems (harness): **11.5%** (slab 41%, bulge 7%, roof 0%). Not yet played on a phone |
 | 6 | Harness: per-type skill models; C8 per type | C8 within limits for every type |
 
 ---
@@ -195,7 +222,10 @@ Measured on the model (game time, best launch): a strong build (power 75, contac
 - **Grip budget per hold.** The budget follows the move's margin. A budget from the hold being held (slopers drain faster, as the Two-Thumb Grip mockup said) would read better but needs a hold-level margin the engine does not compute.
 - **Ring size.** The placement ring is 24 px on screen whatever the zoom, so zooming in does not make placement easier. Whether it should scale with the hold's size is open.
 - **Feet.** Feet run no clock, so a foot move is a placement only. The mockup's "feet follow you" (feet placed for you) would cut moves per problem roughly in half; it would also take the footwork decisions away.
-- **The stance test.** The `0.08 m` edge and the smear rule are guesses; the harness should report how often Balance triggers, by style.
+- **The stance test by style.** 11.5% overall meets the exit, but 41% of slab moves are Balance moves, nearly every foot move among them (in the browser checks a foot letting go left the centre of mass 7–19 cm outside the base). Whether a slab problem that is mostly lean-then-reach feels right, or whether foot moves should need a tighter edge, is a playtest question.
+- **C8 is full.** All three skill types together read 7.9 against 8 on the full sample. Step 6 decides whether the bar stays a total (and every type stays as gentle as now) or becomes per type with a looser total.
+- **Lean mapping.** A lean drag moves the hips 1.5 mm per screen pixel whatever the zoom, and the drift runs along one fixed line. Whether the drift should curve toward the nearest edge, and whether the gain should follow the zoom, are open.
+- **The barn door resolves itself.** At 1.5 s out the move resolves as a slip without a tap; the alternative (the limb comes off but the player keeps control) needs an engine state for a body swinging on two anchors.
 - **Dyno Auto.** Keeping 05b §8.4 leaves grades untouched; deriving Auto from the flight model instead would make Auto honour reach and power directly but would move dyno grades and need a recalibration.
 - **Power and the pull.** The pull a dyno needs comes from its margin, so a strong climber and a weak one with the same margin pull the same share. A stat-based top speed (as in the prototype) would make power felt in the pull directly, but would let manual play and Auto disagree about what is reachable.
 - **Reduced motion.** Swing and Catch has no reduced-motion form beyond Auto; a stepped flight could be one.

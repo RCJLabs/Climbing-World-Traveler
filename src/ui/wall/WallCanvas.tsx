@@ -1,12 +1,13 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
-import type { ReachPerf } from '../../sim/reach';
+import { signedDist, type FPt } from '../../sim/balance';
+import type { MovePerf } from '../../sim/reach';
 import { fly, gapAt, launchVelocity, SLAP_MS, type SPt, type SwingPerf, type SwingSetup } from '../../sim/swing';
 import type { Limb } from '../../sim/types';
 import { otherHand } from '../../sim/wall';
 import { C, drawWall, hitHold, type FrameExtras, type Layout, type WallView } from './render';
 import {
-  drop, ease, fallenPose, flightPose, frameFor, lerpPose, loadedPose, poseOf, project, projectS, reachingPose, toppedPose, toScreen, wallBounds,
+  drop, ease, fallenPose, flightPose, frameFor, K_LAT, lerpPose, loadedPose, poseOf, project, projectS, reachingPose, toppedPose, toScreen, wallBounds,
   ZOOM_RANGE, type Cam, type MotionStyle, type P, type Pose,
 } from './pose';
 
@@ -55,8 +56,35 @@ export interface ReachInput {
   onNeedGrip: () => void;
   /** Let go away from the ring, or the grip pad was released: the limb goes back. */
   onMiss: (spent_ms: number) => void;
-  onDone: (perf: ReachPerf) => void;
+  onDone: (perf: MovePerf) => void;
+  /** A Balance move (docs/23 §2.2): lean first, then reach; null on a Reach move. */
+  lean: LeanInput | null;
 }
+
+/**
+ * Lean on a Balance move: the base front-on, where the centre of mass starts, and how fast and which way it drifts
+ * once the first drag starts. Until a lean drag is let go inside the base, drags move the hips; after that they move
+ * the limb (a stance that starts inside skips the lean). Out of balance in the reach for `barn_ms` and the move
+ * resolves as a barn door.
+ */
+export interface LeanInput {
+  base: FPt[];
+  com0: FPt;
+  /** Drift speed (m/s); 0 with drift paused. */
+  drift: number;
+  outward: FPt;
+  barn_ms: number;
+  /** Changes with each new Balance move, so each starts from its own stance. */
+  key: string;
+}
+
+/** Hips moved per CSS pixel of a lean drag (m). (tune) */
+const LEAN_GAIN = 0.0015;
+
+type LeanState = {
+  key: string; com: FPt; t: number | null; phase: 'lean' | 'reach'; out_ms: number; done: boolean;
+  drag: { id: number; down: [number, number]; com: FPt } | null;
+};
 
 /** The placement ring's radius on screen (px); a release up to `SNAP` rings out still lands, on the edge. (tune) */
 export const PLACE_RING_PX = 24;
@@ -118,6 +146,14 @@ export function WallCanvas(props: {
   const camNow = useRef<Cam | null>(null);
   /** The limb's last place in a landed reach, held until the engine's verdict moves the figure (or briefly, if none comes). */
   const placed = useRef<{ pose: Pose; until: number } | null>(null);
+  const leanRef = useRef<LeanState | null>(null);
+  /** The lean of the armed Balance move, fresh for each new move. */
+  const leanOf = (L: LeanInput): LeanState => {
+    if (leanRef.current?.key !== L.key) {
+      leanRef.current = { key: L.key, com: L.com0, t: null, phase: signedDist(L.base, L.com0) < 0 ? 'reach' : 'lean', out_ms: 0, done: false, drag: null };
+    }
+    return leanRef.current;
+  };
 
   /** Pull vector (CSS px) to power and launch angle: pulling down launches up the rock, pulling left launches right. */
   const pullOf = (ph: Extract<SwingPhase, { k: 'aim' }>) => {
@@ -161,6 +197,27 @@ export function WallCanvas(props: {
     if (swi && ph.k === 'done' && flightLast.current) pose = flightLast.current;
     const ri = reach.current;
     const drag = rd.current;
+    // Balance: the hips drift out once the first drag has started; time out of the base during the reach counts.
+    const L = ri?.lean ?? null;
+    const ls = L ? leanOf(L) : null;
+    if (L && ls && ls.t !== null && !ls.done) {
+      const dt = Math.min(100, now - ls.t);
+      ls.t = now;
+      const step = (L.drift * dt) / 1000;
+      if (ls.drag) ls.drag.com = [ls.drag.com[0] + L.outward[0] * step, ls.drag.com[1] + L.outward[1] * step];
+      else ls.com = [ls.com[0] + L.outward[0] * step, ls.com[1] + L.outward[1] * step];
+      if (ls.phase === 'reach' && signedDist(L.base, ls.com) >= 0) ls.out_ms += dt;
+      if (ls.out_ms >= L.barn_ms) { barnDoor(now); return false; }
+      running = true;
+    }
+    if (L && ls) {
+      // The figure's hips follow the lean, seen at the view's lateral compression.
+      const dx = ls.com[0] - L.com0[0];
+      const dy = ls.com[1] - L.com0[1];
+      target.hip = [target.hip[0] + K_LAT * dx, target.hip[1] + dy];
+      target.sh = [target.sh[0] + 0.7 * K_LAT * dx, target.sh[1] + 0.7 * dy];
+      if (!drag && !anim.current && !placed.current) pose = target;
+    }
     if (ri && drag) {
       // The grip pad let go mid-reach: the limb goes back (two-thumb mode).
       if (ri.grip && !ri.gripHeld()) { missReach(now); return false; }
@@ -209,7 +266,69 @@ export function WallCanvas(props: {
     if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__cwtWall = layout.current;
     if (swi) drawSwing(ctx, cw, ch, cam, now);
     else if (ri && !e) drawReach(ctx, cw, ch, cam, now);
+    if (L && ls && !e) drawLean(ctx, L, ls);
     return running;
+  };
+
+  /** The BASE inset (docs/23 §2.2): the base front-on, the centre of mass, and how far in or out it is. */
+  const drawLean = (ctx: CanvasRenderingContext2D, L: LeanInput, ls: LeanState) => {
+    const W = 132;
+    const H = 112;
+    const x0 = 10;
+    const y0 = 10;
+    const pts = [...L.base, L.com0];
+    const pad = 0.14;
+    const minx = Math.min(...pts.map((p) => p[0])) - pad;
+    const maxx = Math.max(...pts.map((p) => p[0])) + pad;
+    const miny = Math.min(...pts.map((p) => p[1])) - pad;
+    const maxy = Math.max(...pts.map((p) => p[1])) + pad;
+    const sc = Math.min((W - 16) / (maxx - minx), (H - 44) / (maxy - miny));
+    const ox = x0 + 8 + ((W - 16) - (maxx - minx) * sc) / 2;
+    const oy = y0 + 22;
+    const toI = (p: FPt): [number, number] => [ox + (p[0] - minx) * sc, oy + (maxy - p[1]) * sc];
+    const d = signedDist(L.base, ls.com);
+    ctx.save();
+    ctx.fillStyle = 'rgba(27, 27, 58, 0.85)';
+    ctx.beginPath(); ctx.roundRect(x0, y0, W, H, 10); ctx.fill();
+    ctx.font = '800 10px "Barlow Condensed", "Arial Narrow", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#B9B4D6';
+    ctx.fillText('BASE · FRONT VIEW', x0 + 8, y0 + 14);
+    ctx.beginPath();
+    L.base.forEach((p, i) => { const [x, y] = toI(p); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+    if (L.base.length > 2) { ctx.closePath(); ctx.fillStyle = 'rgba(46, 196, 182, 0.25)'; ctx.fill(); }
+    ctx.strokeStyle = C.safe; ctx.lineWidth = L.base.length > 2 ? 2 : 4; ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.fillStyle = C.text;
+    for (const p of L.base) { const [x, y] = toI(p); ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill(); }
+    const [cx, cy] = toI(ls.com);
+    const kx = Math.min(x0 + W - 6, Math.max(x0 + 6, cx));
+    const ky = Math.min(y0 + H - 26, Math.max(y0 + 18, cy));
+    ctx.fillStyle = d < 0 ? C.safe : C.danger;
+    ctx.beginPath(); ctx.arc(kx, ky, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.font = '800 12px "Barlow Condensed", "Arial Narrow", sans-serif';
+    const left = L.barn_ms - ls.out_ms;
+    const cm = Math.max(1, Math.round(d * 100));
+    const status = ls.phase === 'lean'
+      ? (d < 0 ? 'IN · NOW LET GO' : `OUT ${cm} cm · LEAN IN`)
+      : (d < 0 ? 'IN BALANCE · REACH' : `BARN DOOR ${(Math.max(0, left) / 1000).toFixed(1)} s`);
+    ctx.fillStyle = d < 0 ? C.safe : C.danger;
+    ctx.fillText(status, x0 + 8, y0 + H - 9);
+    ctx.restore();
+  };
+
+  /** Out of balance too long: the move resolves as a barn door, wherever the limb was. */
+  const barnDoor = (now: number) => {
+    const ri = reach.current;
+    const ls = leanRef.current;
+    if (!ri || !ls || ls.done) return;
+    ls.done = true;
+    ls.drag = null;
+    rd.current = null;
+    if (shown.current) placed.current = { pose: shown.current, until: now + 1200 };
+    if (ri.haptics) navigator.vibrate?.([30, 40, 30]);
+    ri.onDone({ kind: 'balance', out_ms: Math.round(ls.out_ms), place: 1 });
   };
 
   /** The placement ring on the target and, on a hand move, the grip budget draining round the holding hand. */
@@ -256,9 +375,18 @@ export function WallCanvas(props: {
     if (!ri || !cam || !hand) return false;
     if (ri.grip && !ri.gripHeld()) { ri.onNeedGrip(); return false; }
     placed.current = null;
+    if (ri.lean) { const ls = leanOf(ri.lean); if (ls.t === null) ls.t = t0; }
     rd.current = { id, down, t0, hand0: [hand.px, hand.py], at: [hand.px, hand.py], cam, warned: false };
     loop();
     return true;
+  };
+
+  /** A drag on a Balance move that starts out of balance moves the hips. */
+  const startLean = (id: number, down: [number, number], t0: number) => {
+    const ls = leanOf(reach.current!.lean!);
+    if (ls.t === null) ls.t = t0;
+    ls.drag = { id, down, com: ls.com };
+    loop();
   };
 
   /** Let go away from the ring (or lost the grip pad): the limb goes back and the time spent is kept. */
@@ -289,7 +417,10 @@ export function WallCanvas(props: {
     setTimeout(() => paint(), 1250);
     swung.current = true;
     if (ri.haptics) navigator.vibrate?.(15);
-    ri.onDone({ kind: 'reach', time_ms: Math.round(ri.spent + (now - drag.t0)), place: Math.round(1000 * Math.min(1, d / PLACE_RING_PX)) / 1000 });
+    const place = Math.round(1000 * Math.min(1, d / PLACE_RING_PX)) / 1000;
+    const ls = ri.lean ? leanOf(ri.lean) : null;
+    if (ls) ls.done = true;
+    ri.onDone(ls ? { kind: 'balance', out_ms: Math.round(ls.out_ms), place } : { kind: 'reach', time_ms: Math.round(ri.spent + (now - drag.t0)), place });
   };
 
   /** The aim preview (the start of the hand's path) and, in flight, the rings closing on the hold. */
@@ -431,7 +562,7 @@ export function WallCanvas(props: {
       sw.current = { k: 'aim', from: p, to: p };
       return;
     }
-    if (rd.current) return;
+    if (rd.current || leanRef.current?.drag) return;
     const [x, y] = local(e);
     canvas.current?.setPointerCapture?.(e.pointerId);
     pointers.current.set(e.pointerId, { x, y });
@@ -456,6 +587,13 @@ export function WallCanvas(props: {
       drag.at = [drag.hand0[0] + x - drag.down[0], drag.hand0[1] + y - drag.down[1]];
       return;
     }
+    const ld = leanRef.current?.drag;
+    if (ld) {
+      if (e.pointerId !== ld.id) return;
+      const [x, y] = local(e);
+      leanRef.current!.com = [ld.com[0] + (x - ld.down[0]) * LEAN_GAIN, ld.com[1] - (y - ld.down[1]) * LEAN_GAIN];
+      return;
+    }
     const g = gesture.current;
     if (!g || !pointers.current.has(e.pointerId)) return;
     const [x, y] = local(e);
@@ -463,6 +601,15 @@ export function WallCanvas(props: {
     // With a Reach move armed, one finger dragging moves the limb instead of the camera.
     if (reach.current && pointers.current.size === 1 && !g.moved && Math.hypot(x - g.x0, y - g.y0) >= 8) {
       g.moved = true;
+      const L = reach.current.lean;
+      // Balance first: until a lean ends inside the base, a drag leans the hips; after that it moves the limb.
+      if (L && !leanOf(L).done && leanOf(L).phase === 'lean') {
+        startLean(e.pointerId, [g.x0, g.y0], g.t0);
+        pointers.current.clear();
+        gesture.current = null;
+        leanRef.current!.com = [leanRef.current!.drag!.com[0] + (x - g.x0) * LEAN_GAIN, leanRef.current!.drag!.com[1] - (y - g.y0) * LEAN_GAIN];
+        return;
+      }
       if (startReach(e.pointerId, [g.x0, g.y0], g.t0)) {
         pointers.current.clear();
         gesture.current = null;
@@ -499,6 +646,16 @@ export function WallCanvas(props: {
     if (drag) {
       // A cancelled touch (the system took the gesture) never places the limb.
       if (e.pointerId === drag.id) { if (e.type === 'pointercancel') missReach(performance.now()); else endReach(performance.now()); }
+      return;
+    }
+    const ls = leanRef.current;
+    if (ls?.drag) {
+      if (e.pointerId === ls.drag.id) {
+        ls.drag = null;
+        const L = reach.current?.lean;
+        if (L && signedDist(L.base, ls.com) < 0) ls.phase = 'reach';
+        paint();
+      }
       return;
     }
     const g = gesture.current;
