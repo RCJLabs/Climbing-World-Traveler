@@ -109,6 +109,7 @@ interface Body {
   tendon_robustness: number;           // 0..100, HIDDEN at creation
   skin_thickness: 'thin' | 'normal' | 'thick';
   skin_moisture: 'dry' | 'normal' | 'sweaty';
+  lock_depth_m?: number;               // Reference Climber only (05c §1.1): pinned lock-off depth, m at 170 cm; creation rejects it
 }
 ```
 

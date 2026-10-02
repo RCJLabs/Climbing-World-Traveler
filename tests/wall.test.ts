@@ -1,8 +1,9 @@
 // Body model (docs/05a §4.2): where the shoulder sits decides how far a free hand reaches.
 import { describe, expect, it } from 'vitest';
-import { referenceAthlete } from '../src/sim/grade';
+import { REFERENCE_BODY, referenceAthlete } from '../src/sim/grade';
 import type { Hold, Route } from '../src/sim/types';
-import { bodyPoints, freeState, LOCKOFF, routeGeom, type ClimbState } from '../src/sim/wall';
+import type { Athlete } from '../src/sim/character';
+import { bodyPoints, freeState, LOCKOFF, lockDepth, routeGeom, type ClimbState } from '../src/sim/wall';
 
 const hold = (id: string, x: number, y: number): Hold => ({
   id, x, y, type: 'edge', size: 'm', quality: 0.5, orientation: 0, sharpness: 0.3, friction: 0.6, polish: 0,
@@ -27,7 +28,7 @@ describe('lock-off (05a §4.2)', () => {
   it('raises the shoulder to a bent-arm lock below the holding hand when the feet are low', () => {
     const bp = bodyPoints(geomWithFeet(0.5), ath, freeState(st, 'RH'));
     // Body centre midway between hand (2.0) and feet (0.5) would put the shoulder at 1.40.
-    expect(bp.shoulder.s).toBeCloseTo(2.0 - LOCKOFF.depth, 2);
+    expect(bp.shoulder.s).toBeCloseTo(2.0 - LOCKOFF.ref, 2);
   });
 
   it('never lowers a shoulder that already sits above the lock', () => {
@@ -43,5 +44,19 @@ describe('lock-off (05a §4.2)', () => {
   it('does nothing with both hands on', () => {
     const bp = bodyPoints(geomWithFeet(0.5), ath, st);
     expect(bp.shoulder.s).toBeCloseTo(0.5 * (2.0 + 0.5) + 0.15, 2);
+  });
+
+  it('gives the Reference Climber one reach at every DI (05c §1.1)', () => {
+    const at = (di: number) => bodyPoints(geomWithFeet(0.5), referenceAthlete(di), freeState(st, 'RH')).shoulder.s;
+    expect(at(10)).toBeCloseTo(at(24), 9);
+  });
+
+  it('lets a real climber lock deeper with more lockoff', () => {
+    const { lock_depth_m: _pinned, ...body } = REFERENCE_BODY;
+    const climber = (lockoff: number): Athlete => ({ ...ath, body, a: { ...ath.a, lockoff } });
+    expect(lockDepth(climber(0))).toBeCloseTo(LOCKOFF.depth[0], 9);
+    expect(lockDepth(climber(100))).toBeCloseTo(LOCKOFF.depth[1], 9);
+    const sh = (lockoff: number) => bodyPoints(geomWithFeet(0.5), climber(lockoff), freeState(st, 'RH')).shoulder.s;
+    expect(sh(60) - sh(20)).toBeCloseTo((LOCKOFF.depth[0] - LOCKOFF.depth[1]) * 0.4, 2);
   });
 });

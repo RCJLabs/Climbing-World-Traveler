@@ -92,7 +92,9 @@ export const quantile = (xs: readonly number[], q: number): number => {
 function athlete(a: Partial<Record<AttrId, number>>, body: Partial<Athlete['body']>): Athlete {
   const vals = {} as Record<AttrId, number>;
   for (const id of ALL_ATTRS) vals[id] = a[id] ?? 30;
-  const b = { ...REFERENCE_BODY, ...body };
+  // A real climber on the reference body: its lock-off reach comes from its own lockoff, not the pinned depth.
+  const { lock_depth_m: _pinned, ...ref } = REFERENCE_BODY;
+  const b = { ...ref, ...body };
   b.mass_kg = refMass(b.sex, b.height_cm) + (body.mass_kg ?? 0);
   return { body: b, a: vals, mods: NEUTRAL_MODS, rock_knowledge: {} };
 }

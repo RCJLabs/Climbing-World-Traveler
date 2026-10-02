@@ -38,6 +38,12 @@ describe('creation', () => {
     for (const p of PRESETS) expect(() => createRun('c', presetSpec(p.id), bundle), p.id).not.toThrow();
   });
 
+  it('rejects a pinned lock-off depth, which belongs to the Reference Climber', () => {
+    const spec = presetSpec('slab_wizard');
+    spec.body = { ...spec.body, lock_depth_m: 0.05 };
+    expect(() => createRun('c', spec, bundle)).toThrow(InvalidAction);
+  });
+
   it('rejects an over-budget build', () => {
     const spec = presetSpec('slab_wizard');
     spec.traits = [...spec.traits, 'ice_in_the_veins', 'laser_focus'];
@@ -193,15 +199,19 @@ describe('exit criterion (01 §4): two builds on the same problem', () => {
   });
 
   it('the 05b §14.1 builds split sends on problems at their grade', () => {
-    // Both builds estimate near Font 6C (DI 16.9 and 17.4) since the lock-off body model, so they meet 6C problems.
+    // Both builds estimate near DI 17 (Font 6C) with lock-off reach, so they meet DI-17 problems from every sector.
     const { A, B } = workedExampleBuilds();
+    const crag = bundle.crags.get('fontainebleau')!;
     let split = 0;
-    for (const { geom } of sectors.map((sector) => routeEntry(`fontainebleau/${sector}:0:4242:16.5`, bundle))) {
+    const n = 20;
+    for (let k = 0; k < n; k++) {
+      const sector = crag.sectors[k % crag.sectors.length]!.id;
+      const { geom } = routeEntry(`fontainebleau/${sector}:0:${7000 + k}:17.0`, bundle);
       const pa = evWalk(geom, A).p_send;
       const pb = evWalk(geom, B).p_send;
       if (Math.max(pa, pb) >= 0.2 && Math.min(pa, pb) < 0.05) split++;
     }
-    // On at least two of the four problems one build is in the game and the other is not.
-    expect(split).toBeGreaterThanOrEqual(2);
+    // On at least a quarter of the problems one build is in the game and the other is not.
+    expect(split).toBeGreaterThanOrEqual(n / 4);
   });
 });

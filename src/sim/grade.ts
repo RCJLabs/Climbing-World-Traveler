@@ -4,7 +4,7 @@ import { NEUTRAL_MODS, refFat, refMass, type Athlete } from './character';
 import { applyMove, prepareMove } from './engine';
 import { autoCommitPApex, evaluate, moveDifficulty, probs, recoveryChance, REFERENCE_CONDITIONS, sRef, type Conditions, type MoveState } from './resolve';
 import { ALL_ATTRS, type AttrId, type Body, type Route } from './types';
-import { bodyPoints, choosePosture, routeGeom, yOfS, type ClimbState, type RouteGeom } from './wall';
+import { bodyPoints, choosePosture, LOCKOFF, routeGeom, yOfS, type ClimbState, type RouteGeom } from './wall';
 
 export const X_SEND = 0.35;
 export const DI_MIN = 8;
@@ -15,6 +15,8 @@ export const REFERENCE_BODY: Body = {
   sex: 'm', age_start: 25, height_cm: 170, mass_kg: refMass('m', 170), body_fat_pct: refFat('m'), ape_index: 1.0,
   finger_length: 0, finger_girth: 0, leg_torso: 0, natural_hip_mobility: 50, natural_shoulder_mobility: 50,
   fibre_bias: 0, tendon_robustness: 50, skin_thickness: 'normal', skin_moisture: 'normal',
+  // Reach is pinned like mobility: a lift that grew with its lockoff would change its legal move classes along the scale.
+  lock_depth_m: LOCKOFF.ref,
 };
 
 /** Reference Climber at DI n (05c §1.1): every matrix attribute equals S_ref(n). */

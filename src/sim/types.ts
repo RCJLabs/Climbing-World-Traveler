@@ -67,6 +67,8 @@ export interface Body {
   tendon_robustness: number; // hidden
   skin_thickness: 'thin' | 'normal' | 'thick';
   skin_moisture: 'dry' | 'normal' | 'sweaty';
+  /** Reference Climber only: lock-off depth pinned in metres at 170 cm (05a §4.2, 05c §1.1). Never set for a real climber. */
+  lock_depth_m?: number;
 }
 
 export const PHYSICAL_ATTRS = [
