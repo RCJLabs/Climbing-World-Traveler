@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { REFERENCE_BODY, referenceAthlete } from '../src/sim/grade';
 import type { Hold, Route } from '../src/sim/types';
 import type { Athlete } from '../src/sim/character';
-import { bodyPoints, freeState, LOCKOFF, lockDepth, routeGeom, type ClimbState } from '../src/sim/wall';
+import { ANGLE_BLEND_M, angleAt, bodyPoints, freeState, LOCKOFF, lockDepth, routeGeom, sOfY, yOfS, type ClimbState } from '../src/sim/wall';
+import type { WallSegment } from '../src/sim/types';
 
 const hold = (id: string, x: number, y: number): Hold => ({
   id, x, y, type: 'edge', size: 'm', quality: 0.5, orientation: 0, sharpness: 0.3, friction: 0.6, polish: 0,
@@ -58,5 +59,23 @@ describe('lock-off (05a §4.2)', () => {
     expect(lockDepth(climber(100))).toBeCloseTo(LOCKOFF.depth[1], 9);
     const sh = (lockoff: number) => bodyPoints(geomWithFeet(0.5), climber(lockoff), freeState(st, 'RH')).shoulder.s;
     expect(sh(60) - sh(20)).toBeCloseTo((LOCKOFF.depth[0] - LOCKOFF.depth[1]) * 0.4, 2);
+  });
+});
+
+describe('wall angle at segment boundaries (05a §1.2)', () => {
+  // Vertical to 1.5 m, then a 110° overhang.
+  const wall: WallSegment[] = [{ y0: 0, y1: 1.5, angle: 90, feature: 'none' }, { y0: 1.5, y1: 3, angle: 110, feature: 'lip' }];
+  const atS = (s: number) => angleAt(wall, yOfS(wall, s));
+  const sb = sOfY(wall, 1.5);
+
+  it('is the mean of the two segments at the boundary and each own angle a blend-width away', () => {
+    expect(atS(sb)).toBeCloseTo(100, 6);
+    expect(atS(sb - ANGLE_BLEND_M)).toBeCloseTo(90, 6);
+    expect(atS(sb + ANGLE_BLEND_M)).toBeCloseTo(110, 6);
+    expect(atS(sb - 0.5)).toBe(90);
+  });
+
+  it('moves by under a degree for a 1 cm shift across the boundary', () => {
+    expect(Math.abs(atS(sb + 0.005) - atS(sb - 0.005))).toBeLessThan(1.01);
   });
 });

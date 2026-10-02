@@ -2,7 +2,7 @@
 
 import { NEUTRAL_MODS, refFat, refMass, type Athlete } from './character';
 import { applyMove, prepareMove } from './engine';
-import { autoCommitPApex, evaluate, moveDifficulty, probs, recoveryChance, REFERENCE_CONDITIONS, sRef, type Conditions, type MoveState } from './resolve';
+import { autoCommitPApex, evaluate, moveDifficulty, powerPool, probs, recoveryChance, REFERENCE_CONDITIONS, sRef, type Conditions, type MoveState } from './resolve';
 import { ALL_ATTRS, type AttrId, type Body, type Route } from './types';
 import { bodyPoints, choosePosture, LOCKOFF, routeGeom, yOfS, type ClimbState, type RouteGeom } from './wall';
 
@@ -70,7 +70,7 @@ export function evWalk(geom: RouteGeom, ath: Athlete, opts: WalkOptions = {}): W
   const fam = opts.fam ?? 0;
   const spot = opts.spotQuality ?? 50;
   let st = startState(geom, ath);
-  const ms: MoveState = { pump: 0, power: ath.a.anaerobic_capacity, focus_meter: ath.a.focus, overgrip: 0, under: 0, energy: 100, skin: 100, fam };
+  const ms: MoveState = { pump: 0, power: powerPool(ath), focus_meter: ath.a.focus, overgrip: 0, under: 0, energy: 100, skin: 100, fam };
   const pA = autoCommitPApex(ath);
   const out: WalkResult = { p_send: 1, pump_peak: 0, margins: [], mds: [], ungradeable: false, kappa_max: 0, dynamic_moves: 0, hand_moves: 0 };
   for (const step of geom.route.beta_line) {
