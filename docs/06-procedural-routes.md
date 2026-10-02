@@ -72,7 +72,7 @@ At most one `feature` per segment ([05a §1.3](05a-wall-and-kinematics.md#13-fea
 The line is a sequence of **nodes**, each a hand position with a move class, built from the start holds to the finish. The reference climber at `di_target` ([05c §1](05c-grade-engine.md#1-the-reference-climber)) supplies the reach radii, so a line always exists for the body the grade is defined against.
 
 ```
-start: two hand nodes at y ∈ [1.0, 1.3] (boulder) / [1.4, 1.8] (route), x = x0 ± 0.20, x0 ~ U(−0.3, 0.3)
+start: two hand nodes at y ∈ [1.0, 1.3] (boulder) / [1.4, 1.8] (route), x = x0 ± (0.45/2 − m) = x0 ± 0.195, x0 ~ U(−0.3, 0.3)
        two foot nodes 0.7–0.9 m below, within r ≤ 0.85 of the hips
 loop until the finish is within reach:
   class  = next_class(prev_class, profile.move_grammar, segment)                     Markov step, constraints below
@@ -86,6 +86,8 @@ loop until the finish is within reach:
            foot class = high_step if the node is above hip − 0.1, heel_hook/toe_hook per 05b §2 on segments ≥ 110°, else static
 ```
 
+**Margin from edges.** Legality and posture have hard edges: full reach (`r ≤ 1` for a static hand or any foot), the wrong-side lines (0.25 m hands, 0.30 m feet), the high-step line, the drop-knee and compression tests ([05a §5–6](05a-wall-and-kinematics.md#6-posture-classes)). A line never sits on one: each node is accepted only if the move stays legal with the same class, and leaves the body in the same posture, when its hold moves `m = 0.03 m` **(tune)** either way across the rock or along it. The wrong-side line lies between two holds that both move, so a node keeps `2m` from it. A foot node that fails is not placed. A hand node that fails is eased towards the shoulder `m` at a time, up to four times, and only then pulled in like an unreachable one, so a long move stays long: static hand moves top out at 96% of the reference reach (p90 95%) rather than 100% (p90 98%). The start hands sit inside the compression width by the same margin. Without it a 2 cm change could make a problem ungradeable or flip its posture, and C5 ([05c §4](05c-grade-engine.md#4-calibration-tests)) failed on exactly those.
+
 Grammar constraints (hard): no two dynamic hand moves in a row; dynamic hand moves ≤ 15 % of hand moves (the commit-window frequency target of [05b §8.1](05b-move-resolution-and-attempt-loop.md#81-trigger)); no dynamic move within two nodes after a rest; `jam` only on `crack` segments and `crack` segments only contain `jam`/`match`; `kneebar` only where [05a §6](05a-wall-and-kinematics.md#6-posture-classes) finds an opposing surface; `high_step` only on segments `≤ 130°`; `heel_hook`/`toe_hook` only `≥ 110°`; `mantle` only as the final node onto a `lip`/`ledge`; `smear` footholds only `≤ 95°`.
 
 ### 2.4 Attaching holds and footholds
@@ -93,7 +95,7 @@ Grammar constraints (hard): no two dynamic hand moves in a row; dynamic hand mov
 Each node becomes a `Hold`. Type is sampled from `hold_weights` filtered by legality (no `smear`/`foot_chip` as hands; no `pocket1` on a `dyno`; `undercling`/`gaston` only where [05a §5.3](05a-wall-and-kinematics.md#53-handedness-and-orientation) makes them usable from the line's body position; cracks fixed by the feature). Size and quality are **solved** so the move lands at its intended difficulty for the reference climber:
 
 ```
-MD_target(node) = di_target + crux_offset(node) − 0.30
+MD_target(node) = di_target + crux_offset(node) − 0.05
   crux_offset: the crux set is the 1 (boulder) or 2–3 (route) nodes selected by crux_position
                (low: first third · mid: middle third · high: last third · spread: evenly); crux nodes +0.6, others −0.3    (tune)
   dynamic nodes: −0.4 (the class term and the window already make them the memorable moves)
@@ -103,7 +105,7 @@ orientation = canonical(type) + N(0, 10°); sidepulls/gastons face away from the
 friction = base(profile.rock) × (1 − 0.4 × polish);  rest_value from 05a §2.2; hidden = true with p 0.04 (boulder) · 0.08 (route), never start/finish/crux holds
 ```
 
-Footholds use the foot columns of the matrix and `H_foot`; their `MD_target` is `di_target − 1.5` **(tune)** so feet are reliable but not free. The `−0.30` offset is the empirical gap between a homogeneous six-move problem's move difficulty and its route DI under `X = 0.35`; the accept/adjust loop (§2.8) corrects the rest.
+Footholds use the foot columns of the matrix and `H_foot`; their `MD_target` is `di_target − 1.5` **(tune)** so feet are reliable but not free. The `−0.05` offset is the empirical gap between a homogeneous six-move problem's move difficulty and its route DI under `X = 0.35`; the accept/adjust loop (§2.8) corrects the rest. It was `−0.30` while the stretch penalty of [05b §4.2](05b-move-resolution-and-attempt-loop.md) was charged, which made near-full-reach moves harder than their `MD` said.
 
 ### 2.5 Rests
 
