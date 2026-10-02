@@ -37,6 +37,7 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 | Generator retries | up to 12 re-seeded attempts per problem before failing | [06 §2](06-procedural-routes.md) |
 | Line shape | the tracer's constants live in `TRACE` (`src/sim/routes.ts`): static moves use 88–100% of reach (deadpoint 100–110%, dyno 118–135%); standing starts with hands at 1.25–1.7 m; feet step when they trail the hands by 1.15 × body scale (second foot 1.45, forced 0.75) and land in the top quarter of their reachable band; a hand move gaining under 0.22 m steps the lowest foot up first; a line with fewer than 3 hand moves is retried with a new seed. With the lock-off body model ([05a §4.2](05a-wall-and-kinematics.md#42-anchors-body-centre-hips-and-shoulders)) the feet can trail further without costing reach, so problems run a median of 5 hand and 4 foot moves (9 and 11 before the line-shape change, 6 and 8 before lock-off) **(tune)** | [06 §2.3](06-procedural-routes.md) |
 | `Route.start` | a `Record<Limb, string>` of start holds | [schemas §5](schemas.md) |
+| Style ceilings | `CragStyleProfile.di_max`: slab 21, sloper bulge 25, roof none. Above DI 21 a slab's hand holds all reach the hardest size and quality and the problem still grades 1–3 DI soft (DI 24–26); the bulge goes soft above 25. A slot above a profile's ceiling uses the sector's other profiles. Four Font sectors (Rocher Canon, Bas Cuvier, Apremont, 95.2) have no roof profile, so their problems above DI 25 still grade soft **(tune)** | [06 §1](06-procedural-routes.md), [schemas §5](schemas.md) |
 
 ## 3. Days, resources and career
 
@@ -69,20 +70,20 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 | `RunSummary` | P1a fields: `hardest`, `hardest_onsight`, `hardest_flash` (boulder DI), `ticks`, `circuits`, `pyramid`, `got_away`, `seed`, `background` | [schemas §8](schemas.md) |
 | `WorldState` | typed as `RunState` in `src/sim/state.ts` | [schemas open question](schemas.md) |
 | Export | plain JSON (`.cwt.json`); gzip arrives with import UI polish | [18 §5](18-tech-architecture.md) |
-| Content version | `DATA_VERSION` (`p1a-5` since the power base and blended wall angles; `p1a-4` was lock-off reach, `p1a-3` the lock-off body model, `p1a-2` the line-shape change) is stored on every run. P1a keeps no old generators, so a run saved under another version cannot be replayed: it stays listed, its Hall of Fame entry stays, and *Continue* is disabled with an explanation. Bump the version whenever the same seed would build a different problem or the same actions would play out differently | [18 §5](18-tech-architecture.md) |
+| Content version | `DATA_VERSION` (`p1a-6` since style ceilings; `p1a-5` was the power base and blended wall angles, `p1a-4` lock-off reach, `p1a-3` the lock-off body model, `p1a-2` the line-shape change) is stored on every run. P1a keeps no old generators, so a run saved under another version cannot be replayed: it stays listed, its Hall of Fame entry stays, and *Continue* is disabled with an explanation. Bump the version whenever the same seed would build a different problem or the same actions would play out differently | [18 §5](18-tech-architecture.md) |
 | Quick-build | six presets: Slab Wizard, Compression Monster, Power Boulderer, Late Starter, Dirtbag, Farm Kid (locked until the unlock) | [17 §6](17-ui-ux.md) |
 
 ## 5. Measured status (harness)
 
-`pnpm calibrate` (normal sweep, 1,080 generated problems):
+`pnpm calibrate` (normal sweep, 960 generated problems, each style up to its ceiling):
 
 | Test | Result | Threshold |
 |---|---|---|
-| C1 generator accuracy | 94.7% within ±1 DI, 87.9% within ±0.5, bias −0.21 (the slab profile 86%, bias −0.52) | ≥ 90%, ≥ 60% |
+| C1 generator accuracy | 99.8% within ±1 DI, 95.6% within ±0.5, bias −0.06 (slab 100%, bias −0.15). Before style ceilings 94.7%, 87.9%, −0.21: the sweep asked for slab problems to DI 26 | ≥ 90%, ≥ 60% |
 | C2 dice vs grade | Reference Climber sends its own grade 34.0% of the time through the real attempt loop | 35 ± 5 |
 | C3 monotonicity, C4 determinism, C7 signatures | pass | — |
-| C5 geometric stability | 85.5% within ±0.5 DI after 2 cm jitter on 200 problems (83.5% before the power base). The sweep's 40-problem sample reads 92.5%; at that size one problem is 2.5 points | ≥ 95% (open) |
-| C6 style neutrality | crimp −0.44, pocket −0.70, jug +0.12; spread 0.82 (0.67 before lock-off) | ≤ 0.6 (open) |
+| C5 geometric stability | 85.5% within ±0.5 DI after 2 cm jitter on 200 problems (83.5% before the power base). The sweep's 40-problem sample reads between 77.5% and 92.5% depending on which problems it draws; at that size one problem is 2.5 points | ≥ 95% (open) |
+| C6 style neutrality | crimp −0.14, pocket −0.27, jug +0.12; spread 0.39 (0.82 before style ceilings; the crimp and pocket families moved most when the soft high-DI slabs left the sweep) | ≤ 0.6 |
 | C8 timing | expert − novice 6.6 points; Auto-commit 33% vs average tapper 33% | ≤ 8; ±2 |
 | C9 build divergence | mean `|P_send(A) − P_send(B)|` = 0.37 on DI-16 problems (0.62 with a fixed lock, 0.75 before lock-off); rank correlation of their `P_send` −0.03, against 0.87 for a build and a copy of it 3 points stronger | ≥ 0.30; ≤ 0.50 |
 | 05b §14.1 builds | estimate Compression Monster 17.4 (`lockoff 30`), Crimp Machine 17.0 (`lockoff 42`); 17.4 and 15.5 before lock-off. The lock ties reach to the holding hand, so height counts for less, and the Crimp Machine's lock-off now buys back the reach it lacked. On 60 DI-17 problems one build sends and the other cannot on 31 (28 of them the Compression Monster) | — |
@@ -114,6 +115,5 @@ Tuning items, in priority order:
 
    Being 2 cm short on a crux at full stretch is a real difference. The 95% target may be wrong for problems built at full reach; a target near 85%, or a jitter scaled to hold size, would match what the model says.
 2. **Font favours the Compression Monster.** At DI 17, where both 05b builds sit, the Compression Monster sends 85 of 180 problems the Crimp Machine cannot, and the reverse happens on 7. This is not a lack of style divergence: the rank correlation of their send odds is −0.17, so they find different problems hard. It is Font: a third of hand holds are slopers, the Compression Monster leads by 0.48 in send probability on sloper-dominant problems, and the two are level (−0.02 at DI 16) on crimp-dominant ones. True to the forest; a crimpy crag in P2 should show the reverse. C9 now checks the correlation as well as the gap.
-3. **C6 and the slab profile.** `font_sloper_slab` grades 0.52 DI soft (86% within ±1), pocket-dominant problems 0.70 soft and crimp-dominant 0.44.
-4. **Progress rate** is +3.3 DI of estimate in a full-time first year (median; lock-off training now adds reach). Check it against the Climbstat anchors in 02 once careers run several years, and against a human playtest.
-5. **Stoke** sits around 76 for anyone who sends regularly; burnout barely moves under a sensible schedule. Both need the events and partners of P2 to bite.
+3. **Progress rate** is +3.3 DI of estimate in a full-time first year (median; lock-off training now adds reach). Check it against the Climbstat anchors in 02 once careers run several years, and against a human playtest.
+4. **Stoke** sits around 76 for anyone who sends regularly; burnout barely moves under a sensible schedule. Both need the events and partners of P2 to bite.

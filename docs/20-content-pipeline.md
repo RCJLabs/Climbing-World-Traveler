@@ -78,6 +78,7 @@ Each `world/crags/<id>/` folder becomes one lazy chunk at build time ([18 §6](1
 ### 3.6 A style profile
 1. Create `styles/<id>.json`: `rock`, `hold_weights` summing to 1, `angle_dist`, `length_m`, `hold_density_max`, `protection`, `polish`, `sharpness`, `friction_base`, `seep_susceptibility`, `crux_position`, `move_grammar`, `tags`.
 2. Run `pnpm harness calibrate --style <id>`: 1,000 routes across the DI range; accuracy ≥ 90% within ±1.0 and a line must exist for every generated route.
+3. If the style cannot reach the top of its crags' DI range (the hardest generated problems grade more than 0.5 soft, with their hand holds at the hardest size and quality), set `di_max` to the last DI where the bias stays within 0.5 (`npx tsx scripts/dev/probe-ceiling.ts <id>`; [06 §1](06-procedural-routes.md)). If every profile of a sector has a ceiling, its problems above the highest one grade soft (in P1a, four Font sectors above DI 25; [22 §2](22-p1a-implementation-notes.md)).
 
 ---
 
