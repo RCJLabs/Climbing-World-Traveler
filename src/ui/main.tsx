@@ -6,6 +6,7 @@ import { Character } from './screens/Character';
 import { Crag } from './screens/Crag';
 import { Create } from './screens/Create';
 import { Planner } from './screens/Planner';
+import { Playtest } from './screens/Playtest';
 import { Result } from './screens/Result';
 import { Routes } from './screens/Routes';
 import { Summary } from './screens/Summary';
@@ -19,7 +20,7 @@ function App() {
   if (s.name === 'create') body = <Create seed={s.seed} preset={s.preset} />;
   else if (s.name === 'hall') body = <Hall />;
   else if (s.name === 'title' || !r) body = <Title current={r} />;
-  else if (r.ended && s.name !== 'character') body = <Summary run={r} />;
+  else if (r.ended && s.name !== 'character' && s.name !== 'playtest') body = <Summary run={r} />;
   else if (s.name === 'planner') body = <Planner run={r} />;
   else if (s.name === 'crag') body = <Crag run={r} />;
   else if (s.name === 'routes') body = <Routes run={r} />;
@@ -27,6 +28,7 @@ function App() {
   else if (s.name === 'attempt') body = <Attempt run={r} />;
   else if (s.name === 'result') body = <Result run={r} />;
   else if (s.name === 'character') body = <Character run={r} />;
+  else if (s.name === 'playtest') body = <Playtest run={r} />;
   else body = <Summary run={r} />;
   return (
     <div class="app">
