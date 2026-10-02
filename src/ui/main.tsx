@@ -36,7 +36,11 @@ function App() {
   );
 }
 
-void boot().then(() => render(<App />, document.getElementById('app')!));
+// #proto-dyno opens the throwaway dyno prototype (docs/23 §6) instead of the game; it loads only when asked for.
+const PROTO = '#proto-dyno';
+if (location.hash === PROTO) void import('./proto/DynoProto').then(({ DynoProto }) => render(<DynoProto />, document.getElementById('app')!));
+else void boot().then(() => render(<App />, document.getElementById('app')!));
+window.addEventListener('hashchange', () => { if ((location.hash === PROTO) !== !!document.querySelector('[data-proto]')) location.reload(); });
 
 // Dev-only hook for browser tests: read the run and step the bot policy from the page.
 if (import.meta.env.DEV) {

@@ -24,7 +24,7 @@ When pillars conflict: fidelity yields to readability on the wall; readability y
 |---|---|---|
 | Moment-to-moment climbing | 2D side-view, hold-to-hold, turn-based move selection | Builds decide outcomes; phone-friendly; deterministic and testable |
 | Real-time element | Commit window on dynamic moves only; Auto-commit option | Tension without a reflex test; accessibility |
-| Climber representation | Four limb anchors + centre of mass, two-bone IK pose, no physics | Avoids the ragdoll tuning sink |
+| Climber representation | Four limb anchors + centre of mass, two-bone IK pose; a ballistic arc for dynos and a drift for balance moves ([23](23-move-types-and-art-direction.md)), no ragdoll | Avoids the ragdoll tuning sink |
 | Difficulty | One `MoveDifficulty` function shared by resolution and grading, calibrated to a Reference Climber | Generated grades stay honest |
 | Content scaling | Procedural routes from crag style profiles plus a few signature routes per crag | Content is data, not hand-drawn walls |
 | Run structure | Career runs with meta-unlocks | Replay pressure; the Zomboid feel |
@@ -41,7 +41,7 @@ Early exploration considered generating the app in a hosted vibe-coding studio. 
 ## 3. Non-goals
 
 - Multiplayer, leaderboards that need a server, or any online dependency beyond the initial load.
-- Real-time physics, ragdolls, 3D.
+- A physics engine, ragdolls, 3D. Per-move real-time controls with physics-lite motion (a ballistic dyno, a drifting centre of mass) are in scope from [23](23-move-types-and-art-direction.md): the engine still resolves every move, and every real-time move has an Auto path.
 - Real climbers as characters, or licensed brands.
 - A route editor for players in the first release (the content pipeline is for the developer; a player editor is a P5 consideration).
 - Speed climbing as a core mode (it is a comp sub-format at best).

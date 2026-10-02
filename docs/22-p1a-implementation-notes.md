@@ -126,7 +126,7 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 | Layout | the wall takes what a fixed-height HUD leaves: 470 of 844 px on a 390-wide phone (56%), 406 of 780 at 360 wide (52%), against 17 §1's 65%. The HUD's height does not change with the selection, so the wall never jumps | [17 §1](17-ui-ux.md) |
 | HUD | a row of four horizontal bars (pump, power, skin, chalk) and the fear bar with its IZOF band under the wall, not a stack at the left edge; the selected move's power cost shows beside its pump cost | [17 §3](17-ui-ux.md) |
 
-Not built yet, from the wall audit (next: the mechanics pass):
+Not built yet, from the wall audit. The mechanics pass these were listed for is superseded by the overhaul in [23](23-move-types-and-art-direction.md); they close as its build order replaces the wall screen:
 
 | Gap | Spec |
 |---|---|

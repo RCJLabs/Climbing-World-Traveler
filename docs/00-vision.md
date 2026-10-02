@@ -37,7 +37,7 @@ Grounded and specific. The sport is treated with respect; its culture is treated
 
 ## What the game is not
 
-- Not a physics game. The climber is a stylised rig, not a ragdoll. Skill expression comes from decisions and builds, with a single modest timing input on dynamic moves.
+- Not a physics game. The climber is a stylised rig, not a ragdoll. Skill expression comes from decisions and builds, with a modest real-time input on the moves that call for one (grip, balance, dyno; [23](23-move-types-and-art-direction.md)), each with an Auto path.
 - Not a licence. Real crags and real route names appear as geography. No real climber, living or dead, appears as a character, rival, mentor or sponsor.
 - Not multiplayer and not online. It is an offline-first PWA you can play on a phone in a tent with no signal.
 - Not driven by any runtime generative system. All content is authored or procedurally generated from authored data, so it is deterministic, testable and replayable.

@@ -572,6 +572,15 @@ interface NewRunSpec { name: string; background: string; body: Body; traits: str
 //   { t: 'risky_choice'; kind: 'solo' | 'dws_s3' | 'highball_reckless' | 'ignore_gear_warning' | 'alpine_commit'; route?: string }
 //   { t: 'buy' | 'sell'; item: string } · block kinds social, travel, admin, physio, comp_round, climb_bigwall, alpine_day
 
+// Proposed (docs/23 §3.4), not yet implemented: real-time controls log their result on the move; no perf = Auto.
+//   { t: 'move'; limb: Limb; hold: string; class: MoveClass; perf?: MovePerf }
+//   type MovePerf =
+//     | { kind: 'reach'; time_ms: number; place_cm: number }
+//     | { kind: 'balance'; out_ms: number }
+//     | { kind: 'dyno'; power: number; angle_deg: number; catch_ms: number | null };   // power 0–1 of top launch speed
+//   RunOptions gains one_thumb: boolean, pause_drift: boolean, flight_speed: number (0.3–1); the 'commit' action and
+//   sweep_speed go when the dyno lands.
+
 interface RunOptions { death_enabled: boolean; auto_commit: boolean; sweep_speed: number; difficulty: 'story' | 'standard' | 'hard'; daily_seed?: string; }
 
 interface RunSummary {                   // P1a shape (src/sim/types.ts); later phases make hardest per discipline

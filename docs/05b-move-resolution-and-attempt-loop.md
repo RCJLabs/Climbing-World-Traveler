@@ -412,6 +412,8 @@ A dyno shows `power −15`, "no mid-air correction" (its `cut` branch) and its c
 
 ## 8. Commit window
 
+> **Superseded by [23 §2.3 and §3.3](23-move-types-and-art-direction.md)** (Swing and Catch) once step 3 of its build order lands. P1a implements this section.
+
 ### 8.1 Trigger
 
 Opens on `dyno`, `deadpoint`, `bump` with `r > 0.8`, and the optional recovery after a foot cut on angle `≥ 110` (`feet_cut` re-establish). Never on `static`, `match`, `jam`, `kneebar`, `mantle`, `rest`, `chalk`, `clip`, `place_gear`. Frequency target: on a typical generated route **≤ 10–15 % of moves** open a window; [06 §2](06-procedural-routes.md#2-the-pipeline) enforces this through the move grammar, and the harness ([19](19-balance-and-simulation-testing.md)) reports the realised rate.
