@@ -6,7 +6,7 @@ import { evWalk, gradeRoute, referenceAthlete, sendCurve, X_SEND } from '../src/
 import { stream } from '../src/sim/rng';
 import { generateBoulder, routeFromSeed, routeSeed } from '../src/sim/routes';
 import type { Route } from '../src/sim/types';
-import { routeGeom } from '../src/sim/wall';
+import { routeGeom, sOfY, yOfS } from '../src/sim/wall';
 
 const argv = process.argv.slice(2);
 const mode = argv.includes('--full') ? 'full' : argv.includes('--quick') ? 'quick' : 'normal';
@@ -91,11 +91,13 @@ const c5set = ok.filter((_, i) => i % Math.max(1, Math.floor(ok.length / S.c5)) 
 for (const x of c5set) {
   const rng = stream('c5', x.route.id);
   const j = structuredClone(x.route);
-  for (const h of j.holds) { h.x += rng.normal(0, 0.02); h.y = Math.max(0.05, h.y + rng.normal(0, 0.02)); }
+  // Along the rock, not in height: 2 cm of height is about 6 cm of rock on a 160° roof (05c §4).
+  const s0 = sOfY(j.wall, 0.05);
+  for (const h of j.holds) { h.x += rng.normal(0, 0.02); h.y = yOfS(j.wall, Math.max(s0, sOfY(j.wall, h.y) + rng.normal(0, 0.02))); }
   const g = gradeRoute(j);
   if (g.di !== null && Math.abs(g.di - x.route.di_graded) <= 0.5) stable++;
 }
-record('C5 geometric stability', stable / Math.max(1, c5set.length) >= 0.95, `${stable}/${c5set.length} within ±0.5 DI after 2 cm jitter (≥ 95%)`, false);
+record('C5 geometric stability', stable / Math.max(1, c5set.length) >= 0.95, `${stable}/${c5set.length} within ±0.5 DI after 2 cm jitter along the rock (≥ 95%)`, false);
 
 // ---------------------------------------------------------------- C7 signatures
 const sig = [...bundle.signatures.values()].map((r) => ({ r, g: gradeRoute(r).di }));
