@@ -9,6 +9,7 @@ import {
   autoCommitPApex, evaluate, fearEffects, holdCost, izof, powerPool, probs, recoveryChance, restDelta,
   type CommitOutcome, type Conditions, type MoveState, type Probs,
 } from './resolve';
+import { gripBudget, judgeReach, placeWord, validPerf, type MovePerf, type ReachJudged } from './reach';
 import { routeFromSeed } from './routes';
 import { judgeSwing, swingSetup, type SwingJudged, type SwingPerf } from './swing';
 import { stream } from './rng';
@@ -18,7 +19,7 @@ import { novelty, nudge, techniqueXp } from './training';
 import type { Action, AttemptMode, AttrId, DataBundle, Limb, MoveClass, Route, Sector, Tick } from './types';
 import { TECHNIQUE_ATTRS } from './types';
 import {
-  bodyPoints, freeState, judgeOption, limbKind, optionsFor, rawRestValue, reachRadius, routeGeom, yOfS, type ClimbState, type Option, type RouteGeom,
+  bodyPoints, freeState, judgeOption, limbKind, optionsFor, otherHand, rawRestValue, reachRadius, routeGeom, yOfS, type ClimbState, type Option, type RouteGeom,
 } from './wall';
 import { sessionConditions } from './weather';
 
@@ -227,15 +228,20 @@ function prepare(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athlete,
   return prep;
 }
 
-/** A `move` action. Dynamic moves open the commit window and wait for a `commit` action (05b §8). */
-export function doMove(run: RunState, limb: Limb, hold: string, cls: MoveClass, bundle: DataBundle): void {
+/**
+ * A `move` action. Dynamic moves wait for a `commit` action with the swing (docs/23 §3.3); every other move resolves
+ * now, from the player's drag when `perf` is given (Reach, docs/23 §3.1) or as Auto when it is not.
+ */
+export function doMove(run: RunState, limb: Limb, hold: string, cls: MoveClass, bundle: DataBundle, perf?: MovePerf): void {
   const at = run.attempt;
   if (!at) throw new InvalidAction('no attempt in progress');
-  if (at.pending) throw new InvalidAction('a commit window is open');
+  if (at.pending) throw new InvalidAction('a dyno is waiting for its swing');
+  if (perf !== undefined && !validPerf(perf)) throw new InvalidAction('bad move perf');
   const { geom } = routeEntry(at.route_seed, bundle);
   const ath = athleteOf(run, bundle);
   const prep = prepare(run, at, geom, ath, limb, hold, cls);
   if (isDynamic(prep.cls)) {
+    if (perf) throw new InvalidAction('a dyno is swung, not dragged');
     const ms = moveStateOf(run, at, geom, ath);
     const e = evaluate(ath, prep.spec, ms, conditionsOf(run, at, bundle, ath));
     const bp = bodyPoints(geom, ath, freeState(at.climb, limb));
@@ -250,7 +256,21 @@ export function doMove(run: RunState, limb: Limb, hold: string, cls: MoveClass, 
     };
     return;
   }
-  resolveMove(run, at, geom, ath, prep, null, bundle);
+  resolveMove(run, at, geom, ath, prep, null, perf ?? null, bundle);
+}
+
+/** The grip budget (ms) for a Reach move from the current state, as the reducer will judge it; null if not a Reach move. */
+export function reachBudget(run: RunState, limb: Limb, hold: string, cls: MoveClass, bundle: DataBundle): number | null {
+  const at = run.attempt;
+  if (!at || at.pending) return null;
+  const { geom } = routeEntry(at.route_seed, bundle);
+  const ath = athleteOf(run, bundle);
+  const prep = prepareMove(geom, ath, at.climb, limb, hold, cls);
+  if (!prep || isDynamic(prep.cls)) return null;
+  if (at.pq_penalty > 0) prep.spec.pq = Math.max(0.3, prep.spec.pq - at.pq_penalty);
+  const ms = moveStateOf(run, at, geom, ath);
+  const e = evaluate(ath, prep.spec, ms, conditionsOf(run, at, bundle, ath));
+  return gripBudget(e.margin, e.T, ms.pump);
 }
 
 /**
@@ -276,12 +296,13 @@ export function doCommit(run: RunState, swing: SwingPerf | null, bundle: DataBun
   at.pending = null;
   // Pulling harder than the dyno needs costs power in proportion; Auto pulls exactly what it needs.
   const powerMult = swing === null ? 1 : Math.min(1.5, Math.max(0.7, swing.power / p.swing.p_need));
-  resolveMove(run, at, geom, ath, prep, { outcome, auto: swing === null, powerMult, reason }, bundle);
+  resolveMove(run, at, geom, ath, prep, { outcome, auto: swing === null, powerMult, reason }, null, bundle);
 }
 
 function resolveMove(
   run: RunState, at: AttemptState, geom: RouteGeom, ath: Athlete, prep: Prepared,
-  commit: { outcome: CommitOutcome; auto: boolean; powerMult: number; reason: SwingJudged['reason'] | null } | null, bundle: DataBundle,
+  commit: { outcome: CommitOutcome; auto: boolean; powerMult: number; reason: SwingJudged['reason'] | null } | null,
+  perf: MovePerf | null, bundle: DataBundle,
 ): void {
   const session = run.block!.session!;
   const ms = moveStateOf(run, at, geom, ath);
@@ -301,6 +322,14 @@ function resolveMove(
     if (commit.outcome === 'cut') cut = true;
     if (commit.auto) margin -= 0.1; // Auto-commit tax (05b §8.4)
   }
+  // Reach (docs/23 §3.1): where the hand landed moves the margin; a slow reach pumps, a very slow one lets go.
+  let reach: ReachJudged | null = null;
+  if (perf) {
+    reach = judgeReach(perf, gripBudget(e.margin, e.T, ms.pump), hand);
+    margin += reach.delta;
+    pumpMult *= reach.pumpMult;
+  }
+  const popped = !!reach?.pop;
   let p: Probs = probs(margin, e.T);
   if (!hand && ms.overgrip > 0 && p.slip > 0) {
     const slip = Math.min(1, p.slip * (1 + ms.overgrip));
@@ -313,7 +342,7 @@ function resolveMove(
     p = tot > 0 ? { clean: 0, sketchy: p.sketchy / tot, slip: p.slip / tot } : { clean: 0, sketchy: 1, slip: 0 };
   }
   const u = rng.next();
-  let outcome: 'clean' | 'sketchy' | 'slip' = cut ? 'slip' : u < p.clean ? 'clean' : u < p.clean + p.sketchy ? 'sketchy' : 'slip';
+  let outcome: 'clean' | 'sketchy' | 'slip' = cut || popped ? 'slip' : u < p.clean ? 'clean' : u < p.clean + p.sketchy ? 'sketchy' : 'slip';
 
   // Costs (05b §5), paid whatever the outcome.
   const rough = outcome === 'clean' ? 1 : 1.5;
@@ -356,6 +385,8 @@ function resolveMove(
     // Recovery check (05b §4.5); a cut releases the launching hand and, on steep ground, both feet (05b §8.3).
     let other = spec.otherAnchors;
     if (cut && spec.angle >= 100) other = Object.keys(at.climb.anchors).filter((l) => l !== prep.option.limb && limbKind(l as Limb) === 'hand').length;
+    // A pop: the holding hand opened while the other was still travelling.
+    if (popped) other = Math.max(0, other - 1);
     const pRec = recoveryChance(ath, spec.kind, other) * (cut ? 0.6 : 1);
     const recovered = rng.next() < pRec;
     at.move_index++;
@@ -363,11 +394,11 @@ function resolveMove(
       addFear(at, ath, 'slip', 8);
       if (!hand && spec.angle >= 110) at.climb = { ...at.climb, feet_cut: true };
       if (cut && spec.angle >= 100) at.climb = { ...at.climb, feet_cut: true };
-      report(at, { ...base, outcome: 'slip_recovered', text: cut ? 'Cut loose and caught it. Feet are off.' : `${limbName(prep.option.limb)} popped. You held on.` });
+      report(at, { ...base, outcome: 'slip_recovered', text: cut ? 'Cut loose and caught it. Feet are off.' : popped ? 'Too slow: your grip went, but you held on.' : `${limbName(prep.option.limb)} popped. You held on.` });
       checkPump(run, at, geom, ath, bundle);
       return;
     }
-    report(at, { ...base, outcome: 'fall', text: cut ? 'Mistimed. Nothing to hold.' : `${limbName(prep.option.limb)} slipped and you were off.` });
+    report(at, { ...base, outcome: 'fall', text: cut ? 'Mistimed. Nothing to hold.' : popped ? `Too slow. Your ${limbName(otherHand(prep.option.limb)).toLowerCase()} opened.` : `${limbName(prep.option.limb)} slipped and you were off.` });
     finishAttempt(run, at, geom, ath, 'fell', bundle);
     return;
   }
@@ -397,17 +428,19 @@ function resolveMove(
     finishAttempt(run, at, geom, ath, 'sent', bundle);
     return;
   }
-  report(at, { ...base, outcome, text: outcome === 'clean' ? moveText(prep, commit?.outcome) : 'Sketchy. You are on, but it cost you.' });
+  report(at, { ...base, outcome, text: outcome === 'clean' ? moveText(prep, commit?.outcome, perf, reach) : 'Sketchy. You are on, but it cost you.' });
   revealScan(run, at, geom, ath, false);
   checkPump(run, at, geom, ath, bundle);
 }
 
 const limbName = (l: Limb): string => ({ LH: 'Left hand', RH: 'Right hand', LF: 'Left foot', RF: 'Right foot' })[l];
 
-function moveText(prep: Prepared, c?: CommitOutcome): string {
+function moveText(prep: Prepared, c?: CommitOutcome, perf?: MovePerf | null, reach?: ReachJudged | null): string {
   if (c === 'apex') return 'Caught it at the apex.';
   if (c === 'caught') return 'Caught it.';
-  return `${limbName(prep.option.limb)} to the ${prep.option.hold.type.replace('_', ' ')}.`;
+  const to = `${limbName(prep.option.limb)} to the ${prep.option.hold.type.replace('_', ' ')}`;
+  if (!perf) return `${to}.`;
+  return `${to}, ${placeWord(perf.place)}${reach && reach.overrun > 0 ? ', but slow' : ''}.`;
 }
 
 function checkPump(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athlete, bundle: DataBundle): void {

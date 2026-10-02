@@ -122,6 +122,13 @@ button.card:hover { border-color: #55558a; }
 .limbs button[aria-pressed='true'] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .go { min-width: 92px; min-height: 48px; border-radius: 10px; border: none; background: var(--accent); color: var(--accent-ink); font-family: var(--cond); font-weight: 700; font-size: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
 .go span { font-family: var(--font); font-size: 11px; font-weight: 600; }
+.grip-row { gap: 8px; align-items: stretch; }
+.grip-row.flip { flex-direction: row-reverse; }
+.grip-pad { flex: 1; min-height: 64px; border-radius: 14px; border: 2px solid var(--good); background: var(--surface); color: var(--text); font-family: var(--cond); font-weight: 700; font-size: 18px; letter-spacing: 0.06em; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.grip-pad span { font-family: var(--font); font-size: 11px; font-weight: 600; letter-spacing: 0; color: var(--good); }
+.grip-pad[aria-pressed='true'] { background: var(--good); color: var(--accent-ink); }
+.grip-pad[aria-pressed='true'] span { color: var(--accent-ink); }
+.grip-pad.nudge { border-color: var(--warn); box-shadow: 0 0 0 3px rgba(255, 140, 107, 0.35); }
 .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .actions button { min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; font-weight: 600; display: flex; flex-direction: column; align-items: center; line-height: 1.1; padding: 4px; }
 .actions button span { font-family: var(--mono); font-size: 11px; color: var(--muted); }

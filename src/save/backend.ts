@@ -33,9 +33,14 @@ export interface Settings {
   haptics: boolean;
   left_handed: boolean;
   reduce_motion: boolean;
+  /** Reach moves with one thumb: the holding hand grips by itself (docs/23 §2.1). */
+  one_thumb: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { haptics: true, left_handed: false, reduce_motion: false };
+/** One-thumb by default where the device reports fewer than two touch points (a mouse, a single-touch screen). */
+const singleTouch = typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) < 2;
+
+export const DEFAULT_SETTINGS: Settings = { haptics: true, left_handed: false, reduce_motion: false, one_thumb: singleTouch };
 
 export interface SaveBackend {
   listRuns(): Promise<RunRecord[]>;

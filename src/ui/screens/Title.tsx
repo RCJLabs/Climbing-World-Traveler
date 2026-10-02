@@ -31,6 +31,7 @@ export function Title({ current }: { current: RunState | null }) {
         <button class="btn" onClick={() => { location.hash = 'proto-dyno'; }}>Dyno prototype</button>
         <span class="kicker">Settings</span>
         <div class="col small">Haptics<Seg label="Haptics" value={s.haptics ? 'on' : 'off'} onChange={(v) => void saveSettings({ ...s, haptics: v === 'on' })} options={[['on', 'On'], ['off', 'Off']]} /></div>
+        <div class="col small">Reach moves<Seg label="Reach moves" value={s.one_thumb ? 'one' : 'two'} onChange={(v) => void saveSettings({ ...s, one_thumb: v === 'one' })} options={[['two', 'Two thumbs'], ['one', 'One thumb']]} /></div>
         <div class="col small">Motion<Seg label="Motion" value={s.reduce_motion ? 'less' : 'full'} onChange={(v) => void saveSettings({ ...s, reduce_motion: v === 'less' })} options={[['full', 'Full'], ['less', 'Reduced']]} /></div>
         {current && !current.ended && (
           <>

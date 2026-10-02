@@ -403,7 +403,7 @@ export function applyAction(run: RunState, a: Action, bundle: DataBundle): void 
       if (run.res.skin <= 0) throw new InvalidAction('no skin left');
       startAttempt(run, a.route_seed, a.mode, bundle);
       break;
-    case 'move': doMove(run, a.limb, a.hold, a.class, bundle); break;
+    case 'move': doMove(run, a.limb, a.hold, a.class, bundle, a.perf); break;
     case 'commit': doCommit(run, a.swing, bundle); break;
     case 'wall_action': doWallAction(run, a.kind, bundle); break;
     case 'retire': endRun(run, 'retired', bundle); break;

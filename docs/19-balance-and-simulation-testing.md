@@ -58,7 +58,19 @@ Dynos and deadpoints are played with Swing and Catch ([23 §3.3](23-move-types-a
 
 A dyno the climber is weak on (low margin) needs nearly a full pull and leaves less catch speed, so the same skill makes more slaps and cuts on it, as designed. (Until `p1a-12` this section modelled taps on the commit bar of 05b §8: novice N(35, 95) ms, average N(12, 55), expert N(4, 28).)
 
-**Variance explained by timing.** Run the same 2,000 builds and seeds under novice, average, expert and auto. For every attempt on a route containing at least one dynamic move, record send/fail. Fit `send ~ build_margin + timing_model` (logistic) and compute the share of explained deviance attributable to `timing_model` (type-II). **Target: ≤ 10% of send variance explained by timing**, and expert vs novice send-rate gap on a route at the climber's estimated grade ≤ 8 percentage points **(tune)**. If exceeded, deepen the dead point, widen the slap margin or raise the catch speed in [23 §3.3](23-move-types-and-art-direction.md), not the frequency of dynos. Auto-commit must land within ±2 points of the average model's send rate.
+Every other move is dragged with Two-Thumb Grip ([23 §3.1](23-move-types-and-art-direction.md)). A harness player plays every non-dyno move by hand (auto-climb off, the game's default), taking a drag time whatever the move and landing at a half-normal distance from the hold's centre (`REACH_SKILL`; drag times from a Fitts's-law guess of about 0.65 s for an aimed 150 px thumb drag) **(tune on device logs)**:
+
+| Model | Drag time μ (ms) | Drag time σ (ms) | Landing sd (share of the ring) | Mean placement Δ |
+|---|---|---|---|---|
+| novice | 1,100 | 400 | 0.5 | about −0.005 |
+| average | 800 | 250 | 0.3 | about +0.009 |
+| expert | 600 | 150 | 0.15 | about +0.019 |
+| oracle | half the budget | 0 | 0 | +0.03 |
+| auto | no `perf` | — | — | 0 |
+
+Drag times are floored at 250 ms. Against the budget, the novice overruns on about 17% of hand moves (pump × (1 + overrun)) and almost never lets go.
+
+**Variance explained by timing.** Run the same 2,000 builds and seeds under novice, average, expert and auto. For every attempt on a route containing at least one dynamic move, record send/fail. Fit `send ~ build_margin + timing_model` (logistic) and compute the share of explained deviance attributable to `timing_model` (type-II). **Target: ≤ 10% of send variance explained by timing**, and expert vs novice send-rate gap on a route at the climber's estimated grade ≤ 8 percentage points **(tune)**. If exceeded, deepen the dead point, widen the slap margin or raise the catch speed in [23 §3.3](23-move-types-and-art-direction.md), or lengthen the grip budget or narrow the placement term in 23 §3.1, not the frequency of dynos. Auto-commit must land within ±2 points of the average model's send rate.
 
 ---
 

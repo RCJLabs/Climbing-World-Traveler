@@ -1,11 +1,13 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
+import type { ReachPerf } from '../../sim/reach';
 import { fly, gapAt, launchVelocity, SLAP_MS, type SPt, type SwingPerf, type SwingSetup } from '../../sim/swing';
 import type { Limb } from '../../sim/types';
+import { otherHand } from '../../sim/wall';
 import { C, drawWall, hitHold, type FrameExtras, type Layout, type WallView } from './render';
 import {
-  drop, ease, fallenPose, flightPose, frameFor, lerpPose, loadedPose, poseOf, projectS, toppedPose, toScreen, wallBounds, ZOOM_RANGE,
-  type MotionStyle, type P, type Pose,
+  drop, ease, fallenPose, flightPose, frameFor, lerpPose, loadedPose, poseOf, project, projectS, reachingPose, toppedPose, toScreen, wallBounds,
+  ZOOM_RANGE, type Cam, type MotionStyle, type P, type Pose,
 } from './pose';
 
 /** How the attempt ends, for the last animation before the result screen. */
@@ -15,7 +17,7 @@ export type Ending = 'fall' | 'send' | 'off' | null;
 export interface WallTap { hold: string | null; limb: Limb | null }
 
 export interface WallMotion {
-  /** Bumps on every resolved step, so a slip that does not move the body still shows. */
+  /** Changes on every resolved step (the attempt's wall time), so a slip that does not move the body still shows. */
   step: number;
   style: MotionStyle;
   shake: boolean;
@@ -34,6 +36,33 @@ export interface SwingInput {
   onAim: (power: number | null, flying: boolean) => void;
   onDone: (perf: SwingPerf) => void;
 }
+
+/**
+ * Two-Thumb Grip on a Reach move (docs/23 §2.1): drag anywhere and the moving limb follows by the same amount; let go
+ * over the ring to place it. In two-thumb mode the holding hand's pad must be held for the drag to start and to last.
+ */
+export interface ReachInput {
+  limb: Limb;
+  hold: string;
+  /** Grip budget (ms) on a hand move, null on a foot move (no clock: both hands hold). */
+  budget: number | null;
+  /** Time already spent off the hold on earlier tries at this move (ms). */
+  spent: number;
+  /** The hand whose pad must be held (two-thumb mode), or null. */
+  grip: Limb | null;
+  gripHeld: () => boolean;
+  haptics: boolean;
+  onNeedGrip: () => void;
+  /** Let go away from the ring, or the grip pad was released: the limb goes back. */
+  onMiss: (spent_ms: number) => void;
+  onDone: (perf: ReachPerf) => void;
+}
+
+/** The placement ring's radius on screen (px); a release up to `SNAP` rings out still lands, on the edge. (tune) */
+export const PLACE_RING_PX = 24;
+const SNAP = 1.5;
+
+type ReachDrag = { id: number; down: [number, number]; t0: number; hand0: [number, number]; at: [number, number]; cam: Cam; warned: boolean };
 
 /** Drag length for a full pull, as a share of the shorter canvas side. */
 const PULL_SHARE = 0.38;
@@ -60,7 +89,7 @@ interface Anim { from: Pose; to: Pose; t0: number; dur: number; style: MotionSty
  */
 export function WallCanvas(props: {
   view: WallView; onTap: (t: WallTap) => void; label: string; motion: WallMotion; ending: Ending; reduceMotion: boolean;
-  swing?: SwingInput | null; children?: ComponentChildren;
+  swing?: SwingInput | null; reach?: ReachInput | null; children?: ComponentChildren;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -83,6 +112,12 @@ export function WallCanvas(props: {
   /** The last pose in the air, held until the engine's verdict arrives, and a flag so that verdict does not hop again. */
   const flightLast = useRef<Pose | null>(null);
   const swung = useRef(false);
+  const reach = useRef<ReachInput | null>(props.reach ?? null);
+  reach.current = props.swing ? null : props.reach ?? null;
+  const rd = useRef<ReachDrag | null>(null);
+  const camNow = useRef<Cam | null>(null);
+  /** The limb's last place in a landed reach, held until the engine's verdict moves the figure (or briefly, if none comes). */
+  const placed = useRef<{ pose: Pose; until: number } | null>(null);
 
   /** Pull vector (CSS px) to power and launch angle: pulling down launches up the rock, pulling left launches right. */
   const pullOf = (ph: Extract<SwingPhase, { k: 'aim' }>) => {
@@ -124,6 +159,22 @@ export function WallCanvas(props: {
       running = true;
     }
     if (swi && ph.k === 'done' && flightLast.current) pose = flightLast.current;
+    const ri = reach.current;
+    const drag = rd.current;
+    if (ri && drag) {
+      // The grip pad let go mid-reach: the limb goes back (two-thumb mode).
+      if (ri.grip && !ri.gripHeld()) { missReach(now); return false; }
+      const holdG = v.geom.holds.get(ri.hold);
+      const holdP = holdG ? project(v.geom.route.wall, holdG.x, holdG.y) : target.ends[ri.limb];
+      const end: P = [drag.cam.cx + (drag.at[0] - cw / 2) / drag.cam.scale, drag.cam.cy - (drag.at[1] - ch / 2) / drag.cam.scale];
+      pose = reachingPose(target, ri.limb, end, holdP);
+      const spent = ri.spent + (now - drag.t0);
+      if (ri.budget && !drag.warned && spent > ri.budget) { drag.warned = true; if (ri.haptics) navigator.vibrate?.(30); }
+      running = true;
+    } else if (placed.current) {
+      if (now < placed.current.until) pose = placed.current.pose;
+      else placed.current = null;
+    }
     let banner: FrameExtras['banner'];
     const a = anim.current;
     if (a) {
@@ -148,10 +199,97 @@ export function WallCanvas(props: {
       running = running || t < 1;
     }
     shown.current = pose;
-    const cam = frameFor(pose, cw, ch, wallBounds(v.geom), zoom.current, pan.current);
-    layout.current = drawWall(ctx, cw, ch, v, pose, cam, { envelope: !a && !e && !(swi && ph.k !== 'ready'), banner });
+    // The camera holds still while a limb is dragged, so the rock does not move under the thumb.
+    const cam = drag ? drag.cam : frameFor(pose, cw, ch, wallBounds(v.geom), zoom.current, pan.current);
+    camNow.current = cam;
+    // Mid-drag, only the chosen hold keeps its ring.
+    const shownView = ri && drag ? { ...v, targets: new Map([...v.targets].filter(([id]) => id === ri.hold)) } : v;
+    layout.current = drawWall(ctx, cw, ch, shownView, pose, cam, { envelope: !a && !e && !(swi && ph.k !== 'ready') && !drag, banner });
+    // Dev-only: where holds and limbs are on screen, for browser tests.
+    if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__cwtWall = layout.current;
     if (swi) drawSwing(ctx, cw, ch, cam, now);
+    else if (ri && !e) drawReach(ctx, cw, ch, cam, now);
     return running;
+  };
+
+  /** The placement ring on the target and, on a hand move, the grip budget draining round the holding hand. */
+  const drawReach = (ctx: CanvasRenderingContext2D, cw: number, ch: number, cam: Cam, now: number) => {
+    const ri = reach.current!;
+    const v = view.current;
+    const drag = rd.current;
+    const S = toScreen(cam, cw, ch);
+    const h = v.geom.holds.get(ri.hold);
+    if (!h) return;
+    const [hx, hy] = S(...project(v.geom.route.wall, h.x, h.y));
+    const d = drag ? Math.hypot(drag.at[0] - hx, drag.at[1] - hy) : Infinity;
+    ctx.save();
+    if (d <= PLACE_RING_PX) { ctx.fillStyle = 'rgba(46, 196, 182, 0.35)'; ctx.beginPath(); ctx.arc(hx, hy, PLACE_RING_PX, 0, Math.PI * 2); ctx.fill(); }
+    ctx.strokeStyle = C.target;
+    ctx.lineWidth = 3;
+    if (d > SNAP * PLACE_RING_PX) ctx.setLineDash([4, 5]);
+    ctx.beginPath(); ctx.arc(hx, hy, PLACE_RING_PX, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = C.target;
+    ctx.beginPath(); ctx.arc(hx, hy, 3.5, 0, Math.PI * 2); ctx.fill();
+    const holder = ri.budget ? otherHand(ri.limb) : null;
+    const end = holder && v.climb.anchors[holder] ? layout.current?.limbs.find((l) => l.limb === holder) : undefined;
+    if (end && ri.budget) {
+      const used = (ri.spent + (drag ? now - drag.t0 : 0)) / ri.budget;
+      const r = 15;
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = 'rgba(27, 27, 58, 0.55)';
+      ctx.beginPath(); ctx.arc(end.px, end.py, r, 0, Math.PI * 2); ctx.stroke();
+      // Teal drains clockwise from the top while there is grip left; past it, coral fills toward letting go.
+      const a0 = -Math.PI / 2;
+      ctx.strokeStyle = used <= 1 ? C.safe : C.danger;
+      const frac = used <= 1 ? 1 - used : Math.min(1, used - 1);
+      if (frac > 0.005) { ctx.beginPath(); ctx.arc(end.px, end.py, r, a0, a0 + frac * Math.PI * 2); ctx.stroke(); }
+    }
+    ctx.restore();
+  };
+
+  const startReach = (id: number, down: [number, number], t0: number): boolean => {
+    const ri = reach.current;
+    const cam = camNow.current;
+    const hand = layout.current?.limbs.find((l) => l.limb === ri?.limb);
+    if (!ri || !cam || !hand) return false;
+    if (ri.grip && !ri.gripHeld()) { ri.onNeedGrip(); return false; }
+    placed.current = null;
+    rd.current = { id, down, t0, hand0: [hand.px, hand.py], at: [hand.px, hand.py], cam, warned: false };
+    loop();
+    return true;
+  };
+
+  /** Let go away from the ring (or lost the grip pad): the limb goes back and the time spent is kept. */
+  const missReach = (now: number) => {
+    const ri = reach.current;
+    const drag = rd.current;
+    rd.current = null;
+    if (!ri || !drag) return;
+    if (shown.current) {
+      const back = poseOf(view.current.geom, view.current.ath, view.current.climb);
+      anim.current = { from: shown.current, to: back, t0: now, dur: MOVE_MS, style: {}, shake: 0, panFrom: pan.current };
+      loop();
+    }
+    ri.onMiss(Math.round(ri.spent + (now - drag.t0)));
+  };
+
+  const endReach = (now: number) => {
+    const ri = reach.current;
+    const drag = rd.current;
+    const cam = camNow.current;
+    if (!ri || !drag || !cam || !wrap.current) { rd.current = null; return; }
+    const h = view.current.geom.holds.get(ri.hold);
+    const [hx, hy] = h ? toScreen(cam, wrap.current.clientWidth, wrap.current.clientHeight)(...project(view.current.geom.route.wall, h.x, h.y)) : [Infinity, Infinity];
+    const d = Math.hypot(drag.at[0] - hx, drag.at[1] - hy);
+    if (d > SNAP * PLACE_RING_PX) { missReach(now); return; }
+    rd.current = null;
+    if (shown.current) placed.current = { pose: shown.current, until: now + 1200 };
+    setTimeout(() => paint(), 1250);
+    swung.current = true;
+    if (ri.haptics) navigator.vibrate?.(15);
+    ri.onDone({ kind: 'reach', time_ms: Math.round(ri.spent + (now - drag.t0)), place: Math.round(1000 * Math.min(1, d / PLACE_RING_PX)) / 1000 });
   };
 
   /** The aim preview (the start of the hand's path) and, in flight, the rings closing on the hold. */
@@ -243,9 +381,10 @@ export function WallCanvas(props: {
     lastStep.current = props.motion.step;
     const moved = lastKey.current !== '' && key !== lastKey.current;
     lastKey.current = key;
-    // A move that was just swung has already flown: settle onto the hold without another hop.
+    // A move that was just swung or dragged is already there: settle onto the hold without another hop.
     const afterSwing = swung.current && (moved || stepped);
     if (afterSwing) swung.current = false;
+    if (moved || stepped) placed.current = null;
     if (!reduce.current && shown.current && (moved || (stepped && props.motion.shake))) {
       const dynamic = !afterSwing && (props.motion.style.cls === 'dyno' || props.motion.style.cls === 'deadpoint');
       anim.current = {
@@ -292,6 +431,7 @@ export function WallCanvas(props: {
       sw.current = { k: 'aim', from: p, to: p };
       return;
     }
+    if (rd.current) return;
     const [x, y] = local(e);
     canvas.current?.setPointerCapture?.(e.pointerId);
     pointers.current.set(e.pointerId, { x, y });
@@ -309,10 +449,28 @@ export function WallCanvas(props: {
       paint();
       return;
     }
+    const drag = rd.current;
+    if (drag) {
+      if (e.pointerId !== drag.id) return;
+      const [x, y] = local(e);
+      drag.at = [drag.hand0[0] + x - drag.down[0], drag.hand0[1] + y - drag.down[1]];
+      return;
+    }
     const g = gesture.current;
     if (!g || !pointers.current.has(e.pointerId)) return;
     const [x, y] = local(e);
     pointers.current.set(e.pointerId, { x, y });
+    // With a Reach move armed, one finger dragging moves the limb instead of the camera.
+    if (reach.current && pointers.current.size === 1 && !g.moved && Math.hypot(x - g.x0, y - g.y0) >= 8) {
+      g.moved = true;
+      if (startReach(e.pointerId, [g.x0, g.y0], g.t0)) {
+        pointers.current.clear();
+        gesture.current = null;
+        rd.current!.at = [rd.current!.hand0[0] + x - g.x0, rd.current!.hand0[1] + y - g.y0];
+      }
+      return;
+    }
+    if (reach.current && pointers.current.size === 1 && g.moved && g.d0 === 0) return;
     const scale = layout.current?.scale ?? 100;
     if (pointers.current.size >= 2 && g.d0 > 0) {
       const { d, mid } = spread();
@@ -335,6 +493,12 @@ export function WallCanvas(props: {
       const { power, angle } = pullOf(ph);
       if (power < 0.08) { sw.current = { k: 'ready' }; swi.onAim(null, false); paint(); return; }
       launchSwing(power, angle);
+      return;
+    }
+    const drag = rd.current;
+    if (drag) {
+      // A cancelled touch (the system took the gesture) never places the limb.
+      if (e.pointerId === drag.id) { if (e.type === 'pointercancel') missReach(performance.now()); else endReach(performance.now()); }
       return;
     }
     const g = gesture.current;
