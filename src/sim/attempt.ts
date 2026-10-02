@@ -504,6 +504,14 @@ export function restPreview(at: AttemptState, geom: RouteGeom, ath: Athlete): nu
   return deltas.reduce((a, b) => a + b, 0) / deltas.length;
 }
 
+/** Δpump of a first shake hanging on one hold (05b §6): the rest value a hold's long-press shows. */
+export function holdRestPreview(at: AttemptState, geom: RouteGeom, ath: Athlete, holdId: string): number | null {
+  const h = geom.holds.get(holdId);
+  if (!h || !h.hands_ok) return null;
+  const { overgrip } = fearEffects(liveFear(at, geom, ath).fear, ath.a.composure);
+  return restDelta(ath, { restValue: rawRestValue(h, 'hang'), type: h.type, angle: h.angle, posture: 'hang', shakeIndex: 1, reserve: at.aerobic_reserve, overgrip });
+}
+
 export function doWallAction(run: RunState, kind: 'rest' | 'chalk' | 'jump_off', bundle: DataBundle): void {
   const at = run.attempt;
   if (!at) throw new InvalidAction('no attempt in progress');
@@ -686,37 +694,47 @@ export interface AutoOptions {
   bot?: boolean;
 }
 
+/** Why auto-climb handed control back (05b §10), for the hint the player sees. */
+export type AutoStop = 'crux' | 'dyno' | 'pumped' | 'fear' | 'rest' | 'hidden' | 'off_line' | 'waiting';
+
 /** The next action auto-climb would take, or null to hand control to the player. */
 export function autoClimbAction(run: RunState, bundle: DataBundle, opts: AutoOptions = {}): Action | null {
+  return autoClimbStep(run, bundle, opts).action;
+}
+
+/** Auto-climb's next action, or why it stops (the reason is null when it acts, or when there is no attempt). */
+export function autoClimbStep(run: RunState, bundle: DataBundle, opts: AutoOptions = {}): { action: Action | null; reason: AutoStop | null } {
+  const stop = (reason: AutoStop) => ({ action: null, reason });
+  const go = (action: Action) => ({ action, reason: null });
   const at = run.attempt;
-  if (!at) return null;
-  if (at.pending) return run.options.auto_commit || opts.bot ? { t: 'commit', swing: null } : null;
+  if (!at) return { action: null, reason: null };
+  if (at.pending) return run.options.auto_commit || opts.bot ? go({ t: 'commit', swing: null }) : stop('waiting');
   const { route, geom } = routeEntry(at.route_seed, bundle);
   const ath = athleteOf(run, bundle);
   const step = route.beta_line[at.beta_ptr];
-  if (!step) return opts.bot ? { t: 'wall_action', kind: 'jump_off' } : null;
+  if (!step) return opts.bot ? go({ t: 'wall_action', kind: 'jump_off' }) : stop('off_line');
   const ms = moveStateOf(run, at, geom, ath);
   const fx = { overgrip: ms.overgrip, under: ms.under };
   const project = run.projects[at.route_id];
-  if (!isVisible(project, route, step.hold)) return opts.bot && at.shake_k < 1 ? { t: 'wall_action', kind: 'rest' } : opts.bot ? { t: 'wall_action', kind: 'jump_off' } : null;
+  if (!isVisible(project, route, step.hold)) return opts.bot && at.shake_k < 1 ? go({ t: 'wall_action', kind: 'rest' }) : opts.bot ? go({ t: 'wall_action', kind: 'jump_off' }) : stop('hidden');
   let prep = step.class === 'mantle'
     ? (canMantle(geom, at.climb) === step.limb ? prepareMove(geom, ath, at.climb, step.limb, step.hold, 'mantle') : null)
     : prepareMove(geom, ath, at.climb, step.limb, step.hold, step.class) ?? prepareMove(geom, ath, at.climb, step.limb, step.hold);
   if (!prep && step.class === 'mantle') prep = null;
-  if (!prep) return opts.bot ? { t: 'wall_action', kind: 'jump_off' } : null;
+  if (!prep) return opts.bot ? go({ t: 'wall_action', kind: 'jump_off' }) : stop('off_line');
   if (at.pq_penalty > 0) prep.spec.pq = Math.max(0.3, prep.spec.pq - at.pq_penalty);
   const e = evaluate(ath, prep.spec, ms, conditionsOf(run, at, bundle, ath));
   const rest = restPreview(at, geom, ath);
   if (opts.bot) {
-    if (at.pump >= 35 && rest <= -1.5 && at.shake_k < 3) return { t: 'wall_action', kind: 'rest' };
-    if (at.chalk < 35 && at.pump < 60) return { t: 'wall_action', kind: 'chalk' };
-    return { t: 'move', limb: step.limb, hold: step.hold, class: prep.cls };
+    if (at.pump >= 35 && rest <= -1.5 && at.shake_k < 3) return go({ t: 'wall_action', kind: 'rest' });
+    if (at.chalk < 35 && at.pump < 60) return go({ t: 'wall_action', kind: 'chalk' });
+    return go({ t: 'move', limb: step.limb, hold: step.hold, class: prep.cls });
   }
   const dynamic = isDynamic(prep.cls);
-  if (e.margin < e.T) return null;
-  if (dynamic && !run.options.auto_commit) return null;
-  if (at.pump >= 60) return null;
-  if (fx.overgrip > 0 || fx.under > 0) return null;
-  if (at.pump >= 40 && rest <= -3) return null;
-  return { t: 'move', limb: step.limb, hold: step.hold, class: prep.cls };
+  if (e.margin < e.T) return stop('crux');
+  if (dynamic && !run.options.auto_commit) return stop('dyno');
+  if (at.pump >= 60) return stop('pumped');
+  if (fx.overgrip > 0 || fx.under > 0) return stop('fear');
+  if (at.pump >= 40 && rest <= -3) return stop('rest');
+  return go({ t: 'move', limb: step.limb, hold: step.hold, class: prep.cls });
 }

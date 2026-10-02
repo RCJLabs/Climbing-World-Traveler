@@ -108,6 +108,8 @@ export const MOVE_MS = 250;
 const DYNAMIC_MS = 420;
 const SHAKE_MS = 320;
 export const ENDING_MS = 700;
+/** A still press this long on the wall asks about a hold instead of tapping it (17 §2). */
+export const LONG_PRESS_MS = 450;
 
 interface Anim { from: Pose; to: Pose; t0: number; dur: number; style: MotionStyle; shake: number; panFrom: P }
 
@@ -118,6 +120,8 @@ interface Anim { from: Pose; to: Pose; t0: number; dur: number; style: MotionSty
 export function WallCanvas(props: {
   view: WallView; onTap: (t: WallTap) => void; label: string; motion: WallMotion; ending: Ending; reduceMotion: boolean;
   swing?: SwingInput | null; reach?: ReachInput | null; children?: ComponentChildren;
+  /** A still press on the wall, when no move is armed: what the hold or limb under it is. */
+  onLongPress?: ((t: WallTap) => void) | null;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -541,8 +545,17 @@ export function WallCanvas(props: {
 
   // Gestures: one finger taps or drags, two fingers pinch; double-tap recentres.
   const pointers = useRef(new Map<number, { x: number; y: number }>());
-  const gesture = useRef<{ x0: number; y0: number; t0: number; moved: boolean; pan0: P; zoom0: number; d0: number; mid0: [number, number] } | null>(null);
+  const gesture = useRef<{ x0: number; y0: number; t0: number; moved: boolean; held: boolean; pan0: P; zoom0: number; d0: number; mid0: [number, number] } | null>(null);
   const lastTap = useRef<{ t: number; x: number; y: number } | null>(null);
+  const longPress = useRef(props.onLongPress ?? null);
+  longPress.current = props.onLongPress ?? null;
+  const pressTimer = useRef(0);
+  useEffect(() => () => clearTimeout(pressTimer.current), []);
+  /** What is under a point on the canvas: the nearest hold, and the figure's hand or foot if one is close. */
+  const under = (x: number, y: number): WallTap => {
+    const near = layout.current!.limbs.filter((l) => Math.hypot(l.px - x, l.py - y) < 22).sort((a, b) => Math.hypot(a.px - x, a.py - y) - Math.hypot(b.px - x, b.py - y))[0];
+    return { hold: hitHold(layout.current!, x, y), limb: near?.limb ?? null };
+  };
   const local = (e: PointerEvent): [number, number] => {
     const r = canvas.current!.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
@@ -567,7 +580,18 @@ export function WallCanvas(props: {
     canvas.current?.setPointerCapture?.(e.pointerId);
     pointers.current.set(e.pointerId, { x, y });
     const two = pointers.current.size === 2 ? spread() : null;
-    gesture.current = { x0: x, y0: y, t0: performance.now(), moved: !!two || (gesture.current?.moved ?? false), pan0: [...pan.current], zoom0: zoom.current, d0: two?.d ?? 0, mid0: two?.mid ?? [x, y] };
+    gesture.current = { x0: x, y0: y, t0: performance.now(), moved: !!two || (gesture.current?.moved ?? false), held: false, pan0: [...pan.current], zoom0: zoom.current, d0: two?.d ?? 0, mid0: two?.mid ?? [x, y] };
+    // A long press asks about the hold. Not while a move is armed: a thumb resting before a drag is not a question.
+    clearTimeout(pressTimer.current);
+    const mine = gesture.current;
+    if (!two && !reach.current && longPress.current) {
+      pressTimer.current = window.setTimeout(() => {
+        const g = gesture.current;
+        if (g !== mine || g.moved || pointers.current.size !== 1 || reach.current || swing.current || !layout.current) return;
+        g.held = true;
+        longPress.current?.(under(g.x0, g.y0));
+      }, LONG_PRESS_MS);
+    }
   };
   const onMove = (e: PointerEvent) => {
     const swi = swing.current;
@@ -662,7 +686,8 @@ export function WallCanvas(props: {
     pointers.current.delete(e.pointerId);
     if (pointers.current.size > 0) return;
     gesture.current = null;
-    if (!g || g.moved || !layout.current) return;
+    clearTimeout(pressTimer.current);
+    if (!g || g.moved || g.held || !layout.current) return;
     const [x, y] = local(e);
     const now = performance.now();
     const prev = lastTap.current;
@@ -675,8 +700,7 @@ export function WallCanvas(props: {
       paint();
       return;
     }
-    const near = layout.current.limbs.filter((l) => Math.hypot(l.px - x, l.py - y) < 22).sort((a, b) => Math.hypot(a.px - x, a.py - y) - Math.hypot(b.px - x, b.py - y))[0];
-    props.onTap({ hold: hitHold(layout.current, x, y), limb: near?.limb ?? null });
+    props.onTap(under(x, y));
   };
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
@@ -688,7 +712,7 @@ export function WallCanvas(props: {
     <div class="wall-wrap" ref={wrap}>
       <canvas
         ref={canvas} role="img" aria-label={props.label}
-        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel}
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} onContextMenu={(e) => e.preventDefault()}
       />
       {props.children}
     </div>

@@ -1,7 +1,7 @@
 // Run reducer, attempt loop and replay determinism (docs/05b, 11, 18 §5, 19 §6).
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
-import { athleteOf, autoClimbAction, limbOptions, routeEntry } from '../src/sim/attempt';
+import { athleteOf, autoClimbAction, autoClimbStep, limbOptions, routeEntry } from '../src/sim/attempt';
 import { BotDriver, PROJECT_POLICY } from '../src/sim/bot';
 import { BENCH_PER_PROFILE, estimateBoulderDI } from '../src/sim/estimate';
 import { workedExampleBuilds } from '../src/harness/sim';
@@ -200,6 +200,27 @@ describe('attempts', () => {
       expect(o.preview!.p_complete).toBeLessThanOrEqual(1);
       expect(o.preview!.pump_ev).toBeGreaterThanOrEqual(0);
     }
+  });
+
+  it('auto-climb gives a reason exactly when it hands back (05b §10)', () => {
+    const run = createRun('auto-why', presetSpec('dirtbag'), bundle);
+    const sector = openDay(run);
+    applyAction(run, { t: 'block_start', kind: 'climb', target: sector }, bundle);
+    const reasons = new Set<string>();
+    for (const slot of run.block!.session!.slots.slice(0, 4)) {
+      if (!run.block) break;
+      applyAction(run, { t: 'attempt_start', route_seed: slot.seed, mode: 'onsight' }, bundle);
+      for (let g = 0; g < 200 && run.attempt; g++) {
+        const step = autoClimbStep(run, bundle);
+        expect(step.action).toEqual(autoClimbAction(run, bundle));
+        expect(step.action === null).toBe(step.reason !== null);
+        if (step.reason) reasons.add(step.reason);
+        // Where auto-climb stops, the bot plays on, so the walk visits many stops.
+        const a = step.action ?? autoClimbAction(run, bundle, { bot: true }) ?? { t: 'wall_action', kind: 'jump_off' } as const;
+        applyAction(run, run.attempt.pending ? { t: 'commit', swing: null } : a, bundle);
+      }
+    }
+    expect(reasons.size).toBeGreaterThan(0);
   });
 
   it('the same action at the same point gives the same roll (no save-scumming)', () => {
