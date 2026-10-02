@@ -97,17 +97,29 @@ export function angleAt(wall: readonly WallSegment[], y: number): number {
   return wall[wall.length - 1]!.angle;
 }
 
+/** One hold's place on the wall: surface distance, lean, blended angle and feature (05a §1). */
+export function holdGeom(wall: readonly WallSegment[], h: Hold): HoldG {
+  return { ...h, s: sOfY(wall, h.y), z: zOfY(wall, h.y), angle: angleAt(wall, h.y), feature: segmentAt(wall, h.y).feature };
+}
+
 export function routeGeom(route: Route): RouteGeom {
   const holds = new Map<string, HoldG>();
   const list: HoldG[] = [];
   for (const h of route.holds) {
-    const seg = segmentAt(route.wall, h.y);
-    const g: HoldG = { ...h, s: sOfY(route.wall, h.y), z: zOfY(route.wall, h.y), angle: angleAt(route.wall, h.y), feature: seg.feature };
+    const g = holdGeom(route.wall, h);
     holds.set(h.id, g);
     list.push(g);
   }
   const top = route.wall[route.wall.length - 1]!.y1;
   return { route, holds, list, s_top: sOfY(route.wall, top) };
+}
+
+/** The same geometry with one hold moved, without recomputing the others (the generator's margin probes). */
+export function withHold(geom: RouteGeom, h: Hold): RouteGeom {
+  const g = holdGeom(geom.route.wall, h);
+  const holds = new Map(geom.holds);
+  holds.set(h.id, g);
+  return { ...geom, holds, list: geom.list.map((x) => (x.id === h.id ? g : x)) };
 }
 
 // ---------------------------------------------------------------- climber state and body points (05a §4)
@@ -288,6 +300,9 @@ export function classesFor(geom: RouteGeom, st: ClimbState, bp: BodyPoints, limb
   return out;
 }
 
+/** A limb may cross this far (m) past the other limb of its kind before the hold is on the wrong side (05a §5.3). */
+export const WRONG_SIDE_M: Record<LimbKind, number> = { hand: 0.25, foot: 0.3 };
+
 const LIMB_NAME: Record<Limb, string> = { LH: 'left hand', RH: 'right hand', LF: 'left foot', RF: 'right foot' };
 
 /** Verdict for one limb onto one hold (05a §5.2). `bp` must be the body points of `freeState(st, limb)`. */
@@ -306,7 +321,7 @@ export function judgeOption(geom: RouteGeom, ath: Athlete, st: ClimbState, bp: B
   const otherId = st.anchors[otherHand(limb)];
   const other = otherId ? geom.holds.get(otherId) : undefined;
   if (other && other.id !== hold.id) {
-    const limit = kind === 'hand' ? 0.25 : 0.3;
+    const limit = WRONG_SIDE_M[kind];
     const rightSide = limb === 'RH' || limb === 'RF';
     if ((rightSide && hold.x < other.x - limit) || (!rightSide && hold.x > other.x + limit)) {
       return { ...opt, verdict: 'wrong_side', reason: `wrong side: use the other ${kind}` };
@@ -348,6 +363,9 @@ function footHolds(geom: RouteGeom, st: ClimbState): HoldG[] {
   return (['LF', 'RF'] as Limb[]).map((l) => st.anchors[l]).filter((x): x is string => !!x).map((id) => geom.holds.get(id)!).filter(Boolean);
 }
 
+/** Hands at least this far apart (m), one of them opposing, put the body in compression (05a §6). */
+export const COMPRESSION_WIDTH = 0.45;
+
 /**
  * Posture after a move (05a §6). Compression is forced by geometry (hands wide on opposing holds, or an arête),
  * rest stance by two good feet on easy-angled rock; otherwise the highest position quality wins.
@@ -357,7 +375,7 @@ export function choosePosture(geom: RouteGeom, ath: Athlete, st: ClimbState): Po
   const feet = footHolds(geom, st);
   if (hands.length === 2) {
     const [a, b] = hands as [HoldG, HoldG];
-    const wide = Math.abs(a.x - b.x) >= 0.45;
+    const wide = Math.abs(a.x - b.x) >= COMPRESSION_WIDTH;
     const opposing = (h: HoldG) => h.type === 'pinch' || h.type === 'sidepull' || h.feature === 'arete' || h.feature === 'tufa'
       || (h.type === 'sloper' && Math.abs(norm180(h.orientation)) >= 25);
     if (wide && (opposing(a) || opposing(b))) return 'compression';

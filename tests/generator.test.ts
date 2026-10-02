@@ -2,11 +2,12 @@
 // `pnpm calibrate` runs the full C1 sweep.
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
-import { gradeRoute, sendCurve } from '../src/sim/grade';
+import { applyMove, prepareMove } from '../src/sim/engine';
+import { gradeRoute, referenceAthlete, sendCurve, startState } from '../src/sim/grade';
 import { cruxIndexes, generateBoulder, profileFor, routeFromSeed, routeSeed, TRACE } from '../src/sim/routes';
 import { ProfileSchema } from '../src/data/schema';
 import { stream } from '../src/sim/rng';
-import { routeGeom } from '../src/sim/wall';
+import { COMPRESSION_WIDTH, limbKind, otherHand, routeGeom, sOfY, WRONG_SIDE_M, yOfS } from '../src/sim/wall';
 
 const bundle = loadBundle();
 const crag = bundle.crags.get('fontainebleau')!;
@@ -89,6 +90,52 @@ describe('line shape (06 §2.3, 22 §2)', () => {
   it('picks a crux even when the preferred third of a short line is empty', () => {
     expect(cruxIndexes([4], 'mid', stream('crux')).size).toBe(1);
     expect(cruxIndexes([], 'mid', stream('crux')).size).toBe(0);
+  });
+});
+
+describe('margin from legality and posture edges (06 §2.3, C5)', () => {
+  const m = TRACE.legalMargin;
+  const shifts = [[m, 0], [-m, 0], [0, m], [0, -m]] as const;
+  const routes = ['font_sloper_slab', 'font_sloper_bulge', 'font_roof'].flatMap((id) =>
+    [11, 17, 23].map((di) => generateBoulder({ crag, sector: crag.sectors.find((s) => s.style_profiles.includes(id))!, profile: bundle.profiles.get(id)!, di_target: di, seed: `edge:${id}:${di}`, bundle })));
+
+  it('starts with the hands inside the compression width by the margin', () => {
+    for (const r of routes) {
+      const [lh, rh] = [r.start.LH, r.start.RH].map((id) => r.holds.find((h) => h.id === id)!);
+      expect(Math.abs(rh!.x - lh!.x)).toBeLessThanOrEqual(COMPRESSION_WIDTH - 2 * m + 1e-9);
+    }
+  });
+
+  it('keeps every move legal, with its class and the posture after it, when its hold moves by the margin', () => {
+    for (const r of routes) {
+      const ath = referenceAthlete(r.di_target);
+      let st = startState(routeGeom(r), ath);
+      for (const step of r.beta_line) {
+        if (step.class === 'mantle') break;
+        const geom = routeGeom(r);
+        const after = applyMove(geom, ath, st, step.limb, step.hold, step.class).posture;
+        const hold = r.holds.find((h) => h.id === step.hold)!;
+        const otherId = st.anchors[otherHand(step.limb)];
+        if (otherId && otherId !== hold.id) {
+          // Twice the margin from the wrong-side line, which lies between two holds.
+          const other = r.holds.find((h) => h.id === otherId)!;
+          const lim = WRONG_SIDE_M[limbKind(step.limb)];
+          const room = step.limb === 'RH' || step.limb === 'RF' ? hold.x - (other.x - lim) : other.x + lim - hold.x;
+          expect(room).toBeGreaterThanOrEqual(2 * m - 1e-9);
+        }
+        const { x, y } = hold;
+        for (const [dx, ds] of shifts) {
+          hold.x = x + dx;
+          hold.y = yOfS(r.wall, sOfY(r.wall, y) + ds);
+          const g = routeGeom(r);
+          expect(prepareMove(g, ath, st, step.limb, step.hold, step.class), `${r.name} ${step.limb}→${step.hold}`).not.toBeNull();
+          expect(applyMove(g, ath, st, step.limb, step.hold, step.class).posture).toBe(after);
+        }
+        hold.x = x;
+        hold.y = y;
+        st = applyMove(geom, ath, st, step.limb, step.hold, step.class);
+      }
+    }
   });
 });
 
