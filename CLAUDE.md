@@ -16,7 +16,7 @@ This repo is a climbing career RPG (2D side-view, hold-to-hold, turn-based with 
 - All randomness goes through the seeded PRNG in `sim/rng` using purpose-named streams (see `docs/18`). Seeds for on-wall rolls derive from `(run_seed, route, attempt, moveIndex)` so reloading never re-rolls.
 - Saves are event-sourced: seed plus action log plus snapshots (`docs/schemas.md §8`). Any state change must be expressible as an `Action`.
 - Data lives in `data/*.json`, validated by Zod schemas that mirror `docs/schemas.md`. Run the validator before committing data changes (`docs/20`).
-- Mobile-first portrait layout; everything works with one thumb. No timing-based input is ever required (Auto-commit must always be available).
+- Mobile-first portrait layout; everything works with one thumb (Two-Thumb Grip has a one-thumb mode, `docs/23` §2.1). No timing-based input is ever required: every real-time move type has an Auto path (`docs/23` §1; today, Auto-commit).
 - Offline-first PWA via `vite-plugin-pwa`; deploy to GitHub Pages via Actions; package for Play with Bubblewrap (check the current `targetSdk` requirement before each release).
 
 ## Content rules

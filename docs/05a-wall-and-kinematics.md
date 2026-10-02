@@ -252,7 +252,7 @@ The bend sign is fixed per limb: elbows bend outward and down, knees bend outwar
 
 Transitions interpolate joint positions over `250 ms` (static), or play a two-keyframe launch/catch over the commit-window sweep for dynamic moves ([05b §8](05b-move-resolution-and-attempt-loop.md#8-commit-window)). A fall is a scripted animation to the resolved landing, not a simulation.
 
-**There is no physics.** No gravity integration, no collision, no ragdoll, no friction simulation. Balance, friction and strength are numbers in [05b](05b-move-resolution-and-attempt-loop.md); the rig only shows the result.
+**There is no physics.** No gravity integration, no collision, no ragdoll, no friction simulation. Balance, friction and strength are numbers in [05b](05b-move-resolution-and-attempt-loop.md); the rig only shows the result. The overhaul in [23](23-move-types-and-art-direction.md) adds two closed-form exceptions, not a simulation step: a dyno's centre of mass follows a ballistic arc, and on a balance move it drifts at a set speed. Both are pure functions of the logged inputs.
 
 ---
 

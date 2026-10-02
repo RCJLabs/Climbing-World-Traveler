@@ -19,6 +19,8 @@ Related: [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Reso
 
 ## 2. Wall view
 
+> **Input superseded by [23](23-move-types-and-art-direction.md)** (move types, Flat Dusk) as its build order lands; the camera and motion below stay.
+
 The core loop, left to right in time:
 
 | Stage | What the player sees | Input |
@@ -71,6 +73,8 @@ Fear sources are always shown as a list, never a single number, so the player le
 ---
 
 ## 4. Commit-window bar
+
+> **Superseded by [23 §2.3](23-move-types-and-art-direction.md)** (Swing and Catch) once the dyno lands. P1a implements this section.
 
 Opens only for `dyno`, `deadpoint`, slaps and optional foot-cut recoveries ([05b](05b-move-resolution-and-attempt-loop.md)).
 

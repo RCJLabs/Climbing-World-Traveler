@@ -56,6 +56,7 @@ Read in this order for a first pass: 00 → 01 → 02 → 05b → 03.
 | 20 | [Content Pipeline](docs/20-content-pipeline.md) | How to add crags, traits, backgrounds, events, routes; validation |
 | 21 | [Glossary](docs/21-glossary.md) | Climbing and game terms |
 | 22 | [P1a Implementation Notes](docs/22-p1a-implementation-notes.md) | Where the Fontainebleau slice departs from the design, why, and the measured harness results |
+| 23 | [Move Types and Art Direction](docs/23-move-types-and-art-direction.md) | The climbing overhaul: per-move controls (grip, balance, dyno), how they feed the engine, Flat Dusk, and the dyno prototype |
 
 ## Conventions
 
