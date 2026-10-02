@@ -404,7 +404,7 @@ export function applyAction(run: RunState, a: Action, bundle: DataBundle): void 
       startAttempt(run, a.route_seed, a.mode, bundle);
       break;
     case 'move': doMove(run, a.limb, a.hold, a.class, bundle); break;
-    case 'commit': doCommit(run, a.tap_offset_ms, bundle); break;
+    case 'commit': doCommit(run, a.swing, bundle); break;
     case 'wall_action': doWallAction(run, a.kind, bundle); break;
     case 'retire': endRun(run, 'retired', bundle); break;
     case 'settings':

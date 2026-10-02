@@ -6,10 +6,11 @@ import { aggregateMods, athleteFrom, clamp, type Athlete, type Mods } from './ch
 import { applyMove, canMantle, prepareMove, preview, type Prepared, type Preview } from './engine';
 import { boulderKappa, startState } from './grade';
 import {
-  commitOutcome, commitWindow, evaluate, fearEffects, holdCost, izof, powerPool, probs, recoveryChance, restDelta,
+  autoCommitPApex, evaluate, fearEffects, holdCost, izof, powerPool, probs, recoveryChance, restDelta,
   type CommitOutcome, type Conditions, type MoveState, type Probs,
 } from './resolve';
 import { routeFromSeed } from './routes';
+import { judgeSwing, swingSetup, type SwingJudged, type SwingPerf } from './swing';
 import { stream } from './rng';
 import type { AttemptResult, AttemptState, MoveReport, ProjectState, RunState } from './state';
 import { matrixCell, isDynamic } from './tables';
@@ -17,7 +18,7 @@ import { novelty, nudge, techniqueXp } from './training';
 import type { Action, AttemptMode, AttrId, DataBundle, Limb, MoveClass, Route, Sector, Tick } from './types';
 import { TECHNIQUE_ATTRS } from './types';
 import {
-  bodyPoints, freeState, judgeOption, limbKind, optionsFor, rawRestValue, routeGeom, yOfS, type ClimbState, type Option, type RouteGeom,
+  bodyPoints, freeState, judgeOption, limbKind, optionsFor, rawRestValue, reachRadius, routeGeom, yOfS, type ClimbState, type Option, type RouteGeom,
 } from './wall';
 import { sessionConditions } from './weather';
 
@@ -237,33 +238,50 @@ export function doMove(run: RunState, limb: Limb, hold: string, cls: MoveClass, 
   if (isDynamic(prep.cls)) {
     const ms = moveStateOf(run, at, geom, ath);
     const e = evaluate(ath, prep.spec, ms, conditionsOf(run, at, bundle, ath));
-    at.pending = { limb, hold, cls: prep.cls, window: commitWindow(ath, e.margin, e.T, at.pump, ms.overgrip, run.options.sweep_speed) };
+    const bp = bodyPoints(geom, ath, freeState(at.climb, limb));
+    const target = geom.holds.get(hold)!;
+    at.pending = {
+      limb, hold, cls: prep.cls,
+      swing: swingSetup({
+        com0: { x: bp.CoM.x, s: bp.CoM.s }, shoulderAt: { x: bp.shoulder.x, s: bp.shoulder.s }, hold: { x: target.x, s: target.s },
+        reach: reachRadius(ath, 'hand', at.climb.posture), margin: e.margin, T: e.T, pump: at.pump,
+        contact: ath.a.contact_strength, catchMult: ath.mods.commit_window_width, pApexAuto: autoCommitPApex(ath),
+      }),
+    };
     return;
   }
   resolveMove(run, at, geom, ath, prep, null, bundle);
 }
 
-/** A `commit` action: the tap offset in ms from the target centre, or null for Auto-commit (05b §8.4). */
-export function doCommit(run: RunState, offset: number | null, bundle: DataBundle): void {
+/**
+ * A `commit` action: the player's Swing and Catch (docs/23 §3.3), or null for Auto-commit (05b §8.4). The swing is
+ * judged against the setup stored when the dyno was chosen, so a replay reproduces it exactly.
+ */
+export function doCommit(run: RunState, swing: SwingPerf | null, bundle: DataBundle): void {
   const at = run.attempt;
-  if (!at?.pending) throw new InvalidAction('no commit window open');
+  if (!at?.pending) throw new InvalidAction('no dyno waiting');
   const { geom } = routeEntry(at.route_seed, bundle);
   const ath = athleteOf(run, bundle);
   const p = at.pending;
   const prep = prepare(run, at, geom, ath, p.limb, p.hold, p.cls);
   let outcome: CommitOutcome;
-  if (offset === null) {
-    outcome = stream(run.seed, at.route_id, at.attempt_index, at.move_index, 'commit').next() < p.window.p_apex_auto ? 'apex' : 'caught';
+  let reason: SwingJudged['reason'] | null = null;
+  if (swing === null) {
+    outcome = stream(run.seed, at.route_id, at.attempt_index, at.move_index, 'commit').next() < p.swing.p_apex_auto ? 'apex' : 'caught';
   } else {
-    outcome = commitOutcome(p.window, offset);
+    const j = judgeSwing(p.swing, swing);
+    outcome = j.outcome;
+    reason = j.reason;
   }
   at.pending = null;
-  resolveMove(run, at, geom, ath, prep, { outcome, auto: offset === null }, bundle);
+  // Pulling harder than the dyno needs costs power in proportion; Auto pulls exactly what it needs.
+  const powerMult = swing === null ? 1 : Math.min(1.5, Math.max(0.7, swing.power / p.swing.p_need));
+  resolveMove(run, at, geom, ath, prep, { outcome, auto: swing === null, powerMult, reason }, bundle);
 }
 
 function resolveMove(
   run: RunState, at: AttemptState, geom: RouteGeom, ath: Athlete, prep: Prepared,
-  commit: { outcome: CommitOutcome; auto: boolean } | null, bundle: DataBundle,
+  commit: { outcome: CommitOutcome; auto: boolean; powerMult: number; reason: SwingJudged['reason'] | null } | null, bundle: DataBundle,
 ): void {
   const session = run.block!.session!;
   const ms = moveStateOf(run, at, geom, ath);
@@ -303,7 +321,7 @@ function resolveMove(
   const skin = e.skin_cost * skinMult * (outcome === 'sketchy' ? 1.5 : 1);
   at.pump = clamp(at.pump + pump, 0, 100);
   run.res.skin = Math.max(0, run.res.skin - skin);
-  at.power = Math.max(0, at.power - e.power_cost);
+  at.power = Math.max(0, at.power - e.power_cost * (commit?.powerMult ?? 1));
   if (hand) at.chalk = Math.max(0, at.chalk - 5);
   at.time_s += e.time;
   at.aerobic_reserve = Math.max(0, at.aerobic_reserve - e.time / 10);
@@ -604,7 +622,7 @@ export interface AutoOptions {
 export function autoClimbAction(run: RunState, bundle: DataBundle, opts: AutoOptions = {}): Action | null {
   const at = run.attempt;
   if (!at) return null;
-  if (at.pending) return run.options.auto_commit || opts.bot ? { t: 'commit', tap_offset_ms: null } : null;
+  if (at.pending) return run.options.auto_commit || opts.bot ? { t: 'commit', swing: null } : null;
   const { route, geom } = routeEntry(at.route_seed, bundle);
   const ath = athleteOf(run, bundle);
   const step = route.beta_line[at.beta_ptr];

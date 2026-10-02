@@ -1,7 +1,8 @@
 // The materialised run state (schemas §8 `WorldState`, typed with the first reducer version as schemas'
 // open question asks). Plain JSON: it is snapshotted to IndexedDB and rebuilt by replaying the action log.
 
-import type { CommitOutcome, CommitWindow } from './resolve';
+import type { CommitOutcome } from './resolve';
+import type { SwingSetup } from './swing';
 import type { ClimbState } from './wall';
 import type { DayWeather, RainMark } from './weather';
 import type {
@@ -9,7 +10,7 @@ import type {
 } from './types';
 
 /** Reducer version (18 §5). Bump when replaying an old log through the new reducer would change outcomes. */
-export const REDUCER_VERSION = 1;
+export const REDUCER_VERSION = 2;
 
 export interface Resources {
   energy: number;
@@ -57,11 +58,12 @@ export interface FearEvent {
   delta: number;
 }
 
+/** A dyno or deadpoint waiting for its Swing and Catch (docs/23 §2.3): everything it will be judged with. */
 export interface PendingCommit {
   limb: Limb;
   hold: string;
   cls: MoveClass;
-  window: CommitWindow;
+  swing: SwingSetup;
 }
 
 export type MoveOutcome = 'clean' | 'sketchy' | 'slip_recovered' | 'fall' | 'pumped' | 'sent';

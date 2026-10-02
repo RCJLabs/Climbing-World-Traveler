@@ -3,6 +3,7 @@
 
 import { autoClimbAction, athleteOf, routeEntry } from './attempt';
 import { applyAction, canStartBlock, dailyCost, sectorList } from './run';
+import type { SwingPerf } from './swing';
 import type { RunState } from './state';
 import type { Action, DataBundle } from './types';
 
@@ -15,8 +16,8 @@ export interface BotPolicy {
   climbDaysInARow: number;
   /** Train on days the forest is shut (activity ids from training.ts). */
   wetDayTraining: string[];
-  /** Commit-window timing: null = Auto-commit; otherwise tap offsets drawn by the harness (19 §3). */
-  tap?: (run: RunState) => number | null;
+  /** Swing and Catch on a pending dyno: null = Auto-commit; otherwise a harness player's swing (19 §3, docs/23 §3.4). */
+  swing?: (run: RunState) => SwingPerf | null;
 }
 
 export const PROJECT_POLICY: BotPolicy = { style: 'project', workBelowDays: 60, climbDaysInARow: 3, wetDayTraining: ['limit_boulders', 'max_hangs', 'weights'] };
@@ -99,8 +100,8 @@ export class BotDriver {
   private climb(): void {
     for (let guard = 0; guard < 120 && this.run.attempt; guard++) {
       const at = this.run.attempt;
-      if (at.pending && this.policy.tap) {
-        this.dispatch({ t: 'commit', tap_offset_ms: this.policy.tap(this.run) });
+      if (at.pending && this.policy.swing) {
+        this.dispatch({ t: 'commit', swing: this.policy.swing(this.run) });
         continue;
       }
       const a = autoClimbAction(this.run, this.bundle, { bot: true });

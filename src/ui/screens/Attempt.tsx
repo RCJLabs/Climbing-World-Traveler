@@ -1,10 +1,10 @@
 // The wall (05b §7–§10, 17 §2): pick a limb, see the reach and the targets, read the decision triangle, go.
-// Dynamic moves open the commit window; auto-climb plays the sure moves and hands back at cruxes.
+// Dynos and deadpoints are swung and caught on the wall (docs/23 §2.3); auto-climb plays the sure moves and hands back at cruxes.
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import {
   athleteOf, autoClimbAction, classPreview, displayedChance, isVisible, limbOptions, liveFear, restPreview, routeEntry, showsExactOdds,
 } from '../../sim/attempt';
-import { izof, type CommitWindow } from '../../sim/resolve';
+import { izof } from '../../sim/resolve';
 import type { AttemptState, RunState } from '../../sim/state';
 import type { Limb, MoveClass } from '../../sim/types';
 import { stars as starCount } from '../../sim/wall';
@@ -15,6 +15,8 @@ import type { TargetKind } from '../wall/render';
 import { act, data, goto, say, settings } from '../store';
 
 const LIMBS: Limb[] = ['LH', 'RH', 'LF', 'RF'];
+/** Dyno playback speed at the Normal setting: a real dyno peaks in about 0.35 s, too fast to read on a phone (docs/23). (tune) */
+const DYNO_RATE = 0.6;
 
 export function Attempt({ run }: { run: RunState }) {
   const live = run.attempt;
@@ -27,6 +29,8 @@ export function Attempt({ run }: { run: RunState }) {
   const [hold, setHold] = useState<string | null>(null);
   const [cls, setCls] = useState<MoveClass | null>(null);
   const [auto, setAuto] = useState(false);
+  const [aimPower, setAimPower] = useState<number | null>(null);
+  const [flying, setFlying] = useState(false);
   const busy = useRef(false);
   const options = useMemo(() => (limb && run.attempt ? limbOptions(run, limb, data) : []), [run, limb]);
 
@@ -41,7 +45,7 @@ export function Attempt({ run }: { run: RunState }) {
 
   // Backgrounding with a window open resolves it as Auto-commit (18 §5).
   useEffect(() => {
-    const onHide = () => { if (document.visibilityState === 'hidden' && run.attempt?.pending) void act({ t: 'commit', tap_offset_ms: null }); };
+    const onHide = () => { if (document.visibilityState === 'hidden' && run.attempt?.pending) void act({ t: 'commit', swing: null }); };
     document.addEventListener('visibilitychange', onHide);
     return () => document.removeEventListener('visibilitychange', onHide);
   }, [run.attempt?.pending]);
@@ -50,7 +54,7 @@ export function Attempt({ run }: { run: RunState }) {
   useEffect(() => {
     if (live?.pending && run.options.auto_commit && !busy.current) {
       busy.current = true;
-      void act({ t: 'commit', tap_offset_ms: null }).finally(() => { busy.current = false; });
+      void act({ t: 'commit', swing: null }).finally(() => { busy.current = false; });
     }
   }, [live?.pending, run.options.auto_commit]);
 
@@ -68,6 +72,7 @@ export function Attempt({ run }: { run: RunState }) {
   }, [auto, run]);
 
   if (!at) return null;
+  const swinging = !!live?.pending && !run.options.auto_commit && !ending;
   const { route, geom } = routeEntry(at.route_seed, data);
   const ath = athleteOf(run, data);
   const project = run.projects[at.route_id];
@@ -143,11 +148,11 @@ export function Attempt({ run }: { run: RunState }) {
         motion={{ step: at.log.length, style: { limb: last?.limb, cls: last?.cls }, shake: last?.outcome === 'sketchy' || last?.outcome === 'slip_recovered' }}
         ending={ending}
         reduceMotion={settings.value.reduce_motion}
-      >
-        {live && at.pending && !run.options.auto_commit && (
-          <CommitOverlay key={`${at.attempt_index}:${at.move_index}`} window={at.pending.window} cls={at.pending.cls} onCommit={(o) => { void act({ t: 'commit', tap_offset_ms: o }); }} />
-        )}
-      </WallCanvas>
+        swing={swinging ? {
+          setup: at.pending!.swing, limb: at.pending!.limb, rate: DYNO_RATE / run.options.sweep_speed, haptics: settings.value.haptics,
+          onAim: (p, f) => { setAimPower(p); setFlying(f); }, onDone: (perf) => { setAimPower(null); setFlying(false); void act({ t: 'commit', swing: perf }); },
+        } : null}
+      />
       <div class="hud">
         <span class="tiny soft one-line">{last ? last.text : `${at.mode} attempt`}</span>
         <div class="meters" style={{ gridTemplateColumns: 'minmax(0, 1.4fr) repeat(3, minmax(0, 1fr))' }}>
@@ -163,6 +168,20 @@ export function Attempt({ run }: { run: RunState }) {
             {fear.height > 0.5 && <span class="chip">height +{fear.height.toFixed(0)}</span>}
           </div>
         </div>
+        {swinging ? (
+          <div class="preview swing-panel">
+            <div class="row between preview-head">
+              <span class="kicker one-line">{CLASS_LABEL[at.pending!.cls]} · {at.pending!.limb} · Swing and Catch</span>
+              <button class="chip-btn small" onClick={() => { setAimPower(null); void act({ t: 'commit', swing: null }); }}>Auto</button>
+            </div>
+            <div class="small soft one-line">{flying ? 'Tap anywhere as the rings meet.' : aimPower === null ? 'Pull back anywhere on the wall, then let go.' : 'Let go to launch.'}</div>
+            <div class="swing-power" aria-label="Pull power">
+              <div class="fill" style={{ width: `${Math.round((aimPower ?? 0) * 100)}%` }} />
+              <div class="need" style={{ left: `${Math.round(at.pending!.swing.p_need * 100)}%` }} />
+            </div>
+            <div class="row between tiny muted"><span>pull {aimPower === null ? '—' : `${Math.round(aimPower * 100)}%`}</span><span>this dyno needs about {Math.round(at.pending!.swing.p_need * 100)}%</span></div>
+          </div>
+        ) : (
         <div class="preview">
           <div class="row between preview-head">
             {selected && chosen && pv
@@ -181,6 +200,7 @@ export function Attempt({ run }: { run: RunState }) {
             <div><span class="big" style={{ fontSize: '15px' }}>{pv ? stars(pv.pq_after) : '—'}</span><span class="tiny muted">{pv ? `after (${starCount(pv.pq_after)}★)` : 'position after'}</span></div>
           </div>
         </div>
+        )}
         <div class="actions">
           <button onClick={() => wall('rest')} disabled={!!at.pending || !live}>Shake<span>{rest < -0.05 ? rest.toFixed(1) : `+${Math.max(0, rest).toFixed(1)}`}</span></button>
           <button onClick={() => wall('chalk')} disabled={!!at.pending || !live}>Chalk<span>4 s</span></button>
@@ -191,69 +211,6 @@ export function Attempt({ run }: { run: RunState }) {
           <div class="limbs">{LIMBS.map((l) => <button key={l} aria-pressed={limb === l} disabled={!live} onClick={() => pickLimb(l)}>{l}</button>)}</div>
           <button class="go" disabled={!selected || !chosen || !!at.pending || !live} onClick={go}>GO<span>{chosen ? CLASS_LABEL[chosen] : ''}</span></button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/** The commit window (05b §8): launch, watch the marker, tap inside the target. */
-function CommitOverlay(props: { window: CommitWindow; cls: MoveClass; onCommit: (offset: number | null) => void }) {
-  const w = props.window;
-  const [phase, setPhase] = useState<'ready' | 'sweep' | 'done'>('ready');
-  const [pos, setPos] = useState(0);
-  const t0 = useRef(0);
-  const raf = useRef(0);
-  const done = useRef(false);
-  const cue = useRef(false);
-
-  const finish = (offset: number | null) => {
-    if (done.current) return;
-    done.current = true;
-    cancelAnimationFrame(raf.current);
-    setPhase('done');
-    props.onCommit(offset);
-  };
-
-  const launch = () => {
-    if (settings.value.haptics) navigator.vibrate?.(15);
-    t0.current = performance.now();
-    setPhase('sweep');
-    const step = (now: number) => {
-      const el = now - t0.current;
-      if (!cue.current && el >= w.centre_ms - 120) { cue.current = true; if (settings.value.haptics) navigator.vibrate?.(10); }
-      if (el >= w.effective_ms) { setPos(1); finish(Math.round(w.effective_ms)); return; }
-      setPos(el / w.effective_ms);
-      raf.current = requestAnimationFrame(step);
-    };
-    raf.current = requestAnimationFrame(step);
-  };
-
-  useEffect(() => () => cancelAnimationFrame(raf.current), []);
-
-  const tap = () => {
-    if (phase === 'ready') launch();
-    else if (phase === 'sweep') finish(Math.round(performance.now() - t0.current - w.centre_ms));
-  };
-
-  const E = w.effective_ms;
-  const zone = (half: number, colour: string) => (
-    <div class="zone" style={{ left: `${((w.centre_ms - half) / E) * 100}%`, width: `${((2 * half) / E) * 100}%`, background: colour }} />
-  );
-  return (
-    <div class="commit" role="dialog" aria-label="Commit window">
-      <div class="row between">
-        <span class="kicker accent">{CLASS_LABEL[props.cls]}</span>
-        <span class="tiny muted mono">window {Math.round(w.target_ms)} ms of {Math.round(E)} · apex {Math.round(w.inner_ms)} ms</span>
-      </div>
-      <div class="commit-bar" onPointerDown={tap}>
-        {zone(w.target_ms / 2 + w.slap_ms, 'rgba(240, 138, 93, 0.35)')}
-        {zone(w.target_ms / 2, 'rgba(134, 200, 242, 0.55)')}
-        {zone(w.inner_ms / 2, 'rgba(233, 184, 92, 0.9)')}
-        {phase !== 'ready' && <div class="marker" style={{ left: `${pos * 100}%` }} />}
-      </div>
-      <div class="row">
-        <button class="commit-big grow" onPointerDown={tap}>{phase === 'ready' ? 'Tap to launch' : phase === 'sweep' ? 'Catch!' : '…'}</button>
-        {phase === 'ready' && <button class="btn small" onClick={() => finish(null)}>Auto</button>}
       </div>
     </div>
   );

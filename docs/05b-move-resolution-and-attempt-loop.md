@@ -412,7 +412,7 @@ A dyno shows `power −15`, "no mid-air correction" (its `cut` branch) and its c
 
 ## 8. Commit window
 
-> **Superseded by [23 §2.3 and §3.3](23-move-types-and-art-direction.md)** (Swing and Catch) once step 3 of its build order lands. P1a implements this section.
+> **Superseded by [23 §3.3](23-move-types-and-art-direction.md)** (Swing and Catch) since `p1a-12`: §8.2 and §8.5 no longer apply, §8.1 (trigger), §8.3 (outcomes and their effects) and §8.4 (Auto-commit) still do.
 
 ### 8.1 Trigger
 

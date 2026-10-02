@@ -106,6 +106,10 @@ button.card:hover { border-color: #55558a; }
 .text-input { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; }
 
 .update-bar { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; background: var(--raised); border: 1px solid var(--accent); color: var(--text); padding: 8px 10px 8px 14px; border-radius: 12px; font-size: 14px; z-index: 60; max-width: calc(100vw - 32px); }
+.swing-panel { border-color: var(--accent); }
+.swing-power { position: relative; height: 12px; border-radius: 6px; background: var(--raised); overflow: hidden; }
+.swing-power .fill { height: 100%; background: var(--warn); border-radius: 6px; }
+.swing-power .need { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1px; background: var(--accent); }
 .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--raised); border: 1px solid var(--warn); color: var(--text); padding: 10px 14px; border-radius: 10px; font-size: 14px; max-width: min(440px, calc(100vw - 32px)); z-index: 50; }
 
 /* attempt screen */
@@ -139,11 +143,6 @@ button.card:hover { border-color: #55558a; }
 .hud .triangle .big .sub { font-size: 13px; color: var(--accent); }
 .hud .triangle .tiny { white-space: nowrap; }
 
-.commit { position: absolute; left: 12px; right: 12px; bottom: 12px; background: rgba(27, 27, 58, 0.94); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
-.commit-bar { position: relative; height: 54px; border-radius: 8px; background: var(--raised); overflow: hidden; touch-action: manipulation; }
-.commit-bar .zone { position: absolute; top: 0; bottom: 0; }
-.commit-bar .marker { position: absolute; top: -2px; bottom: -2px; width: 4px; background: var(--text); border-radius: 2px; transform: translateX(-2px); }
-.commit-big { min-height: 56px; border-radius: 10px; border: none; background: var(--accent); color: var(--accent-ink); font-family: var(--cond); font-weight: 700; font-size: 22px; letter-spacing: 0.06em; }
 
 .log { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 .sheet-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }

@@ -5,7 +5,7 @@ import { BotDriver, PROJECT_POLICY, VOLUME_POLICY, type BotPolicy } from '../sim
 import { cyrb53, stream } from '../sim/rng';
 import { applyAction, createRun, estimateDI, replay } from '../sim/run';
 import type { Action, DataBundle, NewRunSpec, RunSummary } from '../sim/types';
-import { TIMING, type Timing } from './sim';
+import { harnessSwing, type Timing } from './sim';
 
 export interface CareerConfig {
   seed: string;
@@ -45,13 +45,9 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
   const base: BotPolicy = cfg.policy === 'project' ? PROJECT_POLICY : VOLUME_POLICY;
   const policy: BotPolicy = cfg.timing === 'auto' ? base : {
     ...base,
-    tap: (r) => {
+    swing: (r) => {
       const at = r.attempt!;
-      const w = at.pending!.window;
-      if (cfg.timing === 'oracle') return 0;
-      const m = TIMING[cfg.timing as 'novice' | 'average' | 'expert'];
-      const v = stream('harness-tap', r.seed, at.route_id, at.attempt_index, at.move_index).normal(m.mu, m.sd);
-      return Math.round(Math.max(-w.centre_ms, Math.min(w.effective_ms - w.centre_ms, v)));
+      return harnessSwing(at.pending!.swing, cfg.timing, stream('harness-swing', r.seed, at.route_id, at.attempt_index, at.move_index));
     },
   };
   const bot = new BotDriver(run, bundle, policy);

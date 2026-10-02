@@ -36,7 +36,7 @@ Related: [03 Traits](03-traits.md) · [05b Move Resolution](05b-move-resolution-
 
 | Flag | Values | Effect |
 |---|---|---|
-| `--timing` | `novice` · `average` · `expert` · `auto` · `oracle` | commit-window tap model (§3); `oracle` always hits apex (upper bound) |
+| `--timing` | `novice` · `average` · `expert` · `auto` · `oracle` | Swing and Catch skill model (§3); `oracle` always catches at the dead point (upper bound) |
 | `--difficulty` | story · standard · hard | `RunOptions.difficulty` bundle ([16 §2](16-meta-progression-and-runs.md)) |
 | `--policy` | `default` · `reckless` · `sport_only` · … | scripted player |
 | `--phase` | P1a … P5 | restricts content |
@@ -44,20 +44,21 @@ Related: [03 Traits](03-traits.md) · [05b Move Resolution](05b-move-resolution-
 
 ---
 
-## 3. Commit-window simulation
+## 3. Dyno input simulation
 
-Human taps are drawn from `tap_offset_ms ~ N(μ, σ)` relative to the inner-zone centre, clipped to the sweep **(tune, calibrate on device logs during P1a playtests)**:
+Dynos and deadpoints are played with Swing and Catch ([23 §3.3](23-move-types-and-art-direction.md)). A harness player pulls around the good launch and grabs around the dead point of their own flight (`SWING_SKILL` in `src/harness/sim.ts`) **(tune, calibrate on device logs from playtests)**:
 
-| Timing model | μ (ms) | σ (ms) | Notes |
-|---|---|---|---|
-| novice | +35 | 95 | late bias, wide spread |
-| average | +12 | 55 | |
-| expert | +4 | 28 | |
-| auto | `null` | — | Auto-commit stat roll, EV between caught and apex minus the tax in 05b |
+| Model | Pull (relative sd) | Angle sd (°) | Grab lateness μ (ms) | Grab σ (ms) | Notes |
+|---|---|---|---|---|---|
+| novice | 0.12 | 8 | +45 | 80 | under- and over-pulls, late |
+| average | 0.06 | 4 | +18 | 45 | |
+| expert | 0.03 | 2 | +5 | 22 | |
+| oracle | 0 | 0 | 0 | 0 | the good launch, grabbed at its dead point |
+| auto | `null` | — | — | — | Auto-commit stat roll, EV between caught and apex minus the tax in 05b |
 
-Fear outside the IZOF band and pump speed the marker in the sim, so the same tap distribution yields more slaps when the climber is scared or pumped, as designed.
+A dyno the climber is weak on (low margin) needs nearly a full pull and leaves less catch speed, so the same skill makes more slaps and cuts on it, as designed. (Until `p1a-12` this section modelled taps on the commit bar of 05b §8: novice N(35, 95) ms, average N(12, 55), expert N(4, 28).)
 
-**Variance explained by timing.** Run the same 2,000 builds and seeds under novice, average, expert and auto. For every attempt on a route containing at least one dynamic move, record send/fail. Fit `send ~ build_margin + timing_model` (logistic) and compute the share of explained deviance attributable to `timing_model` (type-II). **Target: ≤ 10% of send variance explained by timing**, and expert vs novice send-rate gap on a route at the climber's estimated grade ≤ 8 percentage points **(tune)**. If exceeded, widen the base zone or cut the slap penalty in [05b](05b-move-resolution-and-attempt-loop.md), not the frequency of windows. Auto-commit must land within ±2 points of the average model's send rate.
+**Variance explained by timing.** Run the same 2,000 builds and seeds under novice, average, expert and auto. For every attempt on a route containing at least one dynamic move, record send/fail. Fit `send ~ build_margin + timing_model` (logistic) and compute the share of explained deviance attributable to `timing_model` (type-II). **Target: ≤ 10% of send variance explained by timing**, and expert vs novice send-rate gap on a route at the climber's estimated grade ≤ 8 percentage points **(tune)**. If exceeded, deepen the dead point, widen the slap margin or raise the catch speed in [23 §3.3](23-move-types-and-art-direction.md), not the frequency of dynos. Auto-commit must land within ±2 points of the average model's send rate.
 
 ---
 
@@ -115,6 +116,6 @@ Run in `--timing auto` so human timing never enters grading ([05c](05c-grade-eng
 
 ## Open questions
 
-- The timing distributions in §3 are placeholders until P1a device playtests produce real tap logs; the harness should import a CSV of observed offsets as a fifth model.
+- The skill models in §3 are placeholders until playtests produce real swing logs (pull, angle, grab time); the harness should import a CSV of observed swings as a fifth model.
 - Whether the value-maximising builder should also model "fun" picks (random exploration with ε = 0.1) so flavour traits are not all flagged at < 5%.
 - Score normalisation for re-costing assumes the Hall of Fame formula is stable; if it changes, all costs are recomputed in one commit.

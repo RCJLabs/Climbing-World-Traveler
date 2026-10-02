@@ -4,6 +4,7 @@
 
 import type { Athlete } from '../../sim/character';
 import type { Limb, MoveClass, WallSegment } from '../../sim/types';
+import { comAt, shoulderAt, type SPt, type SwingSetup } from '../../sim/swing';
 import { bodyPoints, limbKind, yOfS, zOfY, type ClimbState, type RouteGeom } from '../../sim/wall';
 
 export type P = [number, number];
@@ -51,6 +52,40 @@ export function poseOf(geom: RouteGeom, ath: Athlete, climb: ClimbState): Pose {
       : limbKind(l) === 'hand' ? [sh[0] - 0.05 + 0.06 * side, sh[1] - 0.55 * k] : [hip[0] - 0.08 + 0.05 * side, hip[1] - 0.78 * k];
   }
   return { sh, hip, ends, on, k };
+}
+
+/** Loaded for a dyno: the body sinks as the pull grows (`p` 0–1). */
+export function loadedPose(base: Pose, p: number): Pose {
+  const sink = 0.1 * p * base.k;
+  return { ...base, sh: [base.sh[0] + 0.02 * p, base.sh[1] - sink], hip: [base.hip[0] + 0.03 * p, base.hip[1] - 1.2 * sink] };
+}
+
+/**
+ * In the air on a dyno (docs/23 §2.3): the body flies with the centre of mass and points at the hold, the launching
+ * hand reaches for it, the other hand trails, the feet hang. All from the engine's flight, projected.
+ */
+export function flightPose(wall: readonly WallSegment[], st: SwingSetup, v: SPt, t: number, limb: Limb, base: Pose): Pose {
+  const c = comAt(st, v, t);
+  const sh = shoulderAt(st, v, t);
+  const ux = sh.x - c.x;
+  const us = sh.s - c.s;
+  const ul = Math.hypot(ux, us) || 1;
+  const shP = projectS(wall, sh.x, sh.s, OUT_SHOULDER);
+  const hipP = projectS(wall, c.x - (ux / ul) * 0.18, c.s - (us / ul) * 0.18, OUT_HIP);
+  const tx = st.hold.x - sh.x;
+  const ts = st.hold.s - sh.s;
+  const tl = Math.hypot(tx, ts) || 1;
+  const r = Math.min(st.reach, tl);
+  const hand = projectS(wall, sh.x + (tx / tl) * r, sh.s + (ts / tl) * r);
+  const other: Limb = limb === 'LH' ? 'RH' : 'LH';
+  const side = other === 'LH' ? -1 : 1;
+  const sway = 0.04 * Math.sin(t * 9);
+  const ends = { ...base.ends };
+  ends[limb] = hand;
+  ends[other] = [shP[0] - 0.12 + 0.05 * side, shP[1] - 0.42 * base.k];
+  ends.LF = [hipP[0] - 0.06 + sway, hipP[1] - 0.8 * base.k];
+  ends.RF = [hipP[0] + 0.04 - sway, hipP[1] - 0.78 * base.k];
+  return { sh: shP, hip: hipP, ends, on: { LH: false, RH: false, LF: false, RF: false, [limb]: false }, k: base.k };
 }
 
 export const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
