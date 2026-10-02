@@ -25,7 +25,7 @@ The Reference Climber at DI `n` is **balanced by construction**: every attribute
 | mental | `composure`, `focus`, `confidence`, `commitment`, `risk_judgement`, `resilience` | `50` → `T = 0.90 DI`, IZOF band `20–60`, hesitation `0.971`, Auto-commit `p_apex = 0.25 + 0.25 × (50 + S_ref)/200` |
 | lifestyle, `rock_knowledge` | all | `25`, `0` |
 | `rope_craft`, `gear_placement` | | `S_ref(n)` (P1b/P3 routes only) |
-| Body | 170 cm, `ape_index 1.00`, `mass_kg = ref_mass`, `body_fat_pct = ref_fat`, all bands `0`, `skin normal/normal`, `sex 'm'` | every [02 §A.1](02-character-model.md#a1-sliders-and-modifiers) multiplier is exactly `1.0`; `R_hand(hang) = 0.692 m`, `R_foot(hang) = 0.645 m` |
+| Body | 170 cm, `ape_index 1.00`, `mass_kg = ref_mass`, `body_fat_pct = ref_fat`, all bands `0`, `skin normal/normal`, `sex 'm'`, `lock_depth_m 0.30` | every [02 §A.1](02-character-model.md#a1-sliders-and-modifiers) multiplier is exactly `1.0`; `R_hand(hang) = 0.692 m`, `R_foot(hang) = 0.645 m`; the lock-off lift of [05a §4.2](05a-wall-and-kinematics.md#42-anchors-body-centre-hips-and-shoulders) is pinned so reach does not change with DI |
 | Traits | none | `M_trait = 1` |
 | Resources at attempt start | `pump 0`, `power = S_ref`, `aerobic_reserve = S_ref`, `fear` at band centre, `focus_meter 50`, `chalk 100`, `skin 100`, `energy 100` | |
 
