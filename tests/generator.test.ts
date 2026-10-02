@@ -3,7 +3,8 @@
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
 import { gradeRoute, sendCurve } from '../src/sim/grade';
-import { cruxIndexes, generateBoulder, routeFromSeed, routeSeed, TRACE } from '../src/sim/routes';
+import { cruxIndexes, generateBoulder, profileFor, routeFromSeed, routeSeed, TRACE } from '../src/sim/routes';
+import { ProfileSchema } from '../src/data/schema';
 import { stream } from '../src/sim/rng';
 import { routeGeom } from '../src/sim/wall';
 
@@ -88,6 +89,29 @@ describe('line shape (06 §2.3, 22 §2)', () => {
   it('picks a crux even when the preferred third of a short line is empty', () => {
     expect(cruxIndexes([4], 'mid', stream('crux')).size).toBe(1);
     expect(cruxIndexes([], 'mid', stream('crux')).size).toBe(0);
+  });
+});
+
+describe('style ceilings (06 §2.1)', () => {
+  // Bas Cuvier has the slab (to DI 21) and bulge (to DI 25) profiles, no roof.
+  const ids = (di: number) => new Set(Array.from({ length: 40 }, (_, k) => profileFor(sector, di, bundle, stream('pf', di, k)).id));
+
+  it('uses every profile below the lowest ceiling', () => {
+    expect(ids(15)).toEqual(new Set(['font_sloper_slab', 'font_sloper_bulge']));
+  });
+
+  it('leaves out a profile above its ceiling', () => {
+    expect(ids(23)).toEqual(new Set(['font_sloper_bulge']));
+  });
+
+  it('falls back to the profile that reaches highest when none can', () => {
+    expect(ids(28)).toEqual(new Set(['font_sloper_bulge']));
+  });
+
+  it('rejects a ceiling outside the DI scale (validator rule)', () => {
+    const slab = bundle.profiles.get('font_sloper_slab')!;
+    expect(ProfileSchema.safeParse({ ...slab, di_max: 21 }).success).toBe(true);
+    expect(ProfileSchema.safeParse({ ...slab, di_max: 40 }).success).toBe(false);
   });
 });
 

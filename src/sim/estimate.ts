@@ -24,6 +24,8 @@ export function generateBenchmarks(cragId: string, bundle: DataBundle): Route[] 
       const profile = bundle.profiles.get(pid);
       const sector = crag.sectors.find((s) => s.style_profiles.includes(pid));
       if (!profile || !sector) continue;
+      // A style is not benchmarked above the hardest DI it can be built to (06 §2.1).
+      if (level > (profile.di_max ?? Infinity)) continue;
       try {
         const route = generateBoulder({ crag, sector, profile, di_target: level, seed: `bench:${cragId}:${pid}:${level}`, bundle });
         out.push({ ...route, di_target: level });

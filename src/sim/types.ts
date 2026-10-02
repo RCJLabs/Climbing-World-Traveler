@@ -248,6 +248,8 @@ export interface CragStyleProfile {
   drift_max_m: number;
   pad_coverage: number;
   name_bank: string;
+  /** Hardest DI this style can be built to (06 §2.1); above it a sector uses its other profiles. Unset = no cap. */
+  di_max?: number;
   tags: Tag[];
 }
 

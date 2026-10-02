@@ -28,7 +28,8 @@ const t0 = performance.now();
 const c1: { route: Route; target: number; profile: string }[] = [];
 for (const profile of bundle.profiles.values()) {
   const sector = crag.sectors.find((s) => s.style_profiles.includes(profile.id))!;
-  for (let di = 9; di <= 26; di += S.c1step) {
+  // Each style up to the hardest DI it can be built to (06 §2.1); sectors pick another profile above it.
+  for (let di = 9; di <= Math.min(26, profile.di_max ?? 26); di += S.c1step) {
     for (let k = 0; k < S.c1n; k++) {
       try {
         c1.push({ route: generateBoulder({ crag, sector, profile, di_target: di, seed: `cal:${profile.id}:${di}:${k}`, bundle }), target: di, profile: profile.id });
