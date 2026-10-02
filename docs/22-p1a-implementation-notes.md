@@ -35,6 +35,7 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 | Signature list | the three P1a problems follow 09 (La Marie-Rose, Le Toit du Cul de Chien, Rainbow Rocket) | [06](06-procedural-routes.md), [09](09-world-atlas.md) |
 | Font DI range | `[6, 30]`, so the yellow circuits (DI 6–8) sit inside it | [09](09-world-atlas.md) |
 | Generator retries | up to 12 re-seeded attempts per problem before failing | [06 §2](06-procedural-routes.md) |
+| Line shape | the tracer's constants live in `TRACE` (`src/sim/routes.ts`): static moves use 88–100% of reach (deadpoint 100–110%, dyno 118–135%); standing starts with hands at 1.25–1.7 m; feet step when they trail the hands by 0.95 × body scale (second foot 1.25, forced 0.6) and land in the top quarter of their reachable band; a hand move gaining under 0.22 m steps the lowest foot up first. The engine's body model puts the shoulder midway between the remaining hand and the feet, so a static move gains only about 0.25 m; these settings keep problems to a median of 6 hand and 8 foot moves (was 9 and 11) **(tune)** | [06 §2.3](06-procedural-routes.md) |
 | `Route.start` | a `Record<Limb, string>` of start holds | [schemas §5](schemas.md) |
 
 ## 3. Days, resources and career
@@ -68,6 +69,7 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 | `RunSummary` | P1a fields: `hardest`, `hardest_onsight`, `hardest_flash` (boulder DI), `ticks`, `circuits`, `pyramid`, `got_away`, `seed`, `background` | [schemas §8](schemas.md) |
 | `WorldState` | typed as `RunState` in `src/sim/state.ts` | [schemas open question](schemas.md) |
 | Export | plain JSON (`.cwt.json`); gzip arrives with import UI polish | [18 §5](18-tech-architecture.md) |
+| Content version | `DATA_VERSION` (`p1a-2` since the line-shape change) is stored on every run. P1a keeps no old generators, so a run saved under another version cannot be replayed: it stays listed, its Hall of Fame entry stays, and *Continue* is disabled with an explanation. Bump the version whenever the same seed would build a different problem | [18 §5](18-tech-architecture.md) |
 | Quick-build | six presets: Slab Wizard, Compression Monster, Power Boulderer, Late Starter, Dirtbag, Farm Kid (locked until the unlock) | [17 §6](17-ui-ux.md) |
 
 ## 5. Measured status (harness)
@@ -76,13 +78,14 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 
 | Test | Result | Threshold |
 |---|---|---|
-| C1 generator accuracy | 94.3% within ±1 DI, 87.9% within ±0.5, bias −0.12 | ≥ 90%, ≥ 60% |
-| C2 dice vs grade | Reference Climber sends its own grade 31.7% of the time through the real attempt loop | 35 ± 5 |
+| C1 generator accuracy | 95.3% within ±1 DI, 89.4% within ±0.5, bias −0.14 | ≥ 90%, ≥ 60% |
+| C2 dice vs grade | Reference Climber sends its own grade 33.5% of the time through the real attempt loop | 35 ± 5 |
 | C3 monotonicity, C4 determinism, C7 signatures | pass | — |
-| C5 geometric stability | 78% within ±0.5 DI after 2 cm jitter | ≥ 95% (open) |
-| C6 style neutrality | crimp −0.39, pocket −0.38, jug +0.27; spread 0.66 | ≤ 0.6 (open) |
-| C8 timing | expert − novice 6.9 points; Auto-commit 31% vs average tapper 30% | ≤ 8; ±2 |
-| C9 build divergence | mean `|P_send(A) − P_send(B)|` = 0.56 on DI-16 problems | ≥ 0.30 |
+| C5 geometric stability | 85% within ±0.5 DI after 2 cm jitter | ≥ 95% (open) |
+| C6 style neutrality | crimp −0.39, pocket −0.47, jug +0.20; spread 0.67 | ≤ 0.6 (open) |
+| C8 timing | expert − novice 7.9 points; Auto-commit 33% vs average tapper 34% | ≤ 8; ±2 |
+| C9 build divergence | mean `|P_send(A) − P_send(B)|` = 0.75 on DI-16 problems | ≥ 0.30 |
+| Problem length (240 problems) | hand moves p10/p50/p90 4/6/8 (was 5/9/13; the bulge profile reaches 9 at p90); foot moves median 8 (was 11); all moves 14 median, 21 p90 (was about 20 and 38) | 3–8 hand moves |
 
 `pnpm harness --n 40 --days 365 --seed 7` (random P1a builds, half projecting and half volume, Auto-commit):
 
@@ -101,7 +104,7 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 
 Tuning items, in priority order:
 
-1. **Problem length.** Generated Font problems have 13–38 beta steps (6–13 hand moves); real Font problems are mostly 3–8 hand moves. The generator's foot stepping and reach factors need shortening without breaking C1.
+1. **Foot moves.** Hand moves are now in the Font range, but feet still move about 1.5 times per hand move (roofs more). The cause is the body model, not the tracer: with the shoulder midway between hand and feet, the only way to reach higher is higher feet. A lock-off term in 05a (shoulder rising toward the holding hand with `lockoff`) would shorten lines further and make lock-off visible in reach; it changes grading, so it needs the full calibration and golden-test update.
 2. **C5 stability.** The reach term `Rch` and the static/deadpoint class boundary are steep, so 2 cm can flip a move's class.
 3. **C6 and the slab profile.** `font_sloper_slab` grades 0.46 DI soft and crimp-dominant problems 0.4 soft.
 4. **Progress rate** after the first tuning pass is +3.8 DI of estimate in a full-time first year. Check it against the Climbstat anchors in 02 once careers run several years, and against a human playtest.

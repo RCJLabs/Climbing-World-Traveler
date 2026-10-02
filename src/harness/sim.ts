@@ -2,12 +2,13 @@
 // real attempt loop, and the commit-window timing models of 19 §3.
 
 import { autoClimbAction, doCommit, doMove, doWallAction, registerRoute, startAttempt } from '../sim/attempt';
-import type { Athlete } from '../sim/character';
+import { NEUTRAL_MODS, refMass, type Athlete } from '../sim/character';
+import { REFERENCE_BODY } from '../sim/grade';
 import { DEFAULT_OPTIONS, presetSpec } from '../sim/presets';
 import { stream, type Rng } from '../sim/rng';
 import { createRun } from '../sim/run';
 import type { AttemptResult, RunState } from '../sim/state';
-import { ALL_ATTRS, type DataBundle, type Route } from '../sim/types';
+import { ALL_ATTRS, type AttrId, type DataBundle, type Route } from '../sim/types';
 
 export type Timing = 'auto' | 'novice' | 'average' | 'expert' | 'oracle';
 
@@ -87,3 +88,24 @@ export const quantile = (xs: readonly number[], q: number): number => {
   const i = Math.min(s.length - 1, Math.max(0, Math.round(q * (s.length - 1))));
   return s[i]!;
 };
+
+function athlete(a: Partial<Record<AttrId, number>>, body: Partial<Athlete['body']>): Athlete {
+  const vals = {} as Record<AttrId, number>;
+  for (const id of ALL_ATTRS) vals[id] = a[id] ?? 30;
+  const b = { ...REFERENCE_BODY, ...body };
+  b.mass_kg = refMass(b.sex, b.height_cm) + (body.mass_kg ?? 0);
+  return { body: b, a: vals, mods: NEUTRAL_MODS, rock_knowledge: {} };
+}
+
+/**
+ * The two builds of 05b §14.1, climbers near Font 6B+: A "Compression Monster" and B "Crimp Machine".
+ * Attributes the doc does not list default to 30. Used by calibration C9 and the exit-criterion test.
+ */
+export function workedExampleBuilds(): { A: Athlete; B: Athlete } {
+  return {
+    A: athlete({ contact_strength: 44, core_tension: 46, tech_slopers: 42, finger_strength: 24, lockoff: 30, tech_crimps: 16, body_position: 36, hip_mobility: 32, footwork: 26, tech_slab: 18, dynamic_movement: 34, leg_power: 34, finger_endurance: 30, shoulder_mobility: 38, anaerobic_capacity: 36, skin_durability: 30, composure: 50, focus: 40, commitment: 60 },
+      { height_cm: 178, ape_index: 1.05, mass_kg: 4, finger_length: 1, skin_thickness: 'thin' }),
+    B: athlete({ finger_strength: 46, tech_crimps: 44, lockoff: 42, contact_strength: 32, core_tension: 28, tech_slopers: 22, body_position: 34, hip_mobility: 28, footwork: 36, tech_slab: 26, dynamic_movement: 26, leg_power: 28, finger_endurance: 34, shoulder_mobility: 30, anaerobic_capacity: 30, skin_durability: 40, composure: 40, focus: 60, commitment: 35 },
+      { height_cm: 168, ape_index: 1.0, finger_length: -1, finger_girth: 1, skin_thickness: 'thick' }),
+  };
+}
