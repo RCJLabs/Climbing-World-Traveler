@@ -243,6 +243,8 @@ Body terms (sign = direction that **helps**): **FL+/FL−** finger_length long h
 
 ## 4. Resolution
 
+> **Amended by [23 §3](23-move-types-and-art-direction.md):** a move played by hand adds its move type's performance term `Δ` to the margin below and may scale its pump cost (Reach: placement and grip overrun, 23 §3.1; Dyno: the commit outcomes of §8.3 via Swing and Catch, 23 §3.3). A move played on Auto resolves exactly as written here.
+
 ### 4.1 Move difficulty (DI units)
 
 ```

@@ -559,7 +559,7 @@ type Action =
   | { t: 'block_end' }
   | { t: 'end_day' }
   | { t: 'attempt_start'; route_seed: string; mode: 'onsight' | 'flash' | 'redpoint' | 'work' }   // auto-climb is a UI policy that emits ordinary moves
-  | { t: 'move'; limb: Limb; hold: string; class: MoveClass }   // class is explicit; the UI offers the classes geometry allows (05b §2)
+  | { t: 'move'; limb: Limb; hold: string; class: MoveClass; perf?: MovePerf }   // class is explicit (05b §2); perf = the player's drag, absent = Auto (docs/23 §3.1)
   | { t: 'commit'; swing: SwingPerf | null }            // the dyno's Swing and Catch (docs/23 §3.3); null = Auto-commit
   | { t: 'wall_action'; kind: 'rest' | 'chalk' | 'jump_off' }
   | { t: 'retire' }
@@ -576,10 +576,12 @@ interface NewRunSpec { name: string; background: string; body: Body; traits: str
 // rock), and the grab time in flight ms (game time), null for no grab.
 interface SwingPerf { power: number; angle_deg: number; catch_ms: number | null }
 
-// Proposed (docs/23 §3.4), not yet implemented: Reach and Balance log their result on the move; no perf = Auto.
-//   { t: 'move'; limb: Limb; hold: string; class: MoveClass; perf?: MovePerf }
-//   type MovePerf = { kind: 'reach'; time_ms: number; place_cm: number } | { kind: 'balance'; out_ms: number };
-//   RunOptions gains one_thumb: boolean and pause_drift: boolean.
+// MovePerf (docs/23 §3.1): what the player did on a move that is not a dyno. Reach: how long the limb was off its hold
+// (ms, summed over every try at the move) and where it landed as a share of the on-screen placement ring (0 = centre,
+// 1 = its edge). Finite and ≥ 0, never on a deadpoint or dyno, or the action is invalid.
+type MovePerf = { kind: 'reach'; time_ms: number; place: number };
+// Proposed (docs/23 §3.2), not yet implemented: Balance adds | { kind: 'balance'; out_ms: number }, and RunOptions gains
+// pause_drift: boolean. One-thumb mode is a device setting (Settings.one_thumb), not part of the run: it changes no outcome.
 
 interface RunOptions { death_enabled: boolean; auto_commit: boolean; sweep_speed: number; difficulty: 'story' | 'standard' | 'hard'; daily_seed?: string; }
 // sweep_speed (0.6–1.6, shown as Dyno speed) now only slows or speeds the dyno's flight on screen (playback 0.6 / sweep_speed);
