@@ -236,6 +236,7 @@ export function validateCreation(spec: NewRunSpec, ctx: CreationContext): string
   if (bg.unlock && ctx.unlocked && !ctx.unlocked.has(bg.unlock)) errs.push(`${bg.name} unlocks after your first finished run.`);
   const b = spec.body;
   if (b.age_start < bg.age_range[0] || b.age_start > bg.age_range[1]) errs.push(`${bg.name} starts between ${bg.age_range[0]} and ${bg.age_range[1]}.`);
+  if (b.lock_depth_m !== undefined) errs.push('A pinned lock-off depth belongs to the Reference Climber only.');
   const budget = creationBudget(spec, ctx);
   if (budget.left < 0) errs.push(`Trait budget is ${budget.left}; it must end at 0 or above.`);
   if (budget.refunds > 12) errs.push('Negative traits can refund at most 12 points.');

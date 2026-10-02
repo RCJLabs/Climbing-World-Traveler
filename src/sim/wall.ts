@@ -119,12 +119,20 @@ export function freeState(st: ClimbState, limb: Limb): ClimbState {
 }
 
 /**
- * Lock-off (05a §4.2). With one hand on and the feet on, the shoulder rises from the body centre to a bent-arm
- * lock `depth` below the holding hand (metres at 170 cm), but never higher than `stand` × (leg + torso) above
- * the feet, and never lower than the body-centre position. The same for every climber: lock-off strength acts
- * through the move matrix, so the Reference Climber's reach does not change along the DI scale (05c §1.1). **(tune)**
+ * Lock-off (05a §4.2). With one hand on and the feet on, the shoulder rises from the body centre to a lock below
+ * the holding hand: `depth[0]` at `lockoff 0`, `depth[1]` at `lockoff 100` (metres at 170 cm), but never higher
+ * than `stand` × (leg + torso) above the feet, and never lower than the body-centre position. The Reference
+ * Climber's depth is pinned at `ref` (its body's `lock_depth_m`), the depth at `lockoff ≈ 29`, so the DI scale
+ * keeps one reach (05c §1.1). **(tune)**
  */
-export const LOCKOFF = { depth: 0.30, stand: 0.9 };
+export const LOCKOFF = { depth: [0.40, 0.05] as const, ref: 0.30, stand: 0.9 };
+
+/** Lock depth (m at 170 cm) for an athlete: pinned on the Reference Climber, else from effective `lockoff`. */
+export function lockDepth(ath: Athlete): number {
+  if (ath.body.lock_depth_m !== undefined) return ath.body.lock_depth_m;
+  const lo = Math.min(100, Math.max(0, ath.a.lockoff * (ath.mods.attr_mult.lockoff ?? 1))) / 100;
+  return LOCKOFF.depth[0] + (LOCKOFF.depth[1] - LOCKOFF.depth[0]) * lo;
+}
 
 export function bodyPoints(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyPoints {
   const k = kinematics(ath.body);
@@ -157,7 +165,7 @@ export function bodyPoints(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyP
   const hip = { x: C.x + side * off.hip[0] * scale, s: C.s + off.hip[1] * scale };
   if (hands.length === 1 && C_feet) {
     const torso = k.height_m - k.leg_len - 0.13 * k.height_m;
-    shoulder.s = Math.max(shoulder.s, Math.min(hands[0]!.s - LOCKOFF.depth * scale, C_feet.s + LOCKOFF.stand * (k.leg_len + torso)));
+    shoulder.s = Math.max(shoulder.s, Math.min(hands[0]!.s - lockDepth(ath) * scale, C_feet.s + LOCKOFF.stand * (k.leg_len + torso)));
   }
   return {
     C, C_hands, shoulder, hip,

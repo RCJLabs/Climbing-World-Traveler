@@ -10,8 +10,11 @@ import fontBenchmarksJson from '../../data/routes/fontainebleau_benchmarks.json'
 import { BackgroundSchema, CragSchema, NamesSchema, ProfileSchema, RouteSchema, TraitSchema } from './schema';
 import type { Background, Crag, CragStyleProfile, DataBundle, NameBank, Route, Trait } from '../sim/types';
 
-/** Content and generator version (18 §5). Bump when the same seed would build a different problem. */
-export const DATA_VERSION = 'p1a-3';
+/**
+ * Content and rules version (18 §5). Bump when the same seed would build a different problem, or the same actions
+ * would play out differently: P1a keeps no old generators or reducers, so such a run cannot be replayed.
+ */
+export const DATA_VERSION = 'p1a-4';
 
 const byId = <T extends { id: string }>(items: T[]): Map<string, T> => new Map(items.map((x) => [x.id, x]));
 
