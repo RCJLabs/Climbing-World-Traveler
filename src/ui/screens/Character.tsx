@@ -6,7 +6,7 @@ import type { RunState } from '../../sim/state';
 import { LIFESTYLE_ATTRS, MENTAL_ATTRS, PHYSICAL_ATTRS, TECHNIQUE_ATTRS, type AttrId } from '../../sim/types';
 import { Meter, TabBar, Top } from '../components';
 import { ATTR_LABEL, grade, LATER_ATTRS } from '../format';
-import { data, exportCurrent } from '../store';
+import { data, exportCurrent, goto } from '../store';
 
 export function Character({ run }: { run: RunState }) {
   const ath = athleteOf(run, data);
@@ -57,6 +57,7 @@ export function Character({ run }: { run: RunState }) {
         {group('Mental', MENTAL_ATTRS)}
         {group('Lifestyle', LIFESTYLE_ATTRS)}
         <p class="small soft">Sandstone knowledge {Math.round(run.rock_knowledge['sandstone_font'] ?? 0)} · {run.ticks.filter((t) => t.style !== 'repeat').length} problems ticked · {run.counters.climb_days} climbing days</p>
+        <button class="btn" onClick={() => goto({ name: 'playtest' })}>Playtest stats</button>
         <button class="btn" onClick={() => void exportCurrent()}>Export this run</button>
       </div>
       <TabBar />

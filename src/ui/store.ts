@@ -18,7 +18,8 @@ export type Screen =
   | { name: 'result' }
   | { name: 'character' }
   | { name: 'summary' }
-  | { name: 'hall' };
+  | { name: 'hall' }
+  | { name: 'playtest' };
 
 export const data = bundle();
 export const screen = signal<Screen>({ name: 'title' });
@@ -121,6 +122,11 @@ export async function exportCurrent(): Promise<void> {
   a.download = `${file.record.title.replace(/\W+/g, '_')}_${file.record.run_seed}.cwt.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** The current run's whole action log, for the playtest stats (docs/19 §3). */
+export async function currentActions(): Promise<Action[] | null> {
+  return session ? (await session.exportFile()).actions : null;
 }
 
 export function goto(s: Screen): void {
