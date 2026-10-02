@@ -164,7 +164,7 @@ All run headless in the harness ([19](19-balance-and-simulation-testing.md)), in
 | C2 | Reference self-consistency | For 50 graded routes per DI step `n`, run 2,000 dice attempts with the Reference Climber at `n` | send rate within `35 % ± 5` per route; mean across routes within `± 2` |
 | C3 | Monotonicity | `P_send(DI_trial)` for every graded route | non-decreasing; exactly one crossing of `X` |
 | C4 | Determinism | Grade the same route twice from the same seed, on two platforms | bitwise-identical `di_graded` |
-| C5 | Geometric stability | Jitter every hold by `N(0, 0.02 m)`, regrade | `|ΔDI| ≤ 0.5` for ≥ 95 % |
+| C5 | Geometric stability | Jitter every hold by `N(0, 0.02 m)` across the rock (`x`) and along it (`s`), regrade. Not in height: 2 cm of height is about 6 cm of rock on a 160° roof, and more as it flattens | `|ΔDI| ≤ 0.5` for ≥ 95 % |
 | C6 | Style neutrality | Mean `di_graded − di_target` per dominant hold family | families within `±0.3` of each other (no systematic sandbag of one hold type) |
 | C7 | Signature routes | Every `signature: true` route | engine within `±1.0` of `di_target` ([schemas §9](schemas.md#9-validation-rules-enforced-by-the-content-validator-see-20) rule 6) |
 | C8 | Timing share | Replace Auto-commit with novice/average/expert tap distributions | timing explains ≤ 10 % of send variance ([19](19-balance-and-simulation-testing.md)) |

@@ -1,8 +1,8 @@
 // Grade engine (docs/05c). Runs the play engine in expected-value mode against the Reference Climber.
 
 import { NEUTRAL_MODS, refFat, refMass, type Athlete } from './character';
-import { applyMove, prepareMove } from './engine';
-import { autoCommitPApex, evaluate, moveDifficulty, powerPool, probs, recoveryChance, REFERENCE_CONDITIONS, sRef, type Conditions, type MoveState } from './resolve';
+import { applyMove, prepareMove, type Prepared } from './engine';
+import { autoCommitPApex, evaluate, moveDifficulty, powerPool, probs, recoveryChance, REFERENCE_CONDITIONS, sRef, type Conditions, type Evaluation, type MoveState } from './resolve';
 import { ALL_ATTRS, type AttrId, type Body, type Route } from './types';
 import { bodyPoints, choosePosture, LOCKOFF, routeGeom, yOfS, type ClimbState, type RouteGeom } from './wall';
 
@@ -47,6 +47,8 @@ export interface WalkOptions {
   cond?: Conditions;
   fam?: number;
   spotQuality?: number;
+  /** Called once per resolved step, for probes and debugging; does not change the walk. */
+  trace?: (step: number, chosen: Prepared, e: Evaluation, pMove: number) => void;
 }
 
 export function startState(geom: RouteGeom, ath: Athlete): ClimbState {
@@ -97,6 +99,7 @@ export function evWalk(geom: RouteGeom, ath: Athlete, opts: WalkOptions = {}): W
       cost2 = e2.pump_cost * pumpScale;
     }
     const pMove = p.clean + p.sketchy + p.slip * pRec * p2;
+    opts.trace?.(out.margins.length, chosen, e, pMove);
     out.p_send *= pMove;
     out.margins.push(e.margin + bonus);
     out.mds.push(moveDifficulty(chosen.spec).MD);

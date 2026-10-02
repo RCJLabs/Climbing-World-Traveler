@@ -14,7 +14,7 @@ import type {
   BetaStep, CircuitColour, Crag, CragStyleProfile, DataBundle, Hold, HoldType, Limb, MoveClass, Route, Sector, SizeClass, WallSegment,
 } from './types';
 import {
-  bodyPoints, dist, freeState, HIGH_STEP_ABOVE_HIP, limbKind, otherHand, reachRadius, routeGeom, segmentAt, sOfY, yOfS, type ClimbState,
+  bodyPoints, COMPRESSION_WIDTH, dist, freeState, HIGH_STEP_ABOVE_HIP, limbKind, otherHand, reachRadius, routeGeom, segmentAt, sOfY, withHold, WRONG_SIDE_M, yOfS, type ClimbState,
 } from './wall';
 
 export const BOULDER_WIDTH = 2.0;
@@ -40,6 +40,8 @@ export const TRACE = {
   heelBias: 1.0,
   /** Fewest hand moves a line may have; shorter traces are retried with a new seed. */
   minHandMoves: 3,
+  /** A beta move stays legal, with the same class and posture, with its hold this far (m) away across or along the rock, and keeps twice this from the wrong-side line (06 §2.3, C5). **(tune)** */
+  legalMargin: 0.03,
 };
 
 /** Generator diagnostics: why attempts were discarded. Read by the probe and calibration scripts. */
@@ -173,8 +175,10 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
     holds.push(h);
     return h;
   };
-  start.LH = add(x0 - 0.22, ys, sampleHandType(profile, rng, null), 'LH').id;
-  start.RH = add(x0 + 0.22, ys + rng.range(-0.05, 0.1), sampleHandType(profile, rng, null), 'RH').id;
+  // Start hands well inside the compression width, so the start posture does not hang on a threshold.
+  const half = COMPRESSION_WIDTH / 2 - TRACE.legalMargin;
+  start.LH = add(x0 - half, ys, sampleHandType(profile, rng, null), 'LH').id;
+  start.RH = add(x0 + half, ys + rng.range(-0.05, 0.1), sampleHandType(profile, rng, null), 'RH').id;
   const fy = Math.max(0.15, ys - rng.range(0.7, 0.9));
   start.LF = add(x0 - 0.18, fy, sampleFootType(profile, rng, segmentAt(wall, fy).angle, 'static'), 'LF').id;
   start.RF = add(x0 + 0.18, fy + rng.range(-0.05, 0.08), sampleFootType(profile, rng, segmentAt(wall, fy).angle, 'static'), 'RF').id;
@@ -185,6 +189,31 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
     start, finish_hold: '', length_m: height, style_tags: [], signature: false, beta_line: [],
   };
   const geomOf = () => routeGeom(route);
+  /**
+   * Legality and posture have hard edges (full reach, the wrong-side line, the high-step line, the drop-knee and
+   * compression tests); a line never sits on one. The move must stay legal with the same class, and leave the body
+   * in the same posture, with its hold moved by the margin either way across or along the rock.
+   */
+  const robust = (limb: Limb, hold: Hold, cls: MoveClass): boolean => {
+    const m = TRACE.legalMargin;
+    // The wrong-side line is between two holds that both move, so it gets the margin twice.
+    const otherId = st.anchors[otherHand(limb)];
+    const other = otherId && otherId !== hold.id ? holds.find((h) => h.id === otherId) : undefined;
+    if (other) {
+      const right = limb === 'RH' || limb === 'RF';
+      const room = right ? hold.x - (other.x - WRONG_SIDE_M[limbKind(limb)]) : other.x + WRONG_SIDE_M[limbKind(limb)] - hold.x;
+      if (room < 2 * m) return false;
+    }
+    // Moving the holds the body stands on as well caught no more C5 failures (772 vs 774 of 800) at twice the cost.
+    const base = geomOf();
+    const posture = applyMove(base, ath, st, limb, hold.id, cls).posture;
+    const s = sOfY(wall, hold.y);
+    for (const [dx, ds] of [[m, 0], [-m, 0], [0, m], [0, -m]] as const) {
+      const g = withHold(base, { ...hold, x: hold.x + dx, y: yOfS(wall, s + ds) });
+      if (!prepareMove(g, ath, st, limb, hold.id, cls) || applyMove(g, ath, st, limb, hold.id, cls).posture !== posture) return false;
+    }
+    return true;
+  };
   let geom = geomOf();
   let st: ClimbState = startState(geom, ath);
   const beta: BetaStep[] = [];
@@ -236,7 +265,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
         .sort((a, b) => Math.hypot(a.x - fx, a.s - fs) - Math.hypot(b.x - fx, b.s - fs))[0];
       if (reuse) {
         const rp = prepareMove(geom, ath, st, foot, reuse.id);
-        if (rp) {
+        if (rp && robust(foot, holds.find((h) => h.id === reuse.id)!, rp.cls)) {
           count('foot_reuse');
           beta.push({ limb: foot, hold: reuse.id, class: rp.cls });
           st = applyMove(geom, ath, st, foot, reuse.id, rp.cls);
@@ -252,7 +281,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
       if (wantHeel) fh.quality = 0.55;
       geom = geomOf();
       const fprep = prepareMove(geom, ath, st, foot, fh.id, wantHeel ? 'heel_hook' : undefined) ?? prepareMove(geom, ath, st, foot, fh.id);
-      if (!fprep) { holds.pop(); geom = geomOf(); continue; }
+      if (!fprep || !robust(foot, fh, fprep.cls)) { holds.pop(); geom = geomOf(); continue; }
       count(`foot_${fprep.cls}`);
       beta.push({ limb: foot, hold: fh.id, class: fprep.cls });
       st = applyMove(geom, ath, st, foot, fh.id, fprep.cls);
@@ -320,8 +349,24 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
       geom = geomOf();
       prep = prepareMove(geom, ath, st, hand, placed.id, cls) ?? prepareMove(geom, ath, st, hand, placed.id);
     }
+    if (prep && !robust(hand, placed, prep.cls)) {
+      // Ease the hold in by the margin until it clears the edge, so the move stays as long as it can be.
+      count('edge');
+      prep = null;
+      for (let k = 0; k < 4 && !prep; k++) {
+        const ds = sOfY(wall, placed.y) - bp.shoulder.s;
+        const dx = placed.x - bp.shoulder.x;
+        const f = Math.max(0, 1 - TRACE.legalMargin / Math.max(1e-9, Math.hypot(dx, ds)));
+        placed.x = bp.shoulder.x + dx * f;
+        placed.y = finishing ? placed.y : yOfS(wall, bp.shoulder.s + ds * f);
+        geom = geomOf();
+        prep = prepareMove(geom, ath, st, hand, placed.id, cls) ?? prepareMove(geom, ath, st, hand, placed.id);
+        if (prep && !robust(hand, placed, prep.cls)) prep = null;
+      }
+      if (!prep) count('edge_unresolved');
+    }
     if (!prep) {
-      // Pull the hold in towards the shoulder until the reference body can reach it.
+      // Pull the hold in towards the shoulder until the reference body can reach it with room to spare.
       count('pull_in');
       for (let k = 0; k < 4 && !prep; k++) {
         placed.x = bp.shoulder.x + (placed.x - bp.shoulder.x) * 0.85;
@@ -329,6 +374,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
         placed.y = finishing ? placed.y : yOfS(wall, s);
         geom = geomOf();
         prep = prepareMove(geom, ath, st, hand, placed.id);
+        if (prep && !robust(hand, placed, prep.cls)) prep = null;
       }
       if (!prep) return note('unreachable');
     }
@@ -547,7 +593,8 @@ export function generateBoulder(req: GenRequest): Route {
       const protectedHold = Object.values(route.start).includes(h.id) || h.id === route.finish_hold || [...crux].some((i) => route.beta_line[i]?.hold === h.id);
       if (onLine && !protectedHold && hr.bool(req.profile.hidden_rate)) h.hidden = true;
     }
-    route.protection = [{ id: 'pad', kind: 'pad_zone', y: 0.3, x: route.holds.find((h) => h.id === route.start.LH)!.x + 0.22, width_m: 2.0, quality: req.profile.pad_coverage }];
+    const startX = (route.holds.find((h) => h.id === route.start.LH)!.x + route.holds.find((h) => h.id === route.start.RH)!.x) / 2;
+    route.protection = [{ id: 'pad', kind: 'pad_zone', y: 0.3, x: startX, width_m: 2.0, quality: req.profile.pad_coverage }];
     let g = gradeRoute(route);
     for (let i = 0; i < 6 && g.di !== null && Math.abs(g.di - req.di_target) > 0.5; i++) {
       adjust(route, crux, g.di - req.di_target);
