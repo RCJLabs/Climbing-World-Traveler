@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
 import { athleteOf, autoClimbAction, limbOptions, routeEntry } from '../src/sim/attempt';
 import { BotDriver, PROJECT_POLICY } from '../src/sim/bot';
-import { estimateBoulderDI } from '../src/sim/estimate';
+import { BENCH_PER_PROFILE, estimateBoulderDI } from '../src/sim/estimate';
 import { workedExampleBuilds } from '../src/harness/sim';
-import { evWalk, referenceAthlete } from '../src/sim/grade';
+import { evWalk, gradeRoute, referenceAthlete } from '../src/sim/grade';
 import { DEFAULT_OPTIONS, PRESETS, presetSpec } from '../src/sim/presets';
 import { applyAction, createRun, InvalidAction, reduce, replay, sectorList } from '../src/sim/run';
 import type { RunState } from '../src/sim/state';
@@ -70,6 +70,25 @@ describe('creation', () => {
 describe('estimate (02 §C.3)', () => {
   it('returns the Reference Climber its own DI', () => {
     for (const d of [10, 14, 18, 22]) expect(Math.abs(estimateBoulderDI(referenceAthlete(d), 'fontainebleau', bundle) - d)).toBeLessThan(0.6);
+  });
+
+  const shipped = bundle.benchmarks.get('fontainebleau')!;
+
+  it(`ships ${BENCH_PER_PROFILE} benchmark problems per style per level, up to each style's ceiling`, () => {
+    const crag = bundle.crags.get('fontainebleau')!;
+    for (const pid of new Set(crag.sectors.flatMap((s) => s.style_profiles))) {
+      const cap = bundle.profiles.get(pid)!.di_max ?? Infinity;
+      const byLevel = new Map<number, number>();
+      for (const r of shipped.filter((x) => x.seed?.includes(`:${pid}:`))) byLevel.set(r.di_target, (byLevel.get(r.di_target) ?? 0) + 1);
+      for (const [level, n] of byLevel) {
+        expect(level).toBeLessThanOrEqual(cap);
+        expect(n, `${pid} at ${level}`).toBe(BENCH_PER_PROFILE);
+      }
+    }
+  });
+
+  it('ships benchmark grades that match the current engine (rebuild with pnpm benchmarks)', () => {
+    for (const r of shipped) expect(Math.abs(gradeRoute(r).di! - r.di_graded), r.seed).toBeLessThanOrEqual(0.006);
   });
 });
 

@@ -9,11 +9,18 @@ import type { DataBundle, Route } from './types';
 import { routeGeom, type RouteGeom } from './wall';
 
 const LEVELS = [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
+/**
+ * Problems per style profile per level. A lopsided build climbs some problems up to 1.4 DI better or worse than
+ * others of the same grade, and only the two levels around its grade decide the estimate. With one per profile a
+ * build's estimate moved with the benchmark seeds by up to 0.9 DI (standard deviation); four bring that to about
+ * 0.3 (doc 22, scripts/dev/probe-estimate-size.ts). **(tune)**
+ */
+export const BENCH_PER_PROFILE = 4;
 
 export interface Bench { level: number; di: number; geom: RouteGeom }
 const benchCache = new Map<string, Bench[]>();
 
-/** Generate the benchmark set for a crag: one problem per style profile per level, from fixed seeds. `salt` builds another set, for probes. */
+/** Generate the benchmark set for a crag: `BENCH_PER_PROFILE` problems per style profile per level, from fixed seeds. `salt` builds another set, for probes. */
 export function generateBenchmarks(cragId: string, bundle: DataBundle, salt = ''): Route[] {
   const crag = bundle.crags.get(cragId);
   if (!crag) throw new Error(`unknown crag ${cragId}`);
@@ -26,11 +33,15 @@ export function generateBenchmarks(cragId: string, bundle: DataBundle, salt = ''
       if (!profile || !sector) continue;
       // A style is not benchmarked above the hardest DI it can be built to (06 §2.1).
       if (level > (profile.di_max ?? Infinity)) continue;
-      try {
-        const route = generateBoulder({ crag, sector, profile, di_target: level, seed: `bench${salt}:${cragId}:${pid}:${level}`, bundle });
-        out.push({ ...route, di_target: level });
-      } catch {
-        // A benchmark that fails to generate is skipped; the level keeps its other profiles.
+      for (let k = 0; k < BENCH_PER_PROFILE; k++) {
+        // The first keeps the seed it had when there was one problem per profile.
+        const seed = `bench${salt}:${cragId}:${pid}:${level}${k ? `:${k}` : ''}`;
+        try {
+          const route = generateBoulder({ crag, sector, profile, di_target: level, seed, bundle });
+          out.push({ ...route, di_target: level });
+        } catch {
+          // A benchmark that fails to generate is skipped; the level keeps its other problems.
+        }
       }
     }
   }
@@ -60,7 +71,7 @@ export function estimateBoulderDI(ath: Athlete, cragId: string, bundle: DataBund
 export function estimateFrom(ath: Athlete, bench: Bench[]): number {
   const pts: { x: number; p: number }[] = [];
   let runMin = 1;
-  for (const level of LEVELS) {
+  for (const level of [...new Set(bench.map((b) => b.level))].sort((a, b) => a - b)) {
     const set = bench.filter((b) => b.level === level);
     if (!set.length) continue;
     const p = set.reduce((s, b) => s + evWalk(b.geom, ath).p_send, 0) / set.length;
