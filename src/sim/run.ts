@@ -89,6 +89,9 @@ export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle): R
 
 // ---------------------------------------------------------------- sessions and slots (06 §5)
 
+/** Sessions in a row without a send before each further one costs stoke (02 §D, doc 22). **(tune)** */
+export const STOKE_FAIL_SESSIONS = 3;
+
 const SLOT_BANDS: [kind: RouteSlot['kind'], lo: number, hi: number][] = [
   ['warmup', -4, -3], ['mid', -2, 0], ['mid', -2, 0], ['mid', -2, 0], ['push', 0, 2], ['push', 0, 2], ['push', 0, 2], ['project', 3, 4],
 ];
@@ -162,7 +165,8 @@ function endSession(run: RunState, s: SessionState, bundle: DataBundle): void {
     if (s.sends > 0) run.counters.failure_streak = 0;
     else {
       run.counters.failure_streak = Math.min(10, run.counters.failure_streak + 1);
-      run.res.stoke = clamp(run.res.stoke - 2, 0, 100);
+      // One blank session is part of projecting; a run of them wears you down (12 §9, doc 22).
+      if (run.counters.failure_streak >= STOKE_FAIL_SESSIONS) run.res.stoke = clamp(run.res.stoke - 2, 0, 100);
     }
   }
   if (!run.counters.week_sectors.includes(s.sector)) {
@@ -300,9 +304,10 @@ function endDay(run: RunState, bundle: DataBundle): void {
   if (c.loads.length > 35) c.loads.shift();
   const ratio = acwr(c.loads);
 
-  // Burnout (12 §7).
+  // Burnout (12 §7). Failing sessions weigh only on days you climb: charged on rest days too, a long failure
+  // streak outweighed rest, so burnout could never fall and the forced break repeated for the rest of the run.
   const novelty = c.new_sectors_today > 0 ? 1 : 0;
-  const dB = (0.15 * c.monotony_weeks + 0.1 * c.failure_streak + 0.05 * Math.max(0, (ratio ?? 1) - 1.3) * 10 - 0.6 * (restDay ? 1 : 0) - 0.4 * novelty)
+  const dB = (0.15 * c.monotony_weeks + 0.1 * (climbed ? c.failure_streak : 0) + 0.05 * Math.max(0, (ratio ?? 1) - 1.3) * 10 - 0.6 * (restDay ? 1 : 0) - 0.4 * novelty)
     * (1 - resilience / 200);
   run.res.burnout = clamp(run.res.burnout + dB, 0, 100);
   c.new_sectors_today = 0;

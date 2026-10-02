@@ -14,7 +14,8 @@ export function clockOf(id: AttrId): Clock {
   return 'neural';
 }
 
-const K_CLOCK: Record<Clock, number> = { neural: 0.09, muscle: 0.045, tendon: 0.03 };
+/** Gain per unit of stimulus by clock (12 §3); 5/6 of the original 0.09 / 0.045 / 0.03, set with DIMINISH_EXP. **(tune)** */
+const K_CLOCK: Record<Clock, number> = { neural: 0.075, muscle: 0.0375, tendon: 0.025 };
 const ADAPT_DIFFICULTY: Record<Difficulty, number> = { story: 1.15, standard: 1.0, hard: 0.9 };
 
 export interface GainContext {
@@ -31,6 +32,13 @@ export interface GainContext {
 
 export const stokeMult = (stoke: number): number => (stoke < 20 ? 0.5 : stoke > 80 ? 1.1 : 1.0);
 
+/**
+ * Ceiling approach for stimulus and technique XP, `(1 − value/ceiling)^DIMINISH_EXP` (12 §3). At 1.5 careers
+ * flattened to +0.5 DI a year by year four with attributes at half their ceilings; at 0.5, with the gain rates cut
+ * to 5/6, years three and four keep about 1 DI a year (doc 22 §5). **(tune)**
+ */
+export const DIMINISH_EXP = 0.5;
+
 /** Tendon-clock half-time in days (12 §2, 11 §3). */
 export function tendonHalfTime(age: number, tendonRobustness: number): number {
   return 90 * (1 + Math.max(0, age - 25) / 20) * (1.2 - 0.4 * tendonRobustness / 100);
@@ -44,7 +52,7 @@ export function applyStimulus(ctx: GainContext, stim: Partial<Record<AttrId, num
     if (!s || s <= 0) continue;
     const st = ctx.attrs[id];
     const rate = ageAdaptMult(id, ctx.age) * (ctx.mods.adapt_rate_mult[id] ?? 1) * ADAPT_DIFFICULTY[ctx.difficulty];
-    const diminish = Math.pow(Math.max(0, 1 - (st.value + st.pending) / st.ceiling), 1.5);
+    const diminish = Math.pow(Math.max(0, 1 - (st.value + st.pending) / st.ceiling), DIMINISH_EXP);
     const base = s * rate * life * stokeMult(ctx.stoke) * diminish;
     if (s >= 3) st.last_stim_day = ctx.day;
     if (id === 'finger_strength') {
@@ -64,8 +72,8 @@ export function applyStimulus(ctx: GainContext, stim: Partial<Record<AttrId, num
   return out;
 }
 
-/** Base technique XP per move (02 §B.2 proposes 0.06; the P1a harness put a full-time year at +7 DI with it). */
-export const TECH_BASE_GAIN = 0.015;
+/** Base technique XP per move (02 §B.2 proposes 0.06; the P1a harness put a full-time year at +7 DI with it; 0.015 before the gain rates went to 5/6). */
+export const TECH_BASE_GAIN = 0.0125;
 
 /** Technique XP for one move (02 §B.2), before session multipliers. */
 export function techniqueXp(margin: number, novelty: number, outcome: 'clean' | 'sketchy' | 'slip' | 'fall'): number {
@@ -83,7 +91,7 @@ export function applyTechniqueXp(ctx: GainContext, xp: Partial<Record<AttrId, nu
     if (!x) continue;
     const st = ctx.attrs[id];
     const rate = ageAdaptMult(id, ctx.age) * (ctx.mods.adapt_rate_mult[id] ?? 1) * ADAPT_DIFFICULTY[ctx.difficulty] * stokeMult(ctx.stoke);
-    const g = x * mult * rate * Math.max(0, 1 - st.value / st.ceiling);
+    const g = x * mult * rate * Math.pow(Math.max(0, 1 - st.value / st.ceiling), DIMINISH_EXP);
     st.value = Math.min(st.ceiling, st.value + g);
     st.last_stim_day = ctx.day;
     out[id] = g;

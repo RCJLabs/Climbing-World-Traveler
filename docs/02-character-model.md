@@ -65,8 +65,9 @@ All attributes are `0..100` with a per-climber `ceiling`. The scale is relative 
 Technique trains only by doing. **XP rule (per move):**
 
 ```
-gain = base_gain × novelty × margin_factor × outcome_factor × (1 − value/ceiling)
-  base_gain      = 0.06                                   (tune)
+gain = base_gain × novelty × margin_factor × outcome_factor × (1 − value/ceiling)^0.5
+  base_gain      = 0.06                                   (tune; P1a uses 0.0125, see 22 §3)
+  (1 − value/ceiling)^0.5 is the same ceiling approach as physical gains (12 §3); it was linear
   novelty        = 1 + 0.5 × (1 − familiarity_with(hold_type, move_class, rock))
   margin_factor  = exp(−(margin / 0.6)²)                  peaks when the move was at the edge of ability
   outcome_factor = 1.0 clean · 0.7 sketchy · 0.5 slip or fall (informative failure)
