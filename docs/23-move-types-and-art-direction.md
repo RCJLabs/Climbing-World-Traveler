@@ -2,7 +2,7 @@
 
 The climbing overhaul. Different moves ask different things of a climber, so they get different controls: a dyno is aimed, launched and caught; a balance move is held in balance; an ordinary reach is gripped and placed. The look moves to **Flat Dusk** on the three-quarter camera. The character builder, the career, training, the route generator and the grade engine stay; this doc says how the new controls feed the same engine.
 
-**Status:** steps 1–5 of §5 are built: the dyno prototype (§6), the Flat Dusk look, Swing and Catch for dynos and deadpoints (§3.3), Two-Thumb Grip for most other moves (§2.1, §3.1) and Lean for the moves the stance test flags (§2.2, §3.2). Neither Two-Thumb Grip nor Lean has been played on a phone yet. Step 6 (per-type skill limits) is next.
+**Status:** steps 1–5 of §5 are built: the dyno prototype (§6), the Flat Dusk look, Swing and Catch for dynos and deadpoints (§3.3), Two-Thumb Grip for most other moves (§2.1, §3.1) and Lean for the moves the stance test flags (§2.2, §3.2). Neither Two-Thumb Grip nor Lean has been played on a phone yet. Step 6 is built too: C8 measures each move type's skill share on its own, against its own limit and the old total (§3.4).
 
 **Supersedes:** [05b §8](05b-move-resolution-and-attempt-loop.md#8-commit-window) (the commit window; replaced by §3.3, Auto-commit kept) and [17 §4](17-ui-ux.md) (the commit bar); [17 §2](17-ui-ux.md)'s *Go* for every move (§2.1, §2.2). Picking a limb and a hold, the decision triangle and the HUD of 17 §2–§3 stay. **Amends:** [01 §3](01-pillars-scope-roadmap.md#3-non-goals) (non-goals) and the input rules in `CLAUDE.md`.
 
@@ -140,16 +140,16 @@ The prototype (§6) used a stat-based top speed (`(2.6 + 0.024 × power) × …`
 - A slip the input forced (a cut dyno, a reach too slow for the grip, a barn door) is marked on the move (`forced`), so the result screen says why instead of blaming the dice.
 - Replay recomputes everything from the logged numbers: the flight and the drift are pure functions of `perf` and the state.
 - The grade engine ([05c](05c-grade-engine.md)) evaluates every move with Auto. The generator's legality and margin checks ([06 §2.3](06-procedural-routes.md)) are unchanged.
-- [19](19-balance-and-simulation-testing.md) C8 runs on the Swing and Catch, Reach and Balance skill models together (19 §3), every non-dyno move played by hand. Expert − novice:
+- [19](19-balance-and-simulation-testing.md) C8 runs per move type (step 6): each type's skill model alone, the others on Auto, on the problems where it matters, and all three together on the dynamic problems, where the total is largest. Expert − novice, points:
 
-  | Sample | All three | Swing and Catch + Reach | Swing and Catch alone | Commit bar |
+  | Row | Problems near DI 16 | Limit **(tune)** | normal | `--full` |
   |---|---|---|---|---|
-  | normal (10 dynamic problems) | 6.9 (Auto 32%, novice 27%, average 32%, expert 34%) | 6.1 | 6.1 | 6.9 |
-  | `--full` (30 dynamic problems) | **7.9** (Auto 33%, novice 29%, average 34%, expert 37%) | 7.6 | 6.6 | 7.9 |
-  | 10 slab problems, no dynos (`scripts/dev/probe-skill.ts`) | 1.7 | — | — | — |
-  | 10 other problems, no dynos | 2.1 | 1.4 (Reach alone) | — | — |
+  | dyno (Swing and Catch) | dynamic (> 15% dynamic moves) | 7 | 6.1 | 6.6 |
+  | reach (Two-Thumb Grip) | no dynos, not slab | 3 | 1.8 | 2.0 |
+  | balance (Lean) | slab, no dynos | 3 | 0.6 | 0.9 |
+  | all three | dynamic | 8 | 6.9 | **7.9** |
 
-  The full sample sits 0.1 under C8's bar: the three types now share it, and step 6 has to split it per type.
+  The types do not add: on dynamic problems the dyno carries most of the gap, and Reach and Balance add 1.3 on top. The total is still C8's old bar of 8, so it binds first. Raising it, say to 10, is the one number to change if the types should matter more (§5, open questions).
 
 ---
 
@@ -196,7 +196,7 @@ The prototype (§6) used a stat-based top speed (`(2.6 + 0.024 × power) × …`
 | 3 ✓ | Swing and Catch in the engine and on the wall; the commit window removed | C1–C9 pass; replay identity; old saves rejected cleanly by version |
 | 4 (built) | Reach: Two-Thumb Grip and its one-thumb mode | playtest: crux moves feel quicker, not slower (**not yet played on a phone**) |
 | 5 (built) | Balance: stance test, Lean, BASE inset | the stance test flags 5–15% of moves on Font problems (harness): **11.5%** (slab 41%, bulge 7%, roof 0%). Not yet played on a phone |
-| 6 | Harness: per-type skill models; C8 per type | C8 within limits for every type |
+| 6 (built) | Harness: per-type skill models; C8 per type | C8 within limits for every type: met on the normal and full samples (§3.4) |
 
 ---
 
@@ -223,7 +223,7 @@ Measured on the model (game time, best launch): a strong build (power 75, contac
 - **Ring size.** The placement ring is 24 px on screen whatever the zoom, so zooming in does not make placement easier. Whether it should scale with the hold's size is open.
 - **Feet.** Feet run no clock, so a foot move is a placement only. The mockup's "feet follow you" (feet placed for you) would cut moves per problem roughly in half; it would also take the footwork decisions away.
 - **The stance test by style.** 11.5% overall meets the exit, but 41% of slab moves are Balance moves, nearly every foot move among them (in the browser checks a foot letting go left the centre of mass 7–19 cm outside the base). Whether a slab problem that is mostly lean-then-reach feels right, or whether foot moves should need a tighter edge, is a playtest question.
-- **C8 is full.** All three skill types together read 7.9 against 8 on the full sample. Step 6 decides whether the bar stays a total (and every type stays as gentle as now) or becomes per type with a looser total.
+- **C8's total.** Each type is inside its own limit, but all three together read 7.9 against the total of 8 on the full sample, so any type made sharper needs the total raised. Kept at 8 until a playtest says skill should matter more; if it should, the total (and probably the dyno's 7) is the number to move, then the type constants in §3.1–§3.3.
 - **Lean mapping.** A lean drag moves the hips 1.5 mm per screen pixel whatever the zoom, and the drift runs along one fixed line. Whether the drift should curve toward the nearest edge, and whether the gain should follow the zoom, are open.
 - **The barn door resolves itself.** At 1.5 s out the move resolves as a slip without a tap; the alternative (the limb comes off but the player keeps control) needs an engine state for a body swinging on two anchors.
 - **Dyno Auto.** Keeping 05b §8.4 leaves grades untouched; deriving Auto from the flight model instead would make Auto honour reach and power directly but would move dyno grades and need a recalibration.

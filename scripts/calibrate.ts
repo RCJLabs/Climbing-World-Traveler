@@ -1,7 +1,7 @@
 // Grade-engine calibration (docs/05c §4 C1–C9, 19 §5). `pnpm calibrate --quick` is the CI gate; plain
 // `pnpm calibrate` is the fuller sweep; `--full` uses the doc's sample sizes (slow).
 import { loadBundle } from '../src/data/bundle';
-import { diceAttempt, mean, spearman, syntheticRun, workedExampleBuilds, type Timing } from '../src/harness/sim';
+import { diceAttempt, mean, onlyType, spearman, syntheticRun, workedExampleBuilds, type SkillProfile, type Timing } from '../src/harness/sim';
 import { evWalk, gradeRoute, referenceAthlete, sendCurve, X_SEND } from '../src/sim/grade';
 import { stream } from '../src/sim/rng';
 import { generateBoulder, routeFromSeed, routeSeed } from '../src/sim/routes';
@@ -124,21 +124,45 @@ const c2mean = mean(c2rates);
 record('C2 reference self-consistency', Math.abs(c2mean - X_SEND) <= 0.05, `mean dice send rate ${(100 * c2mean).toFixed(1)}% over ${c2rates.length} problems (target 35 ± 5)`, false);
 for (const r of c2rows) log(`    ${r}`);
 
-// ---------------------------------------------------------------- C8 timing share (simplified: send-rate gaps)
-const timingRoutes = ok.filter((x) => x.route.components && x.route.components.dynamic_share > 0.15 && Math.abs(x.route.di_graded - 16) <= 1.5).slice(0, S.c8routes);
-const rates: Record<Timing, number[]> = { auto: [], novice: [], average: [], expert: [], oracle: [] };
-for (const x of timingRoutes) {
-  const base = syntheticRun(referenceAthlete(x.route.di_graded), `c8:${x.route.id}`, bundle);
-  for (const t of ['auto', 'novice', 'average', 'expert'] as Timing[]) {
+// ---------------------------------------------------------------- C8 skill share per move type (simplified: send-rate gaps)
+// Each move type is measured alone (its skill varied, the others on Auto) on the problems where it matters, and all
+// three together on the dynamic problems, where the total is largest (docs/19 §3, docs/23 §5 step 6). (tune)
+const near16 = (x: (typeof ok)[number]) => Math.abs(x.route.di_graded - 16) <= 1.5;
+const dynShare = (x: (typeof ok)[number]) => x.route.components?.dynamic_share ?? 0;
+const c8sets = {
+  dynamic: ok.filter((x) => near16(x) && dynShare(x) > 0.15).slice(0, S.c8routes).map((x) => x.route),
+  'no-dyno': ok.filter((x) => near16(x) && dynShare(x) === 0 && x.profile !== 'font_sloper_slab').slice(0, S.c8routes).map((x) => x.route),
+  slab: ok.filter((x) => near16(x) && dynShare(x) === 0 && x.profile === 'font_sloper_slab').slice(0, S.c8routes).map((x) => x.route),
+};
+/** Per-type limits on expert − novice, and the total's. The total is the old C8 bar; the types share it. (tune) */
+const C8_LIMITS = { dyno: 0.07, reach: 0.03, balance: 0.03, all: 0.08 };
+const c8rows: { id: keyof typeof C8_LIMITS; set: keyof typeof c8sets; skill: (t: Timing) => Timing | SkillProfile }[] = [
+  { id: 'dyno', set: 'dynamic', skill: (t) => onlyType('swing', t) },
+  { id: 'reach', set: 'no-dyno', skill: (t) => onlyType('reach', t) },
+  { id: 'balance', set: 'slab', skill: (t) => onlyType('balance', t) },
+  { id: 'all', set: 'dynamic', skill: (t) => t },
+];
+const autoRate = new Map<string, number>();
+const c8rate = (set: keyof typeof c8sets, t: Timing, skill: Timing | SkillProfile): number => {
+  if (t === 'auto' && autoRate.has(set)) return autoRate.get(set)!;
+  const rates = c8sets[set].map((route) => {
+    const base = syntheticRun(referenceAthlete(route.di_graded), `c8:${route.id}`, bundle);
     let sends = 0;
-    for (let k = 0; k < S.c8att; k++) if (diceAttempt(base, x.route, k, bundle, t, stream('c8tap', t, x.route.id, k)).outcome === 'sent') sends++;
-    rates[t].push(sends / S.c8att);
-  }
+    for (let k = 0; k < S.c8att; k++) if (diceAttempt(base, route, k, bundle, skill, stream('c8tap', t, route.id, k)).outcome === 'sent') sends++;
+    return sends / S.c8att;
+  });
+  const r = mean(rates);
+  if (t === 'auto') autoRate.set(set, r);
+  return r;
+};
+for (const row of c8rows) {
+  const r = Object.fromEntries((['auto', 'novice', 'average', 'expert'] as Timing[]).map((t) => [t, c8rate(row.set, t, row.skill(t))])) as Record<Timing, number>;
+  const gap = r.expert - r.novice;
+  const autoVsAvg = r.auto - r.average;
+  const n = c8sets[row.set].length;
+  record(`C8 skill share · ${row.id}`, n > 0 && gap <= C8_LIMITS[row.id] && Math.abs(autoVsAvg) <= 0.02 + 0.03,
+    `${n} ${row.set} problems: auto ${(100 * r.auto).toFixed(0)}%, novice ${(100 * r.novice).toFixed(0)}%, average ${(100 * r.average).toFixed(0)}%, expert ${(100 * r.expert).toFixed(0)}%; expert − novice ${(100 * gap).toFixed(1)} pts (≤ ${Math.round(100 * C8_LIMITS[row.id])})`, false);
 }
-const gap = mean(rates.expert) - mean(rates.novice);
-const autoVsAvg = mean(rates.auto) - mean(rates.average);
-record('C8 timing share', gap <= 0.08 && Math.abs(autoVsAvg) <= 0.02 + 0.03,
-  `${timingRoutes.length} dynamic problems: auto ${(100 * mean(rates.auto)).toFixed(0)}%, novice ${(100 * mean(rates.novice)).toFixed(0)}%, average ${(100 * mean(rates.average)).toFixed(0)}%, expert ${(100 * mean(rates.expert)).toFixed(0)}%; expert − novice ${(100 * gap).toFixed(1)} pts (≤ 8)`, false);
 
 // ---------------------------------------------------------------- C9 build divergence (05b §14.1 builds)
 const { A, B } = workedExampleBuilds();
