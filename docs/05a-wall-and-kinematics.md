@@ -210,6 +210,16 @@ hip      = C + Δhip(posture) × height_m/1.70
 CoM      = hip + (0, +0.10 × height_m/1.70)
 ```
 
+**Lock-off.** With exactly one hand anchored and at least one foot on (the state a hand move is measured from, 5.1), the shoulder rises toward the holding hand `H`:
+
+```
+shoulder.s = max(shoulder.s, min(H.s − 0.30 × height_m/1.70, C_feet.s + 0.9 × (leg_len + torso_len)))     (tune)
+```
+
+`0.30 m` is a bent-arm lock at 170 cm; the cap is standing up on the feet. The lift never lowers the shoulder, so with the feet already high nothing changes. Without it the shoulder sits midway between the remaining hand and the feet, so a static move gains little height unless the feet come up first, and generated lines needed 1.5 foot moves per hand move. Worked (reference body, hands at 2.0 m, feet at 0.5 m): the body centre puts the shoulder at 1.40 m and a static reach gains 0.09 m above the holding hand; the lock puts it at 1.70 m and the reach gains 0.39 m.
+
+The lift is the same for every climber; lock-off strength acts through the [05b](05b-move-resolution-and-attempt-loop.md#3-the-attribute--hold-type--move-class-matrix) matrix. A lift that grew with `lockoff` would make the Reference Climber's reach grow with DI. Its legal move classes would then change along the grade scale, and because a short dyno scores easier than a full-stretch deadpoint to the same hold, its send curve stops being monotone ([05c §4](05c-grade-engine.md#4-calibration-tests) C3).
+
 Posture offsets (metres at 170 cm, `(Δx, Δs)`; `Δx` sign is "towards the dropped knee / away from the feature" where it applies):
 
 | `Posture` | `Δsh` | `Δhip` | Notes |

@@ -29,7 +29,7 @@ export const TRACE = {
   deadpointReach: [1.0, 1.1] as const,
   dynoReach: [1.18, 1.35] as const,
   /** Feet step when they trail the hands by more than this × body scale (first foot, second foot, forced). */
-  footSpan: [0.95, 1.25, 0.6] as const,
+  footSpan: [1.15, 1.45, 0.75] as const,
   /** Where in the reachable band a new static foothold goes: 0 = just above the old one, 1 = hip height. */
   footHeight: [0.75, 1.0] as const,
   /** A hand move gaining less than this (m) steps the feet up first. */
