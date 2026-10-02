@@ -278,11 +278,15 @@ export function skinCost(ath: Athlete, m: MoveSpec, st: Pick<MoveState, 'skin' |
 
 export interface RestInput { restValue: number; type: HoldType; angle: number; posture: Posture; shakeIndex: number; reserve: number; overgrip: number }
 
+/** Pump cost of hanging on a stance for 10 s (05b §6); 0 in `rest_stance`. */
+export function holdCost(r: Pick<RestInput, 'restValue' | 'type' | 'angle' | 'posture'>): number {
+  return r.posture === 'rest_stance' ? 0 : 1.0 * PC[r.type] * anglePump(r.angle) * (1 - r.restValue) * POSTURE_PUMP[r.posture];
+}
+
 export function restDelta(ath: Athlete, r: RestInput): number {
   const R10 = 1.2 * ath.a.aerobic_capacity / 100 * r.restValue * Math.sqrt(Math.max(0, r.reserve) / 100) * (1 - 0.6 * r.overgrip);
   const fresh = 12 * Math.pow(0.5, r.shakeIndex - 1);
-  const holdCost = r.posture === 'rest_stance' ? 0 : 1.0 * PC[r.type] * anglePump(r.angle) * (1 - r.restValue) * POSTURE_PUMP[r.posture];
-  return -(R10 * fresh) + holdCost;
+  return -(R10 * fresh) + holdCost(r);
 }
 
 // ---------------------------------------------------------------- commit window (05b §8)

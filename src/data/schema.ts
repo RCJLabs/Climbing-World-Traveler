@@ -52,6 +52,7 @@ export const BackgroundSchema = z.object({
   id: z.string().regex(/^[a-z0-9_]+$/),
   name: z.string(),
   phase,
+  unlock: z.string().optional(),
   point_bonus: z.number().int().min(0).max(6),
   age_range: z.tuple([z.number().min(16), z.number().max(45)]),
   attr_add: numRecord(attrId),

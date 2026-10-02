@@ -1240,5 +1240,31 @@
    "afraid_of_falling"
   ],
   "flavour": "Falls like it was the plan."
+ },
+ {
+  "id": "farm_strong",
+  "name": "Farm Strong",
+  "category": "history",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1a",
+  "tags": [
+   "power",
+   "skin",
+   "jam"
+  ],
+  "effect": {
+   "attr_add": {
+    "pull_power": 4,
+    "core_tension": 4,
+    "lockoff": 4,
+    "skin_durability": 6,
+    "finger_strength": 2
+   }
+  },
+  "excludes": [
+   "desk_jockey"
+  ],
+  "flavour": "Hay bales were the hangboard."
  }
 ]

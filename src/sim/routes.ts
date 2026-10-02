@@ -496,7 +496,7 @@ export function generateBoulder(req: GenRequest): Route {
   let best: Route | null = null;
   let bestGap = Infinity;
   const ath = referenceAthlete(req.di_target);
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 12; attempt++) {
     const seed = attempt === 0 ? req.seed : `${req.seed}:retry${attempt}`;
     const { wall, height } = buildWall(req.profile, stream(seed, 'wall'));
     const traced = trace(req, wall, height, ath, stream(seed, 'line'));

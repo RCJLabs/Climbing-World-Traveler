@@ -197,6 +197,8 @@ export function aggregateMods(traitIds: readonly string[], traits: ReadonlyMap<s
 export interface CreationContext {
   traits: ReadonlyMap<string, Trait>;
   backgrounds: ReadonlyMap<string, Background>;
+  /** Meta unlocks held by the player. Omitted in replay: the log already passed this check when it was written. */
+  unlocked?: ReadonlySet<string>;
 }
 
 export interface CreationBudget {
@@ -231,6 +233,7 @@ export function validateCreation(spec: NewRunSpec, ctx: CreationContext): string
   const bg = ctx.backgrounds.get(spec.background);
   if (!bg) return [`Unknown background ${spec.background}`];
   if (!phaseLive(bg.phase)) errs.push(`${bg.name} is not available yet.`);
+  if (bg.unlock && ctx.unlocked && !ctx.unlocked.has(bg.unlock)) errs.push(`${bg.name} unlocks after your first finished run.`);
   const b = spec.body;
   if (b.age_start < bg.age_range[0] || b.age_start > bg.age_range[1]) errs.push(`${bg.name} starts between ${bg.age_range[0]} and ${bg.age_range[1]}.`);
   const budget = creationBudget(spec, ctx);

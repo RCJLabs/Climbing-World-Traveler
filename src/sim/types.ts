@@ -144,6 +144,8 @@ export interface Background {
   id: string;
   name: string;
   phase: Phase;
+  /** Meta unlock required to pick this background (16 §4.1). */
+  unlock?: string;
   point_bonus: number;
   age_range: [number, number];
   attr_add: Partial<Record<AttrId, number>>;
@@ -220,7 +222,7 @@ export interface Route {
   style_tags: Tag[];
   signature: boolean;
   seed?: string;
-  circuit?: string;
+  circuit?: CircuitColour;
   beta_line: BetaStep[];
   components?: { hardest_move: number; crux_density: number; pump_peak: number; rests: number; dynamic_share: number };
   fa_note?: string;
@@ -302,6 +304,8 @@ export interface DataBundle {
   crags: ReadonlyMap<string, Crag>;
   profiles: ReadonlyMap<string, CragStyleProfile>;
   signatures: ReadonlyMap<string, Route>;
+  /** Benchmark problems per crag for the grade estimate (02 §C.3). */
+  benchmarks: ReadonlyMap<string, Route[]>;
   names: Readonly<Record<string, NameBank>>;
   /** Content version; replays pin it (schemas §8 data_version). */
   version: string;
@@ -353,7 +357,7 @@ export interface Tick {
   style: TickStyle;
   attempts: number;
   di: number;
-  circuit?: string;
+  circuit?: CircuitColour;
   area: string;
 }
 

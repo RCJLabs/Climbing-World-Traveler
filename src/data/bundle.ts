@@ -6,6 +6,7 @@ import cragsJson from '../../data/crags.json';
 import profilesJson from '../../data/style_profiles.json';
 import namesJson from '../../data/names.json';
 import signaturesJson from '../../data/routes/fontainebleau_signatures.json';
+import fontBenchmarksJson from '../../data/routes/fontainebleau_benchmarks.json';
 import { BackgroundSchema, CragSchema, NamesSchema, ProfileSchema, RouteSchema, TraitSchema } from './schema';
 import type { Background, Crag, CragStyleProfile, DataBundle, NameBank, Route, Trait } from '../sim/types';
 
@@ -21,6 +22,7 @@ export function loadBundle(validate = true): DataBundle {
     ProfileSchema.array().parse(profilesJson);
     NamesSchema.parse(namesJson);
     RouteSchema.array().parse(signaturesJson);
+    RouteSchema.array().parse(fontBenchmarksJson);
   }
   const signatures = (signaturesJson as unknown as Route[]);
   return {
@@ -29,6 +31,7 @@ export function loadBundle(validate = true): DataBundle {
     crags: byId(cragsJson as unknown as Crag[]),
     profiles: byId(profilesJson as unknown as CragStyleProfile[]),
     signatures: new Map(signatures.map((r) => [r.seed ?? r.id, r])),
+    benchmarks: new Map([['fontainebleau', fontBenchmarksJson as unknown as Route[]]]),
     names: namesJson as unknown as Record<string, NameBank>,
     version: DATA_VERSION,
   };
