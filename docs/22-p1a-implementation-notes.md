@@ -35,7 +35,7 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 | Signature list | the three P1a problems follow 09 (La Marie-Rose, Le Toit du Cul de Chien, Rainbow Rocket) | [06](06-procedural-routes.md), [09](09-world-atlas.md) |
 | Font DI range | `[6, 30]`, so the yellow circuits (DI 6–8) sit inside it | [09](09-world-atlas.md) |
 | Generator retries | up to 12 re-seeded attempts per problem before failing | [06 §2](06-procedural-routes.md) |
-| Line shape | the tracer's constants live in `TRACE` (`src/sim/routes.ts`): static moves use 88–100% of reach (deadpoint 100–110%, dyno 118–135%); standing starts with hands at 1.25–1.7 m; feet step when they trail the hands by 0.95 × body scale (second foot 1.25, forced 0.6) and land in the top quarter of their reachable band; a hand move gaining under 0.22 m steps the lowest foot up first; a line with fewer than 3 hand moves is retried with a new seed. The engine's body model puts the shoulder midway between the remaining hand and the feet, so a static move gains only about 0.25 m; these settings keep problems to a median of 6 hand and 8 foot moves (was 9 and 11) **(tune)** | [06 §2.3](06-procedural-routes.md) |
+| Line shape | the tracer's constants live in `TRACE` (`src/sim/routes.ts`): static moves use 88–100% of reach (deadpoint 100–110%, dyno 118–135%); standing starts with hands at 1.25–1.7 m; feet step when they trail the hands by 1.15 × body scale (second foot 1.45, forced 0.75) and land in the top quarter of their reachable band; a hand move gaining under 0.22 m steps the lowest foot up first; a line with fewer than 3 hand moves is retried with a new seed. With the lock-off body model ([05a §4.2](05a-wall-and-kinematics.md#42-anchors-body-centre-hips-and-shoulders)) the feet can trail further without costing reach, so problems run a median of 5 hand and 4 foot moves (9 and 11 before the line-shape change, 6 and 8 before lock-off) **(tune)** | [06 §2.3](06-procedural-routes.md) |
 | `Route.start` | a `Record<Limb, string>` of start holds | [schemas §5](schemas.md) |
 
 ## 3. Days, resources and career
@@ -69,7 +69,7 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 | `RunSummary` | P1a fields: `hardest`, `hardest_onsight`, `hardest_flash` (boulder DI), `ticks`, `circuits`, `pyramid`, `got_away`, `seed`, `background` | [schemas §8](schemas.md) |
 | `WorldState` | typed as `RunState` in `src/sim/state.ts` | [schemas open question](schemas.md) |
 | Export | plain JSON (`.cwt.json`); gzip arrives with import UI polish | [18 §5](18-tech-architecture.md) |
-| Content version | `DATA_VERSION` (`p1a-2` since the line-shape change) is stored on every run. P1a keeps no old generators, so a run saved under another version cannot be replayed: it stays listed, its Hall of Fame entry stays, and *Continue* is disabled with an explanation. Bump the version whenever the same seed would build a different problem | [18 §5](18-tech-architecture.md) |
+| Content version | `DATA_VERSION` (`p1a-3` since the lock-off body model; `p1a-2` was the line-shape change) is stored on every run. P1a keeps no old generators, so a run saved under another version cannot be replayed: it stays listed, its Hall of Fame entry stays, and *Continue* is disabled with an explanation. Bump the version whenever the same seed would build a different problem | [18 §5](18-tech-architecture.md) |
 | Quick-build | six presets: Slab Wizard, Compression Monster, Power Boulderer, Late Starter, Dirtbag, Farm Kid (locked until the unlock) | [17 §6](17-ui-ux.md) |
 
 ## 5. Measured status (harness)
@@ -78,25 +78,26 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 
 | Test | Result | Threshold |
 |---|---|---|
-| C1 generator accuracy | 95.3% within ±1 DI, 89.4% within ±0.5, bias −0.14 | ≥ 90%, ≥ 60% |
-| C2 dice vs grade | Reference Climber sends its own grade 33.5% of the time through the real attempt loop | 35 ± 5 |
+| C1 generator accuracy | 94.6% within ±1 DI, 88.0% within ±0.5, bias −0.20 (the slab profile 86%, bias −0.50) | ≥ 90%, ≥ 60% |
+| C2 dice vs grade | Reference Climber sends its own grade 34.3% of the time through the real attempt loop | 35 ± 5 |
 | C3 monotonicity, C4 determinism, C7 signatures | pass | — |
-| C5 geometric stability | 85% within ±0.5 DI after 2 cm jitter | ≥ 95% (open) |
-| C6 style neutrality | crimp −0.39, pocket −0.47, jug +0.20; spread 0.67 | ≤ 0.6 (open) |
-| C8 timing | expert − novice 7.9 points; Auto-commit 33% vs average tapper 34% | ≤ 8; ±2 |
-| C9 build divergence | mean `|P_send(A) − P_send(B)|` = 0.75 on DI-16 problems | ≥ 0.30 |
-| Problem length (240 problems) | hand moves p10/p50/p90 4/6/8 (was 5/9/13; the bulge profile reaches 9 at p90); foot moves median 8 (was 11); all moves 14 median, 21 p90 (was about 20 and 38) | 3–8 hand moves |
+| C5 geometric stability | 82.5% within ±0.5 DI after 2 cm jitter (85% before lock-off) | ≥ 95% (open) |
+| C6 style neutrality | crimp −0.44, pocket −0.67, jug +0.15; spread 0.82 (0.67 before lock-off) | ≤ 0.6 (open) |
+| C8 timing | expert − novice 7.0 points; Auto-commit 32% vs average tapper 32% | ≤ 8; ±2 |
+| C9 build divergence | mean `|P_send(A) − P_send(B)|` = 0.62 on DI-16 problems (0.75 before lock-off) | ≥ 0.30 |
+| 05b §14.1 builds | estimate Compression Monster 17.4, Crimp Machine 16.9 (17.4 and 15.5 before lock-off): the lock ties reach to the holding hand rather than to the midpoint of hand and feet, so height counts for less and the shorter build gains | — |
+| Problem length (240 problems) | hand moves p10/p50/p90 3/5/7; foot moves median 4; all moves 9 median, 16 p90. Before lock-off 4/6/8, feet 8, all 14 and 21; before the line-shape change 5/9/13, feet 11, all about 20 and 38. Feet move about once per hand move (1.5 before) | 3–8 hand moves |
 
 `pnpm harness --n 40 --days 365 --seed 7` (random P1a builds, half projecting and half volume, Auto-commit):
 
 | Measure | Result |
 |---|---|
-| Estimate `E`, median | Font 5+ (12.4) at start → 6A+ (13.8) at 3 months → 6B (14.8) at 6 → 6B+ (16.0) at 12; p90 at 12 months 17.4 |
-| Personal best at 12 months | median 6C (16.9), p90 18.1 |
-| Projecting vs volume | personal best 17.1 vs 16.4; hardest flash 13.8 vs 16.2; ticks 158 vs 841 (12 §9's intended split) |
+| Estimate `E`, median | Font 6A (12.9) at start → 6A+ (13.7) at 3 months → 6B (14.9) at 6 → 6B+ (15.6) at 12; p90 at 12 months 17.2 |
+| Personal best at 12 months | median 6C (16.8), p90 18.0 |
+| Projecting vs volume | personal best 17.2 vs 16.7; hardest flash 14.0 vs 16.4; ticks 166 vs 893 (12 §9's intended split) |
 | Run ends in a year | none: every career reaches the day limit. Money is tight: about 110 odd-job blocks a year, median $1,940 left |
-| Burnout peak | median 1.5, p90 8 (the bot rests every fourth day and rotates sectors) |
-| Cost | about 36,000 actions per one-year career (42,000 before the line-shape change), 20 attempts per climbing day |
+| Burnout peak | median 1.5, p90 6.5 (the bot rests every fourth day and rotates sectors) |
+| Cost | about 31,000 actions per one-year career (36,000 before lock-off, 42,000 before the line-shape change), 20 attempts per climbing day |
 | Replay identity | identical on every checked career |
 
 ---
@@ -105,8 +106,8 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 
 Tuning items, in priority order:
 
-1. **Foot moves.** Hand moves are now in the Font range, but feet still move about 1.5 times per hand move (roofs more). The cause is the body model, not the tracer: with the shoulder midway between hand and feet, the only way to reach higher is higher feet. A lock-off term in 05a (shoulder rising toward the holding hand with `lockoff`) would shorten lines further and make lock-off visible in reach; it changes grading, so it needs the full calibration and golden-test update.
-2. **C5 stability.** The reach term `Rch` and the static/deadpoint class boundary are steep, so 2 cm can flip a move's class.
-3. **C6 and the slab profile.** `font_sloper_slab` grades 0.46 DI soft and crimp-dominant problems 0.4 soft.
-4. **Progress rate** is +3.6 DI of estimate in a full-time first year (median). Check it against the Climbstat anchors in 02 once careers run several years, and against a human playtest.
-5. **Stoke** sits around 75 for anyone who sends regularly; burnout barely moves under a sensible schedule. Both need the events and partners of P2 to bite.
+1. **Lock-off strength in reach.** The lift of [05a §4.2](05a-wall-and-kinematics.md#42-anchors-body-centre-hips-and-shoulders) is the same for every climber. Letting it grow with `lockoff` (strong lockers static what others must deadpoint) was tried: the Reference Climber's reach then grows with DI, its legal move classes change along the scale, and C3 fails on 16 of 216 problems. The cause is in 05b §4.1: at the class boundaries a short dyno scores 1.7 DI easier than a full-stretch deadpoint to the same hold, and a deadpoint 0.7 easier than a full-stretch static. Letting the walk pick the easiest class instead turns most long static moves into dynos and spends power the crux needs. Two ways in: pin the Reference Climber's lock-off reach as its mobility is pinned (05c §1.1), which needs the pinned value carried through runs for the C2 and C8 dice checks; or make the reach term continuous across classes, which would also help C5.
+2. **C5 stability.** The same class-boundary steps: 2 cm can flip a move's class and its difficulty with it.
+3. **C6 and the slab profile.** `font_sloper_slab` grades 0.50 DI soft (86% within ±1), pocket-dominant problems 0.67 soft and crimp-dominant 0.44.
+4. **Progress rate** is +2.7 DI of estimate in a full-time first year (median; +3.6 before lock-off, mostly because starting estimates rose). Check it against the Climbstat anchors in 02 once careers run several years, and against a human playtest.
+5. **Stoke** sits around 78 for anyone who sends regularly; burnout barely moves under a sensible schedule. Both need the events and partners of P2 to bite.
