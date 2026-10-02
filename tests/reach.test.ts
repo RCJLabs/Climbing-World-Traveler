@@ -2,7 +2,7 @@
 // placement helps a little, a slow reach pumps and a very slow one lets go, and a logged drag replays exactly.
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
-import { autoClimbAction, InvalidAction, reachBudget } from '../src/sim/attempt';
+import { autoClimbAction, balanceSetup, InvalidAction, reachBudget } from '../src/sim/attempt';
 import { presetSpec } from '../src/sim/presets';
 import { AUTO_PLACE, AUTO_TIME_SHARE, gripBudget, judgeReach, placeDelta, type MovePerf } from '../src/sim/reach';
 import { applyAction, createRun, sectorList } from '../src/sim/run';
@@ -47,7 +47,7 @@ describe('Reach in the attempt loop', () => {
         applyAction(run, { t: 'attempt_start', route_seed: slot.seed, mode: 'onsight' }, bundle);
         for (let g = 0; g < 60 && run.attempt; g++) {
           const a = autoClimbAction(run, bundle, { bot: true });
-          if (a?.t === 'move' && (a.limb === 'LH' || a.limb === 'RH') && !isDynamic(a.class) && a.class !== 'mantle') return { run, move: a };
+          if (a?.t === 'move' && (a.limb === 'LH' || a.limb === 'RH') && !isDynamic(a.class) && a.class !== 'mantle' && !balanceSetup(run, a.limb, a.hold, a.class, bundle)) return { run, move: a };
           applyAction(run, a ?? { t: 'wall_action', kind: 'jump_off' }, bundle);
         }
         if (run.attempt) applyAction(run, { t: 'wall_action', kind: 'jump_off' }, bundle);
@@ -114,8 +114,10 @@ describe('Reach in the attempt loop', () => {
         for (let g = 0; g < 200 && run.attempt; g++) {
           if (run.attempt.pending) { go({ t: 'commit', swing: null }); continue; }
           const a = autoClimbAction(run, bundle, { bot: true }) ?? { t: 'wall_action', kind: 'jump_off' } as const;
+          const bal = a.t === 'move' ? balanceSetup(run, a.limb, a.hold, a.class, bundle) : null;
           const budget = a.t === 'move' ? reachBudget(run, a.limb, a.hold, a.class, bundle) : null;
-          if (a.t === 'move' && budget !== null) { dragged++; go({ ...a, perf: { kind: 'reach', time_ms: Math.round(budget * (0.3 + (g % 5) * 0.3)), place: (g % 4) / 3 } }); }
+          if (a.t === 'move' && bal) { dragged++; go({ ...a, perf: { kind: 'balance', out_ms: (g % 3) * 400, place: (g % 4) / 3 } }); }
+          else if (a.t === 'move' && budget !== null) { dragged++; go({ ...a, perf: { kind: 'reach', time_ms: Math.round(budget * (0.3 + (g % 5) * 0.3)), place: (g % 4) / 3 } }); }
           else go(a);
         }
       }

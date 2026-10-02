@@ -326,6 +326,8 @@ export interface RunOptions {
   auto_commit: boolean;
   sweep_speed: number;
   difficulty: Difficulty;
+  /** Balance moves without drift: the hips move only when the player moves them (docs/23 §2.2). Absent = drift on. */
+  pause_drift?: boolean;
 }
 
 export type BlockKind = 'climb' | 'train' | 'rest' | 'active_recovery' | 'work';
@@ -351,7 +353,7 @@ export type Action =
   | { t: 'commit'; swing: SwingPerf | null }
   | { t: 'wall_action'; kind: 'rest' | 'chalk' | 'jump_off' }
   | { t: 'retire' }
-  | { t: 'settings'; patch: Partial<Pick<RunOptions, 'auto_commit' | 'sweep_speed'>> };
+  | { t: 'settings'; patch: Partial<Pick<RunOptions, 'auto_commit' | 'sweep_speed' | 'pause_drift'>> };
 
 export type TickStyle = 'onsight' | 'flash' | 'redpoint' | 'repeat';
 

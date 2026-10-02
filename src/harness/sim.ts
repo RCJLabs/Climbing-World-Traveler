@@ -1,7 +1,8 @@
 // Shared harness helpers (docs/19): synthetic runs for arbitrary athletes, single dice attempts through the
 // real attempt loop, and the Swing and Catch and Reach skill models that stand in for players (19 §3, docs/23 §3.4).
 
-import { autoClimbAction, doCommit, doMove, doWallAction, reachBudget, registerRoute, startAttempt } from '../sim/attempt';
+import { autoClimbAction, balanceSetup, doCommit, doMove, doWallAction, reachBudget, registerRoute, startAttempt } from '../sim/attempt';
+import type { Stance } from '../sim/balance';
 import { NEUTRAL_MODS, refMass, type Athlete } from '../sim/character';
 import { REFERENCE_BODY } from '../sim/grade';
 import { DEFAULT_OPTIONS, presetSpec } from '../sim/presets';
@@ -55,9 +56,34 @@ export function harnessReach(budget: number, timing: Timing, rng: Rng): MovePerf
   return { kind: 'reach', time_ms: Math.round(Math.max(250, rng.normal(m.mu, m.sd))), place: Math.abs(rng.normal(0, m.place)) };
 }
 
-/** The `move` the bot chose, with a harness player's drag on it when it is a Reach move. */
-export function withReach(run: RunState, a: Extract<Action, { t: 'move' }>, timing: Timing, rng: Rng, bundle: DataBundle): Extract<Action, { t: 'move' }> {
+/**
+ * A player's Lean (docs/23 §3.2): how far inside the base they lean before reaching (mean and sd, m). The reach itself
+ * takes a `REACH_SKILL` drag time, while the body drifts out at the move's drift speed. (tune, docs/19 C8)
+ */
+export const BALANCE_SKILL: Record<Exclude<Timing, 'auto' | 'oracle'>, { lean: number; sd: number }> = {
+  novice: { lean: 0.015, sd: 0.01 },
+  average: { lean: 0.03, sd: 0.012 },
+  expert: { lean: 0.045, sd: 0.012 },
+};
+
+/** The lean and drag a harness player of skill `timing` makes on a Balance move; null = Auto. */
+export function harnessBalance(b: { stance: Stance; drift: number }, timing: Timing, rng: Rng): MovePerf | null {
+  if (timing === 'auto') return null;
+  if (timing === 'oracle') return { kind: 'balance', out_ms: 0, place: 0 };
+  const m = BALANCE_SKILL[timing];
+  const r = REACH_SKILL[timing];
+  // Lean in until `lean` inside the edge (or stay where you are if already deeper), then reach while drifting out.
+  const inside = Math.max(Math.max(0, rng.normal(m.lean, m.sd)), -b.stance.d);
+  const reach = Math.max(250, rng.normal(r.mu, r.sd));
+  const grace = b.drift > 0 ? (1000 * inside) / b.drift : Infinity;
+  return { kind: 'balance', out_ms: Math.round(Math.max(0, reach - grace)), place: Math.abs(rng.normal(0, r.place)) };
+}
+
+/** The `move` the bot chose, with a harness player's drag (Reach) or lean and drag (Balance) on it. */
+export function withPerf(run: RunState, a: Extract<Action, { t: 'move' }>, timing: Timing, rng: Rng, bundle: DataBundle): Extract<Action, { t: 'move' }> {
   if (timing === 'auto') return a;
+  const bal = balanceSetup(run, a.limb, a.hold, a.class, bundle);
+  if (bal) { const perf = harnessBalance(bal, timing, rng); return perf ? { ...a, perf } : a; }
   const budget = reachBudget(run, a.limb, a.hold, a.class, bundle);
   const perf = budget === null ? null : harnessReach(budget, timing, rng);
   return perf ? { ...a, perf } : a;
@@ -111,7 +137,7 @@ export function diceAttempt(base: RunState, route: Route, k: number, bundle: Dat
     }
     const a = autoClimbAction(run, bundle, { bot: true });
     if (!a || a.t === 'commit') { doCommit(run, null, bundle); continue; }
-    if (a.t === 'move') { const m = withReach(run, a, timing, rng, bundle); doMove(run, m.limb, m.hold, m.class, bundle, m.perf); }
+    if (a.t === 'move') { const m = withPerf(run, a, timing, rng, bundle); doMove(run, m.limb, m.hold, m.class, bundle, m.perf); }
     else if (a.t === 'wall_action') doWallAction(run, a.kind, bundle);
   }
   if (run.attempt) doWallAction(run, 'jump_off', bundle);

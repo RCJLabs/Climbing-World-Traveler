@@ -18,8 +18,8 @@ export interface BotPolicy {
   wetDayTraining: string[];
   /** Swing and Catch on a pending dyno: null = Auto-commit; otherwise a harness player's swing (19 §3, docs/23 §3.4). */
   swing?: (run: RunState) => SwingPerf | null;
-  /** Two-Thumb Grip on a Reach move: the move the bot chose, returned with or without a drag (docs/23 §3.1). */
-  reach?: (run: RunState, move: Extract<Action, { t: 'move' }>) => Extract<Action, { t: 'move' }>;
+  /** A Reach or Balance move: the move the bot chose, returned with or without the player's perf (docs/23 §3.1–§3.2). */
+  perf?: (run: RunState, move: Extract<Action, { t: 'move' }>) => Extract<Action, { t: 'move' }>;
 }
 
 export const PROJECT_POLICY: BotPolicy = { style: 'project', workBelowDays: 60, climbDaysInARow: 3, wetDayTraining: ['limit_boulders', 'max_hangs', 'weights'] };
@@ -107,7 +107,7 @@ export class BotDriver {
         continue;
       }
       const a = autoClimbAction(this.run, this.bundle, { bot: true });
-      this.dispatch(a?.t === 'move' && this.policy.reach ? this.policy.reach(this.run, a) : a ?? { t: 'wall_action', kind: 'jump_off' });
+      this.dispatch(a?.t === 'move' && this.policy.perf ? this.policy.perf(this.run, a) : a ?? { t: 'wall_action', kind: 'jump_off' });
     }
     if (this.run.attempt) this.dispatch({ t: 'wall_action', kind: 'jump_off' });
   }

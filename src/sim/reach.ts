@@ -2,6 +2,8 @@
 // logged as two numbers on the `move` action and judged here. A move with no perf plays as Auto, which is exactly
 // the move as it resolved before Reach existed, so grades, the harness's Auto runs and old saves do not move.
 
+import type { BalancePerf } from './balance';
+
 export interface ReachPerf {
   kind: 'reach';
   /** How long the limb was off its hold (ms), summed over every try at this move. */
@@ -10,8 +12,8 @@ export interface ReachPerf {
   place: number;
 }
 
-/** What a player did on a move that is not a dyno. Balance adds `{ kind: 'balance'; out_ms }` (docs/23 §3.2). */
-export type MovePerf = ReachPerf;
+/** What a player did on a move that is not a dyno: a Reach drag, or a Balance lean and drag (docs/23 §3.2). */
+export type MovePerf = ReachPerf | BalancePerf;
 
 /** Grip budget at a move whose margin equals T, fresh (ms). (tune) */
 export const GRIP_MS = 3200;
@@ -50,8 +52,11 @@ export function judgeReach(perf: ReachPerf, budget_ms: number, hand: boolean): R
 /** A perf the reducer accepts: the right kind and finite, non-negative numbers. */
 export function validPerf(p: unknown): p is MovePerf {
   if (!p || typeof p !== 'object') return false;
-  const r = p as Partial<ReachPerf>;
-  return r.kind === 'reach' && Number.isFinite(r.time_ms) && r.time_ms! >= 0 && Number.isFinite(r.place) && r.place! >= 0;
+  const ok = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+  const r = p as Partial<ReachPerf> & Partial<BalancePerf>;
+  if (r.kind === 'reach') return ok(r.time_ms) && ok(r.place);
+  if (r.kind === 'balance') return ok(r.out_ms) && ok(r.place);
+  return false;
 }
 
 /** A word for the move log about where the hand landed. */

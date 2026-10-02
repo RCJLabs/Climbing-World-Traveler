@@ -410,6 +410,7 @@ export function applyAction(run: RunState, a: Action, bundle: DataBundle): void 
     case 'settings':
       if (a.patch.auto_commit !== undefined) run.options.auto_commit = a.patch.auto_commit;
       if (a.patch.sweep_speed !== undefined) run.options.sweep_speed = clamp(a.patch.sweep_speed, 0.6, 1.6);
+      if (a.patch.pause_drift !== undefined) run.options.pause_drift = a.patch.pause_drift;
       break;
   }
   run.actions++;
