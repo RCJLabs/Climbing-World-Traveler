@@ -10,7 +10,7 @@ import { Result } from './screens/Result';
 import { Routes } from './screens/Routes';
 import { Summary } from './screens/Summary';
 import { Hall, Title } from './screens/Title';
-import { act, boot, data, run, screen, toast } from './store';
+import { act, boot, data, run, screen, toast, updateReady } from './store';
 
 function App() {
   const s = screen.value;
@@ -32,6 +32,12 @@ function App() {
     <div class="app">
       {body}
       {toast.value && <div class="toast" role="status">{toast.value}</div>}
+      {updateReady.value && (
+        <div class="update-bar" role="status">
+          <span>A new version is ready.</span>
+          <button class="btn small primary" onClick={() => updateReady.value?.()}>Reload</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -48,4 +54,5 @@ if (import.meta.env.DEV) {
     (window as unknown as Record<string, unknown>).__cwt = { run, act, data, next: () => run.value && autoClimbAction(run.value, data, { bot: true }) };
   });
 }
-registerSW({ immediate: true });
+// A new version waits until every tab is closed unless the player reloads into it; say so instead of waiting silently.
+const updateSW = registerSW({ immediate: true, onNeedRefresh: () => { updateReady.value = () => void updateSW(true); } });

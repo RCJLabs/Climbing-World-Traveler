@@ -28,6 +28,7 @@ export function Title({ current }: { current: RunState | null }) {
           </div>
         ))}
         {meta.value.hall_of_fame.length > 0 && <button class="btn" onClick={() => goto({ name: 'hall' })}>Hall of Fame</button>}
+        <button class="btn" onClick={() => { location.hash = 'proto-dyno'; }}>Dyno prototype</button>
         <span class="kicker">Settings</span>
         <div class="col small">Haptics<Seg label="Haptics" value={s.haptics ? 'on' : 'off'} onChange={(v) => void saveSettings({ ...s, haptics: v === 'on' })} options={[['on', 'On'], ['off', 'Off']]} /></div>
         <div class="col small">Motion<Seg label="Motion" value={s.reduce_motion ? 'less' : 'full'} onChange={(v) => void saveSettings({ ...s, reduce_motion: v === 'less' })} options={[['full', 'Full'], ['less', 'Reduced']]} /></div>
