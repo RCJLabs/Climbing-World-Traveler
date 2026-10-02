@@ -70,7 +70,7 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 | `RunSummary` | P1a fields: `hardest`, `hardest_onsight`, `hardest_flash` (boulder DI), `ticks`, `circuits`, `pyramid`, `got_away`, `seed`, `background` | [schemas §8](schemas.md) |
 | `WorldState` | typed as `RunState` in `src/sim/state.ts` | [schemas open question](schemas.md) |
 | Export | plain JSON (`.cwt.json`); gzip arrives with import UI polish | [18 §5](18-tech-architecture.md) |
-| Content version | `DATA_VERSION` (`p1a-6` since style ceilings; `p1a-5` was the power base and blended wall angles, `p1a-4` lock-off reach, `p1a-3` the lock-off body model, `p1a-2` the line-shape change) is stored on every run. P1a keeps no old generators, so a run saved under another version cannot be replayed: it stays listed, its Hall of Fame entry stays, and *Continue* is disabled with an explanation. Bump the version whenever the same seed would build a different problem or the same actions would play out differently | [18 §5](18-tech-architecture.md) |
+| Content version | `DATA_VERSION` (`p1a-7` since the stretch penalty went to 0; `p1a-6` was style ceilings, `p1a-5` the power base and blended wall angles, `p1a-4` lock-off reach, `p1a-3` the lock-off body model, `p1a-2` the line-shape change) is stored on every run. P1a keeps no old generators, so a run saved under another version cannot be replayed: it stays listed, its Hall of Fame entry stays, and *Continue* is disabled with an explanation. Bump the version whenever the same seed would build a different problem or the same actions would play out differently | [18 §5](18-tech-architecture.md) |
 | Quick-build | six presets: Slab Wizard, Compression Monster, Power Boulderer, Late Starter, Dirtbag, Farm Kid (locked until the unlock) | [17 §6](17-ui-ux.md) |
 
 ## 5. Measured status (harness)
@@ -79,13 +79,13 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 
 | Test | Result | Threshold |
 |---|---|---|
-| C1 generator accuracy | 99.8% within ±1 DI, 95.6% within ±0.5, bias −0.06 (slab 100%, bias −0.15). Before style ceilings 94.7%, 87.9%, −0.21: the sweep asked for slab problems to DI 26 | ≥ 90%, ≥ 60% |
-| C2 dice vs grade | Reference Climber sends its own grade 34.0% of the time through the real attempt loop | 35 ± 5 |
-| C3 monotonicity, C4 determinism, C7 signatures | pass | — |
-| C5 geometric stability | 85.5% within ±0.5 DI after 2 cm jitter on 200 problems (83.5% before the power base). The sweep's 40-problem sample reads between 77.5% and 92.5% depending on which problems it draws; at that size one problem is 2.5 points | ≥ 95% (open) |
-| C6 style neutrality | crimp −0.14, pocket −0.27, jug +0.12; spread 0.39 (0.82 before style ceilings; the crimp and pocket families moved most when the soft high-DI slabs left the sweep) | ≤ 0.6 |
-| C8 timing | expert − novice 6.6 points; Auto-commit 33% vs average tapper 33% | ≤ 8; ±2 |
-| C9 build divergence | mean `|P_send(A) − P_send(B)|` = 0.37 on DI-16 problems (0.62 with a fixed lock, 0.75 before lock-off); rank correlation of their `P_send` −0.03, against 0.87 for a build and a copy of it 3 points stronger | ≥ 0.30; ≤ 0.50 |
+| C1 generator accuracy | 99.2% within ±1 DI, 93.0% within ±0.5, bias −0.14 (99.8%, 95.6%, −0.06 with the stretch penalty; 94.7%, 87.9%, −0.21 before style ceilings, when the sweep asked for slab problems to DI 26) | ≥ 90%, ≥ 60% |
+| C2 dice vs grade | Reference Climber sends its own grade 32.5% of the time through the real attempt loop | 35 ± 5 |
+| C3 monotonicity, C4 determinism, C7 signatures | pass. Signatures: La Marie-Rose 12.88, Le Toit du Cul de Chien 19.06, Rainbow Rocket 24.99. Rainbow Rocket's finish steepened to 110°/125°: one dyno at full reach, it relied on the stretch penalty and graded 23.3 without it on the old wall | — |
+| C5 geometric stability | 94.5% within ±0.5 DI after 2 cm jitter on 200 problems (85.5% with the stretch penalty, 83.5% before the power base). The sweep's 40-problem sample reads 92.5%; at that size one problem is 2.5 points | ≥ 95% |
+| C6 style neutrality | crimp −0.29, pocket −0.28, jug +0.12; spread 0.43 (0.82 before style ceilings; the crimp and pocket families moved most when the soft high-DI slabs left the sweep) | ≤ 0.6 |
+| C8 timing | expert − novice 6.3 points; Auto-commit 31% vs average tapper 32% | ≤ 8; ±2 |
+| C9 build divergence | mean `|P_send(A) − P_send(B)|` = 0.36 on DI-16 problems (0.62 with a fixed lock, 0.75 before lock-off); rank correlation of their `P_send` −0.06, against 0.87 for a build and a copy of it 3 points stronger | ≥ 0.30; ≤ 0.50 |
 | 05b §14.1 builds | estimate Compression Monster 17.4 (`lockoff 30`), Crimp Machine 17.0 (`lockoff 42`); 17.4 and 15.5 before lock-off. The lock ties reach to the holding hand, so height counts for less, and the Crimp Machine's lock-off now buys back the reach it lacked. On 60 DI-17 problems one build sends and the other cannot on 31 (28 of them the Compression Monster) | — |
 | Presets at creation | estimate Slab Wizard 10.6, Late Starter 11.2, Farm Kid 13.1, Dirtbag 13.1, Power Boulderer 13.4, Compression Monster 13.4. Most start at `lockoff 20`, 3 cm short of the reference lock, which costs the Slab Wizard 1.0 DI (1.3 before the power base): generated static moves sit at up to 100% of the reference reach, so its long moves become deadpoints, which it is weak at | — |
 | Problem length (240 problems) | hand moves p10/p50/p90 3/5/7; foot moves median 4; all moves 9 median, 16 p90. Before lock-off 4/6/8, feet 8, all 14 and 21; before the line-shape change 5/9/13, feet 11, all about 20 and 38. Feet move about once per hand move (1.5 before) | 3–8 hand moves |
@@ -94,12 +94,12 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 
 | Measure | Result |
 |---|---|
-| Estimate `E`, median | Font 6A (12.6) at start → 6A+ (13.7) at 3 months → 6B (14.8) at 6 → 6B+ (15.9) at 12; p90 at 12 months 17.2 |
-| Personal best at 12 months | median 6C (16.7), p90 18.3 |
-| Projecting vs volume | personal best 17.1 vs 16.8; hardest flash 14.4 vs 16.7; ticks 161 vs 892 (12 §9's intended split) |
+| Estimate `E`, median | Font 5+ (12.4) at start → 6A (13.5) at 3 months → 6B (14.8) at 6 → 6B+ (15.6) at 12; p90 at 12 months 17.2 |
+| Personal best at 12 months | median 6C (16.8), p90 18.4 |
+| Projecting vs volume | personal best 17.2 vs 16.7; hardest flash 13.9 vs 16.6; ticks 169 vs 917 (12 §9's intended split) |
 | Run ends in a year | none: every career reaches the day limit. Money is tight: about 110 odd-job blocks a year, median $1,940 left |
-| Burnout peak | median 1.2, p90 8.7 (the bot rests every fourth day and rotates sectors) |
-| Cost | about 31,000 actions per one-year career (36,000 before lock-off, 42,000 before the line-shape change), 20 attempts per climbing day |
+| Burnout peak | median 1.8, p90 10.2 (the bot rests every fourth day and rotates sectors) |
+| Cost | about 31,700 actions per one-year career (36,000 before lock-off, 42,000 before the line-shape change), 20 attempts per climbing day |
 | Replay identity | identical on every checked career |
 
 ---
@@ -108,12 +108,7 @@ Numbers marked **(tune)** are harness-adjustable, as everywhere else.
 
 Tuning items, in priority order:
 
-1. **C5 and the steep top of the reach term.** Of 33 problems that move more than 0.5 DI under 2 cm of jitter (200 sampled), the move that changes most is a reach change on the crux in 25. Eleven are reach alone; the rest add a class, posture or power change. Four become ungradeable when a move falls out of reach, one changes feature. The generator puts static moves at 88–100% of reach, where `Rch` rises about 14 DI per unit of `r`, so 2 cm (0.03–0.05 of reach) moves a crux 0.5–0.7 DI. The power base and blended angles took C5 from 83.5% to 85.5%. Tried and dropped:
-   - *Easiest technique wins,* with dearer deadpoints (1.75) and dynos (4.0) so a deadpoint wins only in the last 5% of static reach: C5 unchanged; the Slab Wizard lost 3.4 DI for 3 cm of lock, because a climber who cannot reach statically is forced into the dearer deadpoint.
-   - *Static over-reach* to 108% at a steep extra cost: the Slab Wizard's 3 cm cost fell to 0.9 DI, but C5 fell from 33 to 29 of the sweep's 40 problems.
-   - *A flatter reach term* (weight 2, comfort from `r = 0.5`): C5 reached 93.5% with the power base, but the Slab Wizard's 3 cm cost rose to 1.7 DI and C1's bias reached −0.27.
-
-   Being 2 cm short on a crux at full stretch is a real difference. The 95% target may be wrong for problems built at full reach; a target near 85%, or a jitter scaled to hold size, would match what the model says.
+1. **C5: what is left.** The stretch penalty on `Q` (05b §4.2) charged for reach a second time, after `Rch`; near full reach the two moved a crux 0.6–0.8 DI for a 2–3 cm shift. With it at 0, C5 is 94.5% on 200 problems, one problem short of 95%. Earlier attempts, kept for the record: *easiest technique wins* with dearer deadpoints and dynos (C5 unchanged; the Slab Wizard lost 3.4 DI for 3 cm of lock), *static over-reach* to 108% (C5 fell), a *flatter reach term* (C5 93.5% but the Slab Wizard's 3 cm cost rose to 1.7 DI), and *statics placed further from full reach* (C5 unchanged, lines a move longer). The remaining failures were not traced; the attribution before this change found reach on the crux in 25 of 33, four problems going ungradeable when a move fell out of reach, and one feature flip.
 2. **Font favours the Compression Monster.** At DI 17, where both 05b builds sit, the Compression Monster sends 85 of 180 problems the Crimp Machine cannot, and the reverse happens on 7. This is not a lack of style divergence: the rank correlation of their send odds is −0.17, so they find different problems hard. It is Font: a third of hand holds are slopers, the Compression Monster leads by 0.48 in send probability on sloper-dominant problems, and the two are level (−0.02 at DI 16) on crimp-dominant ones. True to the forest; a crimpy crag in P2 should show the reverse. C9 now checks the correlation as well as the gap.
-3. **Progress rate** is +3.3 DI of estimate in a full-time first year (median; lock-off training now adds reach). Check it against the Climbstat anchors in 02 once careers run several years, and against a human playtest.
+3. **Progress rate** is +3.2 DI of estimate in a full-time first year (median; lock-off training adds reach). Check it against the Climbstat anchors in 02 once careers run several years, and against a human playtest.
 4. **Stoke** sits around 76 for anyone who sends regularly; burnout barely moves under a sensible schedule. Both need the events and partners of P2 to bite.

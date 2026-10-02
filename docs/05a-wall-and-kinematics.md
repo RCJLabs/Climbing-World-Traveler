@@ -354,7 +354,7 @@ base_geom = 1 − 0.05 × foot_deficit × (1 − core_tension/200)
   balance_penalty = clamp(|hip.x − C_hands.x| / (0.5 × R_hand) − 0.5, 0, 1)             hips far outside the hands
 ```
 
-Display: `≥ 1.02` ★★★★★ · `0.98–1.02` ★★★★ · `0.93–0.98` ★★★ · `0.87–0.93` ★★ · `< 0.87` ★. A per-move stretch/twist factor is applied on top of this in 05b, so the stars describe the stance, not the reach.
+Display: `≥ 1.02` ★★★★★ · `0.98–1.02` ★★★★ · `0.93–0.98` ★★★ · `0.87–0.93` ★★ · `< 0.87` ★. Reach is charged per move by the `Rch` term in 05b §4.1, not here, so the stars describe the stance, not the reach.
 
 Worked: `hang`, two feet, `body_position 36`: `1.00 × 0.986 × 1.0 = 0.986` (★★★★). `compression`, two feet, `body_position 28`: `0.97 × 0.978 = 0.949` (★★★). `hang` with feet cut and `core_tension 46`: `1.00 × 0.986 × (1 − 0.05 × 1 × 0.77) = 0.948`.
 
