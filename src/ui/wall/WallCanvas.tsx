@@ -265,7 +265,10 @@ export function WallCanvas(props: {
     camNow.current = cam;
     // Mid-drag, only the chosen hold keeps its ring.
     const shownView = ri && drag ? { ...v, targets: new Map([...v.targets].filter(([id]) => id === ri.hold)) } : v;
-    layout.current = drawWall(ctx, cw, ch, shownView, pose, cam, { envelope: !a && !e && !(swi && ph.k !== 'ready') && !drag, banner });
+    // The ghost of the selected move, only while the body is still: not during a drag, a lean, a swing or a move playing.
+    const still = !a && !e && !drag && !placed.current && !swi && !(ls && ls.t !== null);
+    const ghost = still && v.ghost ? poseOf(v.geom, v.ath, v.ghost) : null;
+    layout.current = drawWall(ctx, cw, ch, shownView, pose, cam, { envelope: !a && !e && !(swi && ph.k !== 'ready') && !drag, banner, ghost });
     // Dev-only: where holds and limbs are on screen, for browser tests.
     if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__cwtWall = layout.current;
     if (swi) drawSwing(ctx, cw, ch, cam, now);

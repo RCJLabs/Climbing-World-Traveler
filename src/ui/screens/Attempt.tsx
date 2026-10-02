@@ -7,6 +7,7 @@ import {
   showsExactOdds, type AutoStop,
 } from '../../sim/attempt';
 import { BARN_MS } from '../../sim/balance';
+import { applyMove } from '../../sim/engine';
 import type { MovePerf } from '../../sim/reach';
 import { isDynamic } from '../../sim/tables';
 import { izof, powerPool } from '../../sim/resolve';
@@ -164,6 +165,9 @@ export function Attempt({ run }: { run: RunState }) {
   const budget = armed && handMove && !bal ? reachBudget(run, moving!, selected!.option.hold.id, chosen!, data) : null;
   const grip = armed && handMove && !bal && !settings.value.one_thumb && at.climb.anchors[otherHand(moving!)] ? otherHand(moving!) : null;
   const padLeft = grip === 'LH';
+  // Where a clean landing leaves the body (17 §2), drawn as a ghost until the move is played.
+  const ghost = selected && chosen && live && !swinging && !auto && !ending
+    ? applyMove(geom, ath, at.climb, selected.option.limb, selected.option.hold.id, chosen) : null;
   // Long-press on a hold (17 §2): what it is, the shake it would give, and who can reach it or why not.
   const onLongPress = (t: WallTap) => {
     if (ending || !live) return;
@@ -226,7 +230,7 @@ export function Attempt({ run }: { run: RunState }) {
         label={`${route.name}: wall with the climber${limb ? `, ${limb} selected` : ''}`}
         onTap={onTap}
         onLongPress={onLongPress}
-        view={{ geom, ath, climb: at.climb, visible: (id) => isVisible(project, route, id), limb: ending ? null : limb, targets: ending ? new Map() : targets, selected: hold, feetCut: at.climb.feet_cut }}
+        view={{ geom, ath, climb: at.climb, visible: (id) => isVisible(project, route, id), limb: ending ? null : limb, targets: ending ? new Map() : targets, selected: hold, feetCut: at.climb.feet_cut, ghost }}
         motion={{ step: at.time_s, style: { limb: last?.limb, cls: last?.cls }, shake: last?.outcome === 'sketchy' || last?.outcome === 'slip_recovered' }}
         ending={ending}
         reduceMotion={settings.value.reduce_motion}

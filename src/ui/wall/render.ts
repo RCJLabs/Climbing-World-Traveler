@@ -18,6 +18,8 @@ export interface WallView {
   targets: Map<string, TargetKind>;
   selected: string | null;
   feetCut: boolean;
+  /** The state the selected move would leave, drawn as a ghost behind the climber (17 §2). */
+  ghost?: ClimbState | null | undefined;
 }
 
 export interface Layout {
@@ -28,7 +30,7 @@ export interface Layout {
 }
 
 /** Extras for one frame: hide the reach shading mid-move, and a word over the wall at the end of an attempt. */
-export interface FrameExtras { envelope: boolean; banner?: { text: string; colour: string; alpha: number; y: number } | undefined }
+export interface FrameExtras { envelope: boolean; banner?: { text: string; colour: string; alpha: number; y: number } | undefined; ghost?: Pose | null | undefined }
 
 const SIZE_M: Record<SizeClass, number> = { xs: 0.05, s: 0.08, m: 0.12, l: 0.17, xl: 0.24 };
 
@@ -169,6 +171,7 @@ export function drawWall(ctx: CanvasRenderingContext2D, w: number, h: number, v:
     layout.push({ id: hold.id, px: sx, py: sy });
     drawHold(ctx, hold, sx, sy, scale);
   }
+  if (extras.ghost) drawGhost(ctx, extras.ghost, S, scale);
   const limbs = drawFigure(ctx, pose, S, scale, v.limb);
   for (const hold of sorted) {
     const [sx, sy] = S(...project(wall, hold.x, hold.y));
@@ -307,14 +310,39 @@ function joint(a: [number, number], b: [number, number], l1: number, l2: number,
   return [a[0] + ux * along + nx * off, a[1] + uy * along + ny * off];
 }
 
+let ghostCanvas: HTMLCanvasElement | null = null;
+
+/**
+ * Where the selected move leaves the body: the figure in one pale tone, drawn opaque off screen and laid down at 45%
+ * behind the climber, so overlapping strokes do not darken and only what changes shows past the real figure.
+ */
+function drawGhost(ctx: CanvasRenderingContext2D, pose: Pose, S: (X: number, Y: number) => [number, number], scale: number): void {
+  const c = ctx.canvas;
+  ghostCanvas ??= document.createElement('canvas');
+  const g = ghostCanvas;
+  if (g.width !== c.width || g.height !== c.height) { g.width = c.width; g.height = c.height; }
+  const gx = g.getContext('2d');
+  if (!gx) return;
+  gx.setTransform(1, 0, 0, 1, 0, 0);
+  gx.clearRect(0, 0, g.width, g.height);
+  gx.setTransform(ctx.getTransform());
+  drawFigure(gx, pose, S, scale, null, C.text);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 0.45;
+  ctx.drawImage(g, 0, 0);
+  ctx.restore();
+}
+
 /**
  * The figure, flat: teal jacket, dark trousers, yellow shoes, no outlines. The far-side limbs (left, seen from the
- * climber's right) are drawn behind the torso a tone darker; the selected limb turns yellow. Returns the limb ends on
- * screen.
+ * climber's right) are drawn behind the torso a tone darker; the selected limb turns yellow. A `tint` draws every part
+ * in that one colour (the ghost). Returns the limb ends on screen.
  */
 function drawFigure(
-  ctx: CanvasRenderingContext2D, pose: Pose, S: (X: number, Y: number) => [number, number], scale: number, selected: Limb | null,
+  ctx: CanvasRenderingContext2D, pose: Pose, S: (X: number, Y: number) => [number, number], scale: number, selected: Limb | null, tint?: string,
 ): Layout['limbs'] {
+  const P = tint ? Object.fromEntries(Object.keys(C).map((key) => [key, tint])) as unknown as typeof C : C;
   const k = pose.k;
   const sh = S(...pose.sh);
   const hip = S(...pose.hip);
@@ -368,18 +396,18 @@ function drawFigure(
     const [a, j, end] = p.pts;
     if (limbKind(p.limb) === 'hand') {
       // Sleeve to the elbow, skin below, so hands read against the rock.
-      line([a, j], sel ? C.target : p.far ? C.jacketShade : C.jacket, arm * 1.15);
-      line([j, end], sel ? C.target : p.far ? C.skinFar : C.skin, arm);
+      line([a, j], sel ? P.target : p.far ? P.jacketShade : P.jacket, arm * 1.15);
+      line([j, end], sel ? P.target : p.far ? P.skinFar : P.skin, arm);
       ctx.beginPath();
       ctx.arc(end[0], end[1], Math.max(3.5, 0.05 * k * scale), 0, Math.PI * 2);
-      ctx.fillStyle = sel ? C.target : p.far ? C.skinFar : C.skin;
+      ctx.fillStyle = sel ? P.target : p.far ? P.skinFar : P.skin;
       ctx.fill();
     } else {
-      line(p.pts, sel ? C.target : p.far ? C.trousersFar : C.trousers, leg);
+      line(p.pts, sel ? P.target : p.far ? P.trousersFar : P.trousers, leg);
       // The shoe points into the wall (+x on screen).
       ctx.beginPath();
       ctx.ellipse(end[0] + 0.04 * k * scale, end[1], Math.max(5, 0.08 * k * scale), Math.max(2.5, 0.04 * k * scale), 0, 0, Math.PI * 2);
-      ctx.fillStyle = p.far ? C.shoeFar : C.shoe;
+      ctx.fillStyle = p.far ? P.shoeFar : P.shoe;
       ctx.fill();
     }
   };
@@ -391,22 +419,22 @@ function drawFigure(
   const inset = (p: [number, number], q: [number, number], f: number): [number, number] => [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
   const chest = inset(sh, hip, Math.min(0.45, (chestW / 2) / al));
   const waist = inset(hip, sh, Math.min(0.45, (waistW / 2) / al));
-  line([chest, inset(chest, waist, 0.5)], C.jacket, chestW);
-  line([inset(chest, waist, 0.4), waist], C.jacket, waistW);
+  line([chest, inset(chest, waist, 0.5)], P.jacket, chestW);
+  line([inset(chest, waist, 0.4), waist], P.jacket, waistW);
   const off = (p: [number, number], d: number): [number, number] => [p[0] + px * d, p[1] + py * d];
-  line([off(chest, chestW * 0.3), off(waist, waistW * 0.28)], C.jacketShade, chestW * 0.3);
+  line([off(chest, chestW * 0.3), off(waist, waistW * 0.28)], P.jacketShade, chestW * 0.3);
   for (const p of parts.filter((q) => !q.far)) limb(p);
   const head: [number, number] = [sh[0] + (ax / al) * 0.2 * k * scale - 0.03 * scale, sh[1] + (ay / al) * 0.2 * k * scale];
   const hr = Math.max(6, 0.095 * k * scale);
   ctx.beginPath();
   ctx.arc(head[0], head[1], hr, 0, Math.PI * 2);
-  ctx.fillStyle = C.skin;
+  ctx.fillStyle = P.skin;
   ctx.fill();
   // Hair over the back and crown of the head (the climber faces the wall, to the right).
   ctx.beginPath();
   ctx.arc(head[0] - hr * 0.2, head[1] - hr * 0.25, hr * 0.92, Math.PI * 0.75, Math.PI * 1.85);
   ctx.closePath();
-  ctx.fillStyle = C.hair;
+  ctx.fillStyle = P.hair;
   ctx.fill();
   return ends;
 }
