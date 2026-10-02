@@ -3,7 +3,8 @@
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
 import { gradeRoute, sendCurve } from '../src/sim/grade';
-import { generateBoulder, routeFromSeed, routeSeed } from '../src/sim/routes';
+import { cruxIndexes, generateBoulder, routeFromSeed, routeSeed, TRACE } from '../src/sim/routes';
+import { stream } from '../src/sim/rng';
 import { routeGeom } from '../src/sim/wall';
 
 const bundle = loadBundle();
@@ -59,6 +60,30 @@ describe('generator', () => {
         }
       }
     }
+  });
+});
+
+describe('line shape (06 §2.3, 22 §2)', () => {
+  it('keeps generated problems to Font length', () => {
+    const hands: number[] = [];
+    for (const profileId of ['font_sloper_slab', 'font_sloper_bulge', 'font_roof']) {
+      const profile = bundle.profiles.get(profileId)!;
+      for (const di of [10, 15, 20]) {
+        for (let k = 0; k < 4; k++) {
+          const r = generateBoulder({ crag, sector, profile, di_target: di, seed: `len:${profileId}:${di}:${k}`, bundle });
+          const n = r.beta_line.filter((s) => s.limb.endsWith('H') && s.class !== 'mantle').length;
+          expect(n).toBeGreaterThanOrEqual(TRACE.minHandMoves);
+          hands.push(n);
+        }
+      }
+    }
+    const sorted = [...hands].sort((a, b) => a - b);
+    expect(sorted[Math.floor(sorted.length / 2)]!).toBeLessThanOrEqual(7);
+  });
+
+  it('picks a crux even when the preferred third of a short line is empty', () => {
+    expect(cruxIndexes([4], 'mid', stream('crux')).size).toBe(1);
+    expect(cruxIndexes([], 'mid', stream('crux')).size).toBe(0);
   });
 });
 

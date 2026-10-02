@@ -38,6 +38,8 @@ export const TRACE = {
   startY: [1.25, 1.7] as const,
   /** Heel-hook frequency multiplier on the profile grammar weight. */
   heelBias: 1.0,
+  /** Fewest hand moves a line may have; shorter traces are retried with a new seed. */
+  minHandMoves: 3,
 };
 
 /** Generator diagnostics: why attempts were discarded. Read by the probe and calibration scripts. */
@@ -346,6 +348,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
     stepFeet(false);
   }
   if (!route.finish_hold) return note('no_finish');
+  if (handSteps.length < TRACE.minHandMoves) return note('too_short');
   route.beta_line = beta;
   return { route, handSteps };
 }
@@ -394,7 +397,8 @@ function solveHold(hold: Hold, spec: MoveSpec, mdTarget: number, profile: CragSt
   hold.quality = Math.min(0.9, Math.max(0.15, 0.5 - (mdTarget - r2) / 4));
 }
 
-function cruxIndexes(handSteps: number[], position: CragStyleProfile['crux_position'], rng: Rng): Set<number> {
+/** Which hand move carries the crux (06 §2.4), by the profile's crux position; any hand move if that third is empty. */
+export function cruxIndexes(handSteps: number[], position: CragStyleProfile['crux_position'], rng: Rng): Set<number> {
   const n = handSteps.length;
   if (n === 0) return new Set();
   const third = Math.max(1, Math.floor(n / 3));
@@ -403,7 +407,7 @@ function cruxIndexes(handSteps: number[], position: CragStyleProfile['crux_posit
   else if (position === 'mid') pool = handSteps.slice(third, Math.max(third + 1, n - third));
   else if (position === 'high') pool = handSteps.slice(Math.max(0, n - third));
   else pool = handSteps;
-  return new Set([rng.pick(pool)]);
+  return new Set([rng.pick(pool.length ? pool : handSteps)]);
 }
 
 function solveAll(route: Route, traced: Traced, ath: Athlete, req: GenRequest, rng: Rng): Set<number> {
