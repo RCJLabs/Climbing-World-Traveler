@@ -300,9 +300,10 @@ function endDay(run: RunState, bundle: DataBundle): void {
   if (c.loads.length > 35) c.loads.shift();
   const ratio = acwr(c.loads);
 
-  // Burnout (12 §7).
+  // Burnout (12 §7). Failing sessions weigh only on days you climb: charged on rest days too, a long failure
+  // streak outweighed rest, so burnout could never fall and the forced break repeated for the rest of the run.
   const novelty = c.new_sectors_today > 0 ? 1 : 0;
-  const dB = (0.15 * c.monotony_weeks + 0.1 * c.failure_streak + 0.05 * Math.max(0, (ratio ?? 1) - 1.3) * 10 - 0.6 * (restDay ? 1 : 0) - 0.4 * novelty)
+  const dB = (0.15 * c.monotony_weeks + 0.1 * (climbed ? c.failure_streak : 0) + 0.05 * Math.max(0, (ratio ?? 1) - 1.3) * 10 - 0.6 * (restDay ? 1 : 0) - 0.4 * novelty)
     * (1 - resilience / 200);
   run.res.burnout = clamp(run.res.burnout + dB, 0, 100);
   c.new_sectors_today = 0;

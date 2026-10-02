@@ -111,6 +111,17 @@ describe('day loop', () => {
     expect(() => applyAction(run, { t: 'block_start', kind: 'climb', target: 'bas_cuvier' }, bundle)).toThrow(InvalidAction);
   });
 
+  it('lets rest bring burnout down after a long failure streak (12 §7)', () => {
+    // A failure streak charged on rest days too outweighed rest, so burnout stuck at 100 and the forced break
+    // repeated for the rest of the run.
+    const run = createRun('burnt', presetSpec('dirtbag'), bundle);
+    run.counters.failure_streak = 10;
+    run.res.burnout = 90;
+    for (let i = 0; i < 30; i++) applyAction(run, { t: 'end_day' }, bundle);
+    expect(run.res.burnout).toBeLessThan(80);
+    expect(run.counters.failure_streak).toBe(10); // only a send resets it
+  });
+
   it('ends the run as bankrupt after 30 days in the red', () => {
     const run = createRun('broke', presetSpec('dirtbag'), bundle);
     run.res.money = 10;

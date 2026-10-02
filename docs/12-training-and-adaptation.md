@@ -127,9 +127,10 @@ nutrition_mult = 0.80 + 0.4 × nutrition/100 × food_factor               (0.80�
 `burnout` (0–100, seasonal) accrues daily:
 
 ```
-Δburnout = 0.15 × monotony + 0.10 × failure_streak + 0.05 × max(0, ACWR − 1.3) × 10 − 0.6 × rest_day − 0.4 × novelty
+Δburnout = 0.15 × monotony + 0.10 × failure_streak × climbed + 0.05 × max(0, ACWR − 1.3) × 10 − 0.6 × rest_day − 0.4 × novelty
   monotony       = weeks in a row with the same block mix and location (0..8)
   failure_streak = consecutive sessions without a send or a training PR (0..10)
+  climbed        = 1 on a day with a climbing session, else 0: failure weighs on the days you fail, and rest is the remedy
   novelty        = 1 on the first week at a new crag, first new partner, first comp
   all × (1 − resilience/200)
 ```
