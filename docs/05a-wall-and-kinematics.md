@@ -167,7 +167,7 @@ The `Protection` interface is in [schemas §5](schemas.md#5-wall-holds-routes). 
 | `pad_zone` | `y` (pad top height), `x` (centre), `quality` (coverage 0–1) | Landing zone. `quality 1.0` is a flat, fully padded landing; `0.4` is a sloping landing with one pad | boulder |
 | `water` | `y` (water level), `quality` (depth factor: 1.0 deep, 0.3 shallow or ledges below the surface) | Swell from weather multiplies consequence ([07 DWS](07-disciplines.md)) | dws |
 | `ice_screw` | as `gear` with `gear_sizes` = screw lengths | P4 | ice |
-| `none` | — | Placeholder for ground-fall sections; the resolver treats the ground at `y = 0` as the landing | any |
+| `none` | — | Stand-in for ground-fall sections; the resolver treats the ground at `y = 0` as the landing | any |
 
 Spotter quality is not a protection object; it comes from the partner (`NPC.spot_quality`) present at the attempt.
 

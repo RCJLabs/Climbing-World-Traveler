@@ -510,8 +510,8 @@ A fall produces a **consequence** `κ ∈ [0, 1]` from the `FallKind`, which [13
 
 | `FallKind` | Consequence | Notes |
 |---|---|---|
-| `boulder` | `h = CoM.y − pad_top`; `κ = clamp(0.08 × h² × (1 − 0.6 × coverage) × (1 − 0.3 × spot_quality/100) × landing, 0, 1)`; `landing = 1.0` flat, `1.5` sloping/rocky (pad_zone `quality < 0.5`) | `jump_off` uses `h − 0.5` and `landing × 0.7`. Indoor bouldering falls: ankle fracture 40 % of diagnoses (A2), reflected in 13's site table |
-| `rope` | `fall_len = 2 × (CoM.y − y_lastclip) + 1.5 slack + 0.08 × rope_out`; `κ = clamp(0.03 × fall_len + 0.4 × [ledge in path] + 0.2 × (1 − belay_quality/100) + 0.3 × [clip skipped], 0, 1)`; ground contact (`CoM.y − fall_len ≤ 0`) → `κ = 1` | `rope_craft` reduces slack: `1.5 × (1.2 − 0.4 × rope_craft/100)` |
+| `boulder` | `h = CoM.y − pad_top`; `κ = clamp(0.03 × h² × (1 − 0.6 × coverage) × (1 − 0.3 × spot_quality/100) × landing, 0, 1)` **(tune)**; `landing = 1.0` flat, `1.5` sloping/rocky (the crag's landing field, default flat) | A 3 m Font problem (`h 2.5`, coverage `0.8`, one spotter at 50) gives `0.083` (safe); a 6 m highball onto a `0.4` pad with no spotter gives `0.69` (bold), `1.0` if the landing is rocky (deadly). `jump_off` uses `h − 0.5` and `landing × 0.7`. Indoor bouldering falls: ankle fracture 40 % of diagnoses (A2), reflected in 13's site table |
+| `rope` | `fall_len = 2 × (CoM.y − y_lastclip) + slack + 0.08 × rope_out`, `slack = 1.5 × (1.2 − 0.4 × rope_craft/100)`; `κ = clamp(0.015 × fall_len + 0.4 × [ledge in path] + 0.2 × (1 − belay_quality/100) + 0.3 × [clip skipped], 0, 1)` **(tune)**; ground contact (`CoM.y − fall_len ≤ 0`) → `κ = 1` | Bolts every 3 m: the worst fall before a clip is `7.5 m` → `0.11` (safe); a 5 m runout → `11.5 m` → `0.17` (spicy); a ledge in the path adds `0.4` (bold) |
 | `trad_rope` | as `rope`, but each piece between the climber and the last bolt-equivalent is tested top-down: `P_hold = placement_quality^(1 + fall_len/5)`; a rip adds its spacing to `fall_len` and cascades | placement quality from the `place_gear` roll: `clamp(Protection.quality × (0.5 + 0.5 × gear_placement/100) + N(0, 0.1), 0, 1)` |
 | `water` | `κ = clamp(0.05 × (CoM.y − water_y) × (1 − quality) + 0.3 × swell + 0.4 × [rotation: fell from a `toe_hook`/`kneebar`], 0, 1)` | S-grade display from `κ` ([08 §3](08-grades.md#3-other-systems)) |
 | `alpine` | `κ = max(rope κ, objective_hazard)` | [07](07-disciplines.md) |
@@ -536,10 +536,11 @@ A rope attempt in `onsight`/`flash`/`redpoint` that falls or takes becomes `work
 ### 12.2 Familiarity and beta
 
 ```
-fam = 1 − e^(−k × attempts_equivalent)       k = 0.35 boulder, 0.25 route   (tune)
-attempts_equivalent = Σ (1.0 per redpoint-style attempt, 1.5 per work attempt) + 0.30 × beta_quality × 1/k
+fam = 1 − (1 − fam_beta) × e^(−k × attempts_equivalent)       k = 0.35 boulder, 0.25 route   (tune)
+attempts_equivalent = Σ (1.0 per redpoint-style attempt, 1.5 per work attempt)
+fam_beta = 0.30 × beta_quality                                   beta sets the starting familiarity; attempts grow it
 effects: MoveDifficulty −0.3 × fam on every move; displayed band width × (1 − 0.5 × fam); hidden holds on touched sections revealed
-beta_quality = trust/100 × partner_knows_route × (1 − 0.5 × [spray > 70 and trust < 40])     from the partner's Relationship and NPC fields
+beta_quality = trust/100 × [route in the partner's ticklist] × (1 − 0.5 × [spray > 70 and trust < 40])     Relationship.trust, Climber.ticklist, NPC.spray
 ```
 
 Five working attempts on a boulder give `fam = 1 − e^(−1.75) = 0.83` and `−0.25 DI` on every move — a quarter grade, which is what redpointing a boulder you know buys you (the onsight gap in [02 §C.3](02-character-model.md#c3-grade-estimates-display-on-the-character-sheet) is the larger, information-driven part).
@@ -687,3 +688,5 @@ The grade engine sees both as 6B+ because a balanced climber at DI 16 has the sa
 6. **Cross-through moves** are forbidden by [05a §5.2](05a-wall-and-kinematics.md#52-reachable-set-and-reasons); if wanted, add a class with `C +1.0` and the `bump` matrix cells.
 7. The `0.6` recovery factor on `cut` outcomes and the `slap_ms = 0.12` zone are untested on device; tune with the first-dyno tutorial in [17](17-ui-ux.md).
 8. Expected-value mode truncates slip retries at one; live play allows unlimited retries at rising pump and fear. The harness should report how much the truncation biases grades (expected `< 0.1 DI`).
+9. **Career counter `rope_falls_logged`** (§9.1 "lead" source) is not in `Climber`; propose a `counters: Record<string, number>` field on `Climber` for this and similar evolving-trait thresholds in [03](03-traits.md).
+10. **Shoe stiffness.** The plan's example cell `smear/high_step` carries a "shoe stiffness ×" term; shoes live in the gear model ([14](14-economy-gear-logistics.md)), so the matrix lists only Body terms here. Proposal: a `GearInstance` multiplier on `smear`/`foot_chip`/`edge`-as-foot cells of `0.95–1.05`, applied inside `M_cond`.
