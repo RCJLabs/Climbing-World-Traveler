@@ -396,7 +396,7 @@
   "components": {
    "hardest_move": 13.183868582273103,
    "crux_density": 3,
-   "pump_peak": 19.568919784956154,
+   "pump_peak": 19.715295506948635,
    "rests": 0,
    "dynamic_share": 0.14285714285714285
   }
@@ -409,7 +409,7 @@
   "discipline": "boulder",
   "rock": "sandstone_font",
   "di_target": 19,
-  "di_graded": 18.93,
+  "di_graded": 19.09,
   "danger": "safe",
   "wall": [
    {
@@ -509,7 +509,7 @@
     "y": 0.9571898725814723,
     "type": "sloper",
     "size": "s",
-    "quality": 0.35,
+    "quality": 0.5,
     "orientation": 0,
     "sharpness": 0.3,
     "friction": 0.528,
@@ -541,7 +541,7 @@
     "y": 1.141562953470418,
     "type": "pinch",
     "size": "s",
-    "quality": 0.35,
+    "quality": 0.5,
     "orientation": 0,
     "sharpness": 0.3,
     "friction": 0.528,
@@ -573,7 +573,7 @@
     "y": 1.5048142863033886,
     "type": "sloper",
     "size": "m",
-    "quality": 0.35,
+    "quality": 0.5,
     "orientation": 0,
     "sharpness": 0.3,
     "friction": 0.528,
@@ -660,9 +660,9 @@
   ],
   "fa_note": "A sandy-floored classic whose first ascent is lost to the dune. The game credits no real person.",
   "components": {
-   "hardest_move": 20.310660171779823,
-   "crux_density": 3,
-   "pump_peak": 25.171049801806436,
+   "hardest_move": 20.736916517161013,
+   "crux_density": 2,
+   "pump_peak": 26.315641266976026,
    "rests": 0,
    "dynamic_share": 0.25
   }

@@ -74,12 +74,35 @@ export function yOfS(wall: readonly WallSegment[], s: number): number {
   return last.y1 + (s - acc) * Math.sin(rad(last.angle));
 }
 
+/** Rock does not kink at a hold's scale: within this distance of a segment boundary, along the surface, a hold's angle blends between the two segments (05a §1.2). **(tune)** */
+export const ANGLE_BLEND_M = 0.10;
+
+/** Wall angle at height y, blended linearly across segment boundaries over ±ANGLE_BLEND_M of surface (05a §1.2). */
+export function angleAt(wall: readonly WallSegment[], y: number): number {
+  const s = sOfY(wall, y);
+  let acc = 0;
+  for (let i = 0; i < wall.length; i++) {
+    const seg = wall[i]!;
+    const end = acc + (seg.y1 - seg.y0) / Math.sin(rad(seg.angle));
+    if (s < end || i === wall.length - 1) {
+      const prev = wall[i - 1];
+      const next = wall[i + 1];
+      // At a boundary the angle is the mean of the two segments; it reaches the segment's own angle ANGLE_BLEND_M in.
+      if (prev && s - acc < ANGLE_BLEND_M) return prev.angle + (seg.angle - prev.angle) * (0.5 + 0.5 * (s - acc) / ANGLE_BLEND_M);
+      if (next && end - s < ANGLE_BLEND_M) return next.angle + (seg.angle - next.angle) * (0.5 + 0.5 * (end - s) / ANGLE_BLEND_M);
+      return seg.angle;
+    }
+    acc = end;
+  }
+  return wall[wall.length - 1]!.angle;
+}
+
 export function routeGeom(route: Route): RouteGeom {
   const holds = new Map<string, HoldG>();
   const list: HoldG[] = [];
   for (const h of route.holds) {
     const seg = segmentAt(route.wall, h.y);
-    const g: HoldG = { ...h, s: sOfY(route.wall, h.y), z: zOfY(route.wall, h.y), angle: seg.angle, feature: seg.feature };
+    const g: HoldG = { ...h, s: sOfY(route.wall, h.y), z: zOfY(route.wall, h.y), angle: angleAt(route.wall, h.y), feature: seg.feature };
     holds.set(h.id, g);
     list.push(g);
   }

@@ -11,6 +11,7 @@ import { applyAction, createRun, InvalidAction, reduce, replay, sectorList } fro
 import type { RunState } from '../src/sim/state';
 import type { Action } from '../src/sim/types';
 import { calendarDate } from '../src/sim/weather';
+import { POWER_BASE } from '../src/sim/resolve';
 
 const bundle = loadBundle();
 const AUTO = { ...DEFAULT_OPTIONS, auto_commit: true };
@@ -128,6 +129,15 @@ describe('attempts', () => {
     expect(run.attempt).toBeNull();
     expect(run.last_attempt).not.toBeNull();
     expect(typeof sawWindow).toBe('boolean');
+  });
+
+  it('starts an attempt with the power pool: a base plus anaerobic capacity (02 §D)', () => {
+    const run = createRun('pool', presetSpec('dirtbag'), bundle);
+    const sector = openDay(run);
+    applyAction(run, { t: 'block_start', kind: 'climb', target: sector }, bundle);
+    expect(run.res.energy).toBeGreaterThanOrEqual(50);
+    applyAction(run, { t: 'attempt_start', route_seed: run.block!.session!.slots[0]!.seed, mode: 'onsight' }, bundle);
+    expect(run.attempt!.power).toBe(POWER_BASE + run.attrs.anaerobic_capacity.value);
   });
 
   it('limb options show the decision triangle for reachable holds', () => {

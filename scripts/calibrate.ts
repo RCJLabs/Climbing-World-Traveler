@@ -1,7 +1,7 @@
 // Grade-engine calibration (docs/05c §4 C1–C9, 19 §5). `pnpm calibrate --quick` is the CI gate; plain
 // `pnpm calibrate` is the fuller sweep; `--full` uses the doc's sample sizes (slow).
 import { loadBundle } from '../src/data/bundle';
-import { diceAttempt, mean, syntheticRun, workedExampleBuilds, type Timing } from '../src/harness/sim';
+import { diceAttempt, mean, spearman, syntheticRun, workedExampleBuilds, type Timing } from '../src/harness/sim';
 import { evWalk, gradeRoute, referenceAthlete, sendCurve, X_SEND } from '../src/sim/grade';
 import { stream } from '../src/sim/rng';
 import { generateBoulder, routeFromSeed, routeSeed } from '../src/sim/routes';
@@ -139,14 +139,22 @@ record('C8 timing share', gap <= 0.08 && Math.abs(autoVsAvg) <= 0.02 + 0.03,
 
 // ---------------------------------------------------------------- C9 build divergence (05b §14.1 builds)
 const { A, B } = workedExampleBuilds();
-const diffs: number[] = [];
+const pA: number[] = [];
+const pB: number[] = [];
 for (let k = 0; k < S.c9; k++) {
   const sector = crag.sectors[k % crag.sectors.length]!;
   const r = routeFromSeed(routeSeed('fontainebleau', sector.id, 0, 7000 + k, 16), bundle);
   const g = routeGeom(r);
-  diffs.push(Math.abs(evWalk(g, A).p_send - evWalk(g, B).p_send));
+  pA.push(evWalk(g, A).p_send);
+  pB.push(evWalk(g, B).p_send);
 }
-record('C9 build divergence', mean(diffs) >= 0.3, `mean |P_send(A) − P_send(B)| on ${diffs.length} DI-16 problems = ${mean(diffs).toFixed(2)} (≥ 0.30)`, false);
+// The gap says outcomes differ; the rank correlation says whether they differ by style (each build finds different
+// problems hard) or only by strength (same order, one build higher). A stronger copy of one build scores about 0.9.
+const gap9 = mean(pA.map((p, i) => Math.abs(p - pB[i]!)));
+const rho9 = spearman(pA, pB);
+const split = (x: number[], y: number[]) => x.filter((p, i) => p >= 0.2 && y[i]! < 0.05).length;
+record('C9 build divergence', gap9 >= 0.3 && rho9 <= 0.5,
+  `${pA.length} DI-16 problems: mean |P_send(A) − P_send(B)| ${gap9.toFixed(2)} (≥ 0.30); rank correlation ${rho9.toFixed(2)} (≤ 0.50); only A sends ${split(pA, pB)}, only B ${split(pB, pA)}`, false);
 
 const failedGates = results.filter((r) => !r.pass && r.gate);
 log(`\n${mode} calibration in ${((performance.now() - t0) / 1000).toFixed(1)} s: ${results.filter((r) => r.pass).length}/${results.length} pass; gating failures ${failedGates.length}`);

@@ -82,6 +82,34 @@ export function diceAttempt(base: RunState, route: Route, k: number, bundle: Dat
 }
 
 export const mean = (xs: readonly number[]): number => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
+/** Ranks with ties given their average rank (send probabilities pile up at 0 and 1). */
+function ranks(xs: readonly number[]): number[] {
+  const order = xs.map((v, i) => [v, i] as const).sort((a, b) => a[0] - b[0]);
+  const out = new Array<number>(xs.length);
+  for (let k = 0; k < order.length;) {
+    let j = k;
+    while (j + 1 < order.length && order[j + 1]![0] === order[k]![0]) j++;
+    for (let t = k; t <= j; t++) out[order[t]![1]] = (k + j) / 2;
+    k = j + 1;
+  }
+  return out;
+}
+
+/** Spearman rank correlation; 0 when either side has no spread. */
+export function spearman(a: readonly number[], b: readonly number[]): number {
+  const ra = ranks(a);
+  const rb = ranks(b);
+  const ma = mean(ra);
+  const mb = mean(rb);
+  let cov = 0, va = 0, vb = 0;
+  for (let i = 0; i < ra.length; i++) {
+    cov += (ra[i]! - ma) * (rb[i]! - mb);
+    va += (ra[i]! - ma) ** 2;
+    vb += (rb[i]! - mb) ** 2;
+  }
+  return va > 0 && vb > 0 ? cov / Math.sqrt(va * vb) : 0;
+}
 export const quantile = (xs: readonly number[], q: number): number => {
   if (!xs.length) return 0;
   const s = [...xs].sort((a, b) => a - b);

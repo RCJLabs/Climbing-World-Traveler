@@ -43,6 +43,8 @@ d(a, b) = sqrt((a.x − b.x)² + (a.s − b.s)²)
 
 Bands are what the rest of the design means by "slab", "vertical", "overhang", "roof". They set the terrain `Tag` of every move made in the segment and feed the angle terms in [05b §4](05b-move-resolution-and-attempt-loop.md#4-resolution).
 
+**A hold's angle blends across segment boundaries.** Rock does not kink at a hold's scale, so within `0.10 m` of a boundary, measured along the surface, a hold takes an angle blended linearly between the two segments: their mean at the boundary, its own segment's angle `0.10 m` in **(tune)**. Without the blend, a 2 cm shift across a 90°/110° boundary changed one move by 3.3 DI. A hold's `feature` (lip, arête) stays its segment's: features are categorical.
+
 | Band | `angle` | Tag | Typical holds | Feet | Notes |
 |---|---|---|---|---|---|
 | slab | 60–84 | `slab` | smear, foot_chip, crimp, edge | carry most load; hands are balance | `smear` is only legal here and on vertical |

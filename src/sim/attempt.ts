@@ -6,7 +6,7 @@ import { aggregateMods, athleteFrom, clamp, type Athlete, type Mods } from './ch
 import { applyMove, canMantle, prepareMove, preview, type Prepared, type Preview } from './engine';
 import { boulderKappa, startState } from './grade';
 import {
-  commitOutcome, commitWindow, evaluate, fearEffects, holdCost, izof, probs, recoveryChance, restDelta,
+  commitOutcome, commitWindow, evaluate, fearEffects, holdCost, izof, powerPool, probs, recoveryChance, restDelta,
   type CommitOutcome, type Conditions, type MoveState, type Probs,
 } from './resolve';
 import { routeFromSeed } from './routes';
@@ -181,11 +181,11 @@ export function startAttempt(run: RunState, seed: string, asked: AttemptMode, bu
   const famBeta = route.signature ? 0.15 : 0;
   const k = 0.35 * ath.mods.familiarity_k_mult;
   const fam = 1 - (1 - famBeta) * Math.exp(-k * project.attempt_eq);
-  const anaerobic = ath.a.anaerobic_capacity;
+  const pool = powerPool(ath);
   const at: AttemptState = {
     route_seed: seed, route_id: route.id, mode, attempt_index: project.attempts, move_index: 0,
     climb: startState(geom, ath), pump: 0,
-    power: run.res.energy < 50 ? anaerobic * (0.5 + run.res.energy / 200) : anaerobic,
+    power: run.res.energy < 50 ? pool * (0.5 + run.res.energy / 200) : pool,
     aerobic_reserve: ath.a.aerobic_capacity,
     fear_base: 0, focus_meter: ath.a.focus, chalk: 100, time_s: 0, shake_k: 0, pq_penalty: 0, fam,
     beta_ptr: 0, moves: 0, hand_moves: 0, pending: null, fear_log: [], log: [],
@@ -437,7 +437,7 @@ export function doWallAction(run: RunState, kind: 'rest' | 'chalk' | 'jump_off',
     at.time_s += 10;
     session.time_s += 10;
     at.aerobic_reserve = Math.max(0, at.aerobic_reserve - 1);
-    at.power = Math.min(ath.a.anaerobic_capacity, at.power + 2);
+    at.power = Math.min(powerPool(ath), at.power + 2);
     calmDown(at, ath);
     if (geom.route.style_tags.includes('highball')) addFear(at, ath, 'lingering', 1);
     const { under } = fearEffects(liveFear(at, geom, ath).fear, ath.a.composure);

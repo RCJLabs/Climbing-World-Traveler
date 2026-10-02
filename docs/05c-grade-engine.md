@@ -27,7 +27,7 @@ The Reference Climber at DI `n` is **balanced by construction**: every attribute
 | `rope_craft`, `gear_placement` | | `S_ref(n)` (P1b/P3 routes only) |
 | Body | 170 cm, `ape_index 1.00`, `mass_kg = ref_mass`, `body_fat_pct = ref_fat`, all bands `0`, `skin normal/normal`, `sex 'm'`, `lock_depth_m 0.30` | every [02 §A.1](02-character-model.md#a1-sliders-and-modifiers) multiplier is exactly `1.0`; `R_hand(hang) = 0.692 m`, `R_foot(hang) = 0.645 m`; the lock-off lift of [05a §4.2](05a-wall-and-kinematics.md#42-anchors-body-centre-hips-and-shoulders) is pinned so reach does not change with DI |
 | Traits | none | `M_trait = 1` |
-| Resources at attempt start | `pump 0`, `power = S_ref`, `aerobic_reserve = S_ref`, `fear` at band centre, `focus_meter 50`, `chalk 100`, `skin 100`, `energy 100` | |
+| Resources at attempt start | `pump 0`, `power = 15 + S_ref` (the [02 §D](02-character-model.md#d-resources) pool), `aerobic_reserve = S_ref`, `fear` at band centre, `focus_meter 50`, `chalk 100`, `skin 100`, `energy 100` | |
 
 ```
 S_ref(DI) = 8 + 2.0 × (DI − 8)         8 ≤ DI ≤ 12
@@ -40,7 +40,7 @@ The middle segment is a least-squares fit to the Lattice two-arm 20 mm benchmark
 
 ### 1.2 The table
 
-| DI | Boulder | Route | `S_ref` | `finger_strength` shown as 2-arm 20 mm %BW | Lattice anchor (A1) | Power pool / aerobic reserve |
+| DI | Boulder | Route | `S_ref` | `finger_strength` shown as 2-arm 20 mm %BW | Lattice anchor (A1) | Aerobic reserve (power pool is 15 more) |
 |---:|---|---|---:|---:|---|---:|
 | 8 | Font 3 / VB | 5a | 8.0 | 108 | | 8 |
 | 9 | 4 / V0− | 5b | 10.0 | 110 | | 10 |
@@ -168,7 +168,7 @@ All run headless in the harness ([19](19-balance-and-simulation-testing.md)), in
 | C6 | Style neutrality | Mean `di_graded − di_target` per dominant hold family | families within `±0.3` of each other (no systematic sandbag of one hold type) |
 | C7 | Signature routes | Every `signature: true` route | engine within `±1.0` of `di_target` ([schemas §9](schemas.md#9-validation-rules-enforced-by-the-content-validator-see-20) rule 6) |
 | C8 | Timing share | Replace Auto-commit with novice/average/expert tap distributions | timing explains ≤ 10 % of send variance ([19](19-balance-and-simulation-testing.md)) |
-| C9 | Build divergence | The two builds of 05b §14.1 on 100 generated DI-16 Font problems | mean `|P_send(A) − P_send(B)| ≥ 0.3` — the P1a success criterion in numbers |
+| C9 | Build divergence | The two builds of 05b §14.1 on 100 generated DI-16 Font problems | mean `|P_send(A) − P_send(B)| ≥ 0.3` — the P1a success criterion in numbers — and Spearman rank correlation of their `P_send` across the problems `≤ 0.5`, so the builds differ in which problems they find hard, not only in level (a stronger copy of one build scores about 0.9) |
 
 ---
 

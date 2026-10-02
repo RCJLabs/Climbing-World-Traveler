@@ -243,6 +243,14 @@ export function recoveryChance(ath: Athlete, kind: LimbKind, otherAnchors: numbe
 
 // ---------------------------------------------------------------- costs (05b §5)
 
+/**
+ * Power pool at attempt start (02 §D): a base everyone has plus `anaerobic_capacity`. Without the base the Reference
+ * Climber at DI 10 (capacity 12) could not afford one dyno, and a forced deadpoint late on a low-grade problem was
+ * starved of power, which made those grades jump under small geometry changes (05c §4 C5). **(tune)**
+ */
+export const POWER_BASE = 15;
+export const powerPool = (ath: Athlete): number => POWER_BASE + ath.a.anaerobic_capacity;
+
 export function powerCost(cls: MoveClass, r: number): number {
   if (cls === 'deadpoint') return 8;
   if (cls === 'dyno') return r > 1.3 / 1.5 ? 25 : 15;
