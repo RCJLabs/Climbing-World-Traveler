@@ -160,7 +160,7 @@ Centre 12 °C, half-width 5 °C. Sweaty hands shift the centre −3 °C; dry han
 | Resource | Horizon | Reset / regeneration | Notes |
 |---|---|---|---|
 | `pump` | attempt | 0 at start; rises per move; recovers on rests (C.4); 100 = fall | Primary failure mode |
-| `power` | attempt | `anaerobic_capacity` at start; dynamic moves spend 8–25; recovers 2/turn on rests | Empty pool: dynamic moves at −30% |
+| `power` | attempt | `15 + anaerobic_capacity` at start **(tune)**; dynamic moves spend 8–25; recovers 2/turn on rests up to the pool | Empty pool: dynamic moves at −30%. The base `15` lets a beginner make two or three dynamic moves an attempt; without it the Reference Climber at DI 10 (capacity 12) could not afford one dyno |
 | `aerobic_reserve` | attempt | `aerobic_capacity` at start; −1 per 10 s on the wall; feeds C.4 | Makes "rest forever" impossible |
 | `fear` | attempt | `fear0` from `confidence` + context; sources in 05b §7 | IZOF band centre `50 − 0.2 × composure`, half-width `15 + 0.1 × composure` **(tune)** |
 | `focus_meter` | attempt | starts at `focus`; −3 per sketchy outcome; +2 per clean crux move | Scales auto-success band |
