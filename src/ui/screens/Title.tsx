@@ -42,6 +42,7 @@ export function Title({ current }: { current: RunState | null }) {
           </>
         )}
         <p class="tiny muted">Real places, fictional people. Fontainebleau only in this version; travel, routes and the rest of the world come later.</p>
+        <p class="tiny muted mono">Version {__BUILD__.sha} · {__BUILD__.date}</p>
       </div>
     </div>
   );
