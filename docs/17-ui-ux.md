@@ -4,6 +4,8 @@ The game is played one-handed on a phone in portrait, in sessions of five to twe
 
 Related: [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Resolution](05b-move-resolution-and-attempt-loop.md) · [02 Character Model](02-character-model.md) · [03 Traits](03-traits.md) · [16 Meta-progression](16-meta-progression-and-runs.md) · [18 Tech Architecture](18-tech-architecture.md)
 
+> **Simulated play ([24](24-simulation-game.md)):** the wall plays attempts back and takes no input. Limb selection, previews, *Go*, the commit-window bar and the auto-climb toggle (§2–§4) are gone; what stays from §2–§3 is the camera, the rig, the HUD meters and the fear sources. The screen map gains the training week and simulate controls on the Planner, a Watch screen and a Report screen ([24](24-simulation-game.md) §2–§5).
+
 > **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
 
 ---

@@ -322,7 +322,7 @@ A `State` changes only when a limb moves or the posture changes, so the engine r
 
 ## 6. Posture classes
 
-Posture is chosen after each move (the player picks from the eligible list, or auto-climb picks the highest `position_quality`). It sets reach factors (5.1), body offsets (4.2), a quality factor, and modifiers used by 05b.
+Posture is chosen after each move: the highest `position_quality` of the eligible list (the climber's own choice since play is simulated, [24](24-simulation-game.md)). It sets reach factors (5.1), body offsets (4.2), a quality factor, and modifiers used by 05b.
 
 | `Posture` | Eligible when | `q_class` | Pump mult | Rest eligible | `foot_deficit` behaviour | Notes |
 |---|---|---|---|---|---|---|
@@ -366,12 +366,12 @@ Worked: `hang`, two feet, `body_position 36`: `1.00 × 0.986 × 1.0 = 0.986` (�
 turn:
   1. reachable sets for each free limb (5.2), cached on State
   2. for each (limb, hold) pair: MoveClass candidates (05b §2) → MoveDifficulty, margin, costs, next position_quality (05b §4–7)
-  3. player or auto-climb picks an action (05b §1)
+  3. the climber picks an action by its tactics (05b §1, [24 §3.1](24-simulation-game.md))
   4. State' = apply(action): anchors updated, posture chosen from eligible list, feet_cut updated
-  5. pose = IK(State') (4.3); animate 250 ms or play the commit window
+  5. pose = IK(State') (4.3); animate 250 ms when the attempt is being watched
 ```
 
-Nothing in this loop depends on time passing except the rest action and the commit window; the wall itself never changes during an attempt.
+Nothing in this loop depends on time passing except the rest action; the wall itself never changes during an attempt.
 
 ---
 

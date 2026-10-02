@@ -126,7 +126,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | `sending_temp_shift=±n` | 02 C.6 / 10 | shifts the sending-temperature window centre in °C |
 | `split_risk_cold=x` | 13 skin | split-tip probability multiplier in `cold` |
 | `injury_site_mult:<site>=x` | 13 | injury probability multiplier for one `InjuryDef.site` |
-| `commit_window_width=x` | 05b commit window | multiplies target-zone width |
+| `commit_window_width=x` | retired with the commit window ([24](24-simulation-game.md) §6) | — |
 | `feet_cut_recovery=+n` | 05b | percentage points added to the feet-cut recovery roll |
 | `reveal_kneebars` | 05b/06 | kneebar rests shown pre-attempt regardless of `route_reading` |
 | `fear_source_mult:<source>=x` | 05b §7 | multiplies one labelled fear source (height, runout, last_fall, partner) |
@@ -222,7 +222,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | pinch_grip | Pinch Grip | +4 | aptitude | creation | P1a | attr_add: tech_pinches +8; hold_mult: pinch 1.08 | pinch, compression, power | — | — | Thumbs are a hand's second opinion. |
 | pocket_fingers | Pocket Fingers | +4 | aptitude | creation | P1b | attr_add: tech_pockets +8; hold_mult: pocket1 1.06, pocket2 1.06, pocket3 1.04 | pocket, sport | — | — | Two fingers, no complaints. Frankenjura approves. |
 | jam_hands | Jam Hands | +5 | aptitude | creation | P3 | attr_add: tech_cracks +10; hold_mult: crack_finger 1.05, crack_hand 1.08, crack_fist 1.08, crack_offwidth 1.06; move_mult: jam 1.05 | crack, jam, trad, bigwall | — | — | Tape is for people who do it wrong. |
-| dyno_monkey | Dyno Monkey | +5 | aptitude | creation | P1a | attr_add: dynamic_movement +8, commitment +4; move_mult: dyno 1.06, deadpoint 1.04; flags: commit_window_width=1.10 | dynamic, power, boulder, comp | static_master | — | Why reach when you can fly. |
+| dyno_monkey | Dyno Monkey | +5 | aptitude | creation | P1a | attr_add: dynamic_movement +8, commitment +4; move_mult: dyno 1.06, deadpoint 1.04 | dynamic, power, boulder, comp | static_master | — | Why reach when you can fly. |
 | static_master | Static Master | +5 | aptitude | creation | P1a | attr_add: lockoff +6, body_position +4; move_mult: static 1.04, high_step 1.03, dyno 0.96 | static, vertical, slab, trad | dyno_monkey | — | Slow is smooth. Smooth is sent. |
 | core_of_steel | Core of Steel | +6 | aptitude | creation | P1a | attr_add: core_tension +10; ceiling_add: core_tension +6; move_mult: toe_hook 1.04; flags: feet_cut_recovery=+15 | core, roof, overhang, compression | — | — | Feet cut. Feet go back on. Nobody mentions it. |
 | heel_hook_savant | Heel Hook Savant | +4 | aptitude | creation | P1a | attr_add: hip_mobility +3; move_mult: heel_hook 1.10 | footwork, flexibility, overhang, boulder | — | — | Sees a heel where others see a rest they cannot use. |

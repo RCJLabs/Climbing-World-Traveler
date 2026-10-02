@@ -550,20 +550,19 @@ interface MetaState {
   daily_history: { seed: string; summary: RunSummary }[];
 }
 
-// P1a action union (implemented in src/sim/types.ts; docs/22 §3). The day is a sequence of blocks rather than
-// one day_plan, so a session can be saved mid-attempt. Later phases add travel, event_choice, risky_choice,
-// buy/sell and social blocks.
+// P1a action union (implemented in src/sim/types.ts; docs/22 §3, docs/24 §6). The day is a sequence of blocks rather
+// than one day_plan. The climbing is simulated (docs/24): an attempt is one action, played whole by the climber's own
+// tactics. Later phases add travel, event_choice, risky_choice, buy/sell and social blocks.
 type Action =
   | { t: 'new_run'; seed: string; spec: NewRunSpec }
   | { t: 'block_start'; kind: 'climb' | 'train' | 'rest' | 'active_recovery' | 'work'; target?: string }   // climb: sector id; train: activity id
   | { t: 'block_end' }
   | { t: 'end_day' }
-  | { t: 'attempt_start'; route_seed: string; mode: 'onsight' | 'flash' | 'redpoint' | 'work' }   // auto-climb is a UI policy that emits ordinary moves
-  | { t: 'move'; limb: Limb; hold: string; class: MoveClass; perf?: MovePerf }   // class is explicit (05b §2); perf = the player's drag, absent = Auto (docs/23 §3.1)
-  | { t: 'commit'; swing: SwingPerf | null }            // the dyno's Swing and Catch (docs/23 §3.3); null = Auto-commit
-  | { t: 'wall_action'; kind: 'rest' | 'chalk' | 'jump_off' }
-  | { t: 'retire' }
-  | { t: 'settings'; patch: Partial<Pick<RunOptions, 'auto_commit' | 'sweep_speed' | 'pause_drift'>> };
+  | { t: 'attempt'; route_seed: string; mode: 'onsight' | 'flash' | 'redpoint' | 'work' }   // a whole simulated attempt (docs/24 §3.1)
+  | { t: 'set_plan'; plan: WeekPlan }                   // the training week (docs/24 §2); changes no outcome by itself
+  | { t: 'retire' };
+// Retired with docs/24 (data version p1a-13): attempt_start, move (with a Reach or Balance perf), commit (with a
+// Swing and Catch), wall_action and settings (auto_commit, sweep_speed, pause_drift). Runs saved with them cannot continue.
 
 interface NewRunSpec { name: string; background: string; body: Body; traits: string[]; attr_alloc: Partial<Record<AttrId, number>>; options: RunOptions }
 
@@ -572,23 +571,26 @@ interface NewRunSpec { name: string; background: string; body: Body; traits: str
 //   { t: 'risky_choice'; kind: 'solo' | 'dws_s3' | 'highball_reckless' | 'ignore_gear_warning' | 'alpine_commit'; route?: string }
 //   { t: 'buy' | 'sell'; item: string } · block kinds social, travel, admin, physio, comp_round, climb_bigwall, alpine_day
 
-// SwingPerf (docs/23 §3.3): power 0–1 of the dyno's top launch speed, launch direction in degrees from +x (90 = up the
-// rock), and the grab time in flight ms (game time), null for no grab.
-interface SwingPerf { power: number; angle_deg: number; catch_ms: number | null }
+interface RunOptions { death_enabled: boolean; difficulty: 'story' | 'standard' | 'hard'; daily_seed?: string; }
 
-// MovePerf (docs/23 §3.1–§3.2): what the player did on a move that is not a dyno. Reach: how long the limb was off its
-// hold (ms, summed over every try at the move). Balance: how long the centre of mass was out of the base during the
-// reach (ms). Both: where the limb landed as a share of the on-screen placement ring (0 = centre, 1 = its edge).
-// `kind` must match the move's type (the stance test, docs/23 §2.2, decides Balance); numbers finite and ≥ 0; never on a
-// deadpoint or dyno; otherwise the action is invalid.
-type MovePerf = { kind: 'reach'; time_ms: number; place: number } | { kind: 'balance'; out_ms: number; place: number };
-// One-thumb mode is a device setting (Settings.one_thumb), not part of the run: it changes no outcome.
+// The training week (docs/24 §2). days[0] is the run's first day of the week; a run starts on DEFAULT_PLAN (24 §2.2).
+type SessionTactic = 'project' | 'volume';             // shown as Project and Mileage (docs/24 §3.2)
+type PlanBlock =
+  | { kind: 'climb'; tactic: SessionTactic }
+  | { kind: 'train'; activity: string }                // an activity id (12 §1, src/sim/training.ts)
+  | { kind: 'rest' } | { kind: 'active_recovery' } | { kind: 'work' };
+interface PlanDay { main: PlanBlock; extra: PlanBlock | null }   // extra is never climb
+interface WeekPlan {
+  days: PlanDay[];                       // exactly 7
+  wet_day: PlanBlock;                    // train or rest
+  auto_work: boolean;                    // odd jobs while money is short (24 §2.1)
+  auto_rest: boolean;                    // rest instead of climbing on worn skin or high burnout (24 §2.1)
+}
 
-interface RunOptions { death_enabled: boolean; auto_commit: boolean; sweep_speed: number; difficulty: 'story' | 'standard' | 'hard'; daily_seed?: string; pause_drift?: boolean; }
-// pause_drift (shown as Balance moves: No drift): the centre of mass on a Balance move moves only when the player moves it
-// (docs/23 §2.2). Absent = drift on.
-// sweep_speed (0.6–1.6, shown as Dyno speed) now only slows or speeds the dyno's flight on screen (playback 0.6 / sweep_speed);
-// it never changes an outcome, because the grab time is logged in flight time.
+// A weekly progress point in RunState.history (docs/24 §4), written at creation and every seventh day.
+interface WeekPoint { day: number; E: number | null; pb: number; ticks: number; attrs: Partial<Record<AttrId, number>> }
+// RunState also carries plan: WeekPlan, est: number | null (the latest session's unrounded estimate) and
+// history: WeekPoint[]. SessionState carries tried: Record<route_seed, { n: number; sent: boolean }> for the tactics.
 
 interface RunSummary {                   // P1a shape (src/sim/types.ts); later phases make hardest per discipline
   climber: string; background: string; days: number; age_end: number;

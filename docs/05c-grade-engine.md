@@ -81,7 +81,7 @@ One table suffices for grading. Attributes are relative to the climber's own bod
 
 ### 2.1 Expected-value mode
 
-Grading runs 05b with three substitutions: no dice (each outcome contributes its probability), commit windows in Auto-commit mode (05b §8.4), and the climber's state propagated as expected values. The attempt is **redpoint-style and calm**: `fam = 0` (so familiarity is a real bonus for players), hidden holds known, fear held at the band centre, conditions at the 05a reference (`F_ref = Hold.friction × 1.17`).
+Grading runs 05b with three substitutions: no dice (each outcome contributes its probability), dynos by their Auto-commit expectation (05b §8.4, as in play: [24](24-simulation-game.md)), and the climber's state propagated as expected values. The attempt is **redpoint-style and calm**: `fam = 0` (so familiarity is a real bonus for players), hidden holds known, fear held at the band centre, conditions at the 05a reference (`F_ref = Hold.friction × 1.17`).
 
 ```
 grade(route):
@@ -167,7 +167,7 @@ All run headless in the harness ([19](19-balance-and-simulation-testing.md)), in
 | C5 | Geometric stability | Jitter every hold by `N(0, 0.02 m)` across the rock (`x`) and along it (`s`), regrade. Not in height: 2 cm of height is about 6 cm of rock on a 160° roof, and more as it flattens | `|ΔDI| ≤ 0.5` for ≥ 95 % |
 | C6 | Style neutrality | Mean `di_graded − di_target` per dominant hold family | families within `±0.3` of each other (no systematic sandbag of one hold type) |
 | C7 | Signature routes | Every `signature: true` route | engine within `±1.0` of `di_target` ([schemas §9](schemas.md#9-validation-rules-enforced-by-the-content-validator-see-20) rule 6) |
-| C8 | Skill share per move type | Replace each move type's Auto with the novice/average/expert skill models of [19 §3](19-balance-and-simulation-testing.md), one type at a time (the others on Auto) on the problems where it matters, then all three together on dynamic problems ([23 §3.4](23-move-types-and-art-direction.md)) | expert − novice send rate ≤ 7 points (dyno), 3 (reach), 3 (balance), 8 (all three); Auto within ±5 of average. The intended measure is timing explaining ≤ 10 % of send variance; P1a checks the gaps |
+| C8 | Skill share per move type | Retired with player input ([24](24-simulation-game.md) §6): every move is played by the climber's tactics, so there is no player skill to measure | — |
 | C9 | Build divergence | The two builds of 05b §14.1 on 100 generated DI-16 Font problems | mean `|P_send(A) − P_send(B)| ≥ 0.3` — the P1a success criterion in numbers — and Spearman rank correlation of their `P_send` across the problems `≤ 0.5`, so the builds differ in which problems they find hard, not only in level (a stronger copy of one build scores about 0.9) |
 
 ---

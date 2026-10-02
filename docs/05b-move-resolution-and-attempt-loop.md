@@ -4,6 +4,8 @@ This is the rulebook for a single attempt: what a turn is, how a chosen move is 
 
 Related: [schemas](schemas.md) · [02 Character Model](02-character-model.md) · [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05c Grade Engine](05c-grade-engine.md) · [06 Procedural Routes](06-procedural-routes.md) · [13 Injury and Health](13-injury-and-health.md) · [17 UI/UX](17-ui-ux.md) · [18 Tech Architecture](18-tech-architecture.md) · [19 Balance](19-balance-and-simulation-testing.md)
 
+> **Simulated play ([24](24-simulation-game.md)):** there is no player input. The climber chooses every step by its own tactics ([24 §3](24-simulation-game.md)): §1's actions are the climber's, §7's preview is no longer a decision aid, §8's commit window resolves only by Auto-commit (§8.4), and §10's auto-climb is now the whole attempt and never hands back. Resolution, costs, rests, fear, falls and sessions (§2–§6, §9, §11, §12) are unchanged.
+
 > **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
 
 Numbers marked **(tune)** are design proposals for the balance harness. Research citations refer to the plan appendix (A1–A4).

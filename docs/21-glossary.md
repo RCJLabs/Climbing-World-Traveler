@@ -14,8 +14,8 @@ Related: [schemas](schemas.md) · [05b Move Resolution](05b-move-resolution-and-
 - **ARC** — aerobic restoration and capillarity training: long, easy continuous climbing.
 - **Archetype** **[game]** — a cosmetic build label detected from tags (Slab Wizard, Siege Engine), or an NPC template (`local_legend`).
 - **Arête** — an outward-facing edge of rock; feature `arete`.
-- **Auto-climb** **[game]** — a toggle that resolves margin-safe moves automatically and hands control back at cruxes, clips, rests and gear.
-- **Auto-commit** **[game]** — the accessibility and harness mode that replaces the commit window with a stat-only roll; no timing input is ever required.
+- **Auto-climb** **[game, retired]** — the toggle that played margin-safe moves and handed back at cruxes; since [24](24-simulation-game.md) the climber plays every move by its own tactics.
+- **Auto-commit** **[game]** — how every dyno and deadpoint resolves: a stat-only roll for catching the hold at the apex or just catching it (05b §8.4).
 - **Belay** — holding the rope for a climber; `belay_quality` sets slack and catch softness.
 - **Beta** — information about how to do a route; from partners it reduces route uncertainty.
 - **Bold** — a route where a fall at some point would hurt; danger axis `bold`.
@@ -24,7 +24,7 @@ Related: [schemas](schemas.md) · [05b Move Resolution](05b-move-resolution-and-
 - **Caught** **[game]** — a commit-window tap inside the outer zone: the move resolves at nominal values.
 - **Chipping** — manufacturing or enlarging holds; the worst ethics violation in the game.
 - **Clip** — attaching the rope to a bolt or piece of gear; move class `clip`.
-- **Commit window** **[game]** — the short real-time tap-timing bar that opens only on dynamic moves; sweep 600–900 ms.
+- **Commit window** **[game, retired]** — the real-time input on dynamic moves before [24](24-simulation-game.md); dynos now resolve by Auto-commit.
 - **Compression** — squeezing opposing holds or an arête between hands or knees; posture `compression`.
 - **Crimp** — a small edge held with bent fingers; hold type `crimp`.
 - **Crux** — the hardest move or section of a route.
@@ -70,10 +70,12 @@ Related: [schemas](schemas.md) · [05b Move Resolution](05b-move-resolution-and-
 - **Runout** — a long distance above the last protection; a labelled fear source.
 - **Seep** — water weeping from rock after rain, lasting days to weeks on tufa limestone.
 - **Send** — to climb a route to the top without falling or weighting the rope.
+- **Session tactic** **[game]** — how the climber runs a session: *Mileage* (`volume`, many problems below the limit, two tries each) or *Project* (`project`, the hard ones, five tries each); [24 §3.2](24-simulation-game.md).
+- **Siege** **[game]** — up to five attempts on one problem in a session, stopping at a send or when tired.
 - **Sidepull / undercling** — holds pulled sideways or from below; hold types `sidepull`, `undercling`.
 - **Signature route** **[game]** — a hand-authored route at a real crag, `signature: true`.
 - **Sketchy** **[game]** — a move outcome between clean and failure: extra pump and skin, position quality lost.
-- **Slap** **[game]** — a commit-window tap just outside the zone: sketchy outcome, extra pump and skin.
+- **Slap** **[game, retired]** — a commit-window tap just outside the zone; Auto-commit, the only way a dyno resolves now, never slaps.
 - **Sloper** — a rounded hold with no edge, held by friction; hold type `sloper`.
 - **Smear** — a foot placed on featureless rock, held by friction; hold type `smear`.
 - **Snapshot** **[game]** — a materialised `WorldState` cached at an action index to speed loading.
@@ -87,6 +89,7 @@ Related: [schemas](schemas.md) · [05b Move Resolution](05b-move-resolution-and-
 - **Trad** — traditional climbing on removable protection; discipline `trad`.
 - **Tufa** — a calcite drip formation on limestone; feature `tufa`.
 - **Volume** — a large geometric feature, mostly on plastic; hold type `volume`.
+- **Week plan** **[game]** — the training week a climber follows when days are simulated: each day's blocks, the wet-day block and two rules for money and worn skin; `WeekPlan`, [24 §2](24-simulation-game.md).
 - **Wet-rock rule** — the norm of not climbing sandstone until it has dried (Font: no damp; Red Rocks 24–72 h); access kind `wet_rock`.
 - **Working (a route)** — rehearsing moves with rests on the rope; attempt mode `work`.
 

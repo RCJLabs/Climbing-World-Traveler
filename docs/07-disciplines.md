@@ -154,7 +154,7 @@ Rope (60/70/80 m; the atlas lists minimum rope lengths per crag; a too-short rop
 
 ## 8. Competition (P3)
 
-**Boulder.** Four-minute rotation per problem, 4–5 problems per round. Scoring: tops, zones, attempts to top, attempts to zone (IFSC-style ranking order). The engine runs the normal attempt loop with a hard 240 s clock: each move's time cost counts, falls cost 15 s of walking back. Plastic has `friction_base` 0.95, zero `sharpness`, abundant `volume` holds, so `dynamic_movement`, `body_position` and `route_reading` dominate; the commit window fires more often (coordination moves).
+**Boulder.** Four-minute rotation per problem, 4–5 problems per round. Scoring: tops, zones, attempts to top, attempts to zone (IFSC-style ranking order). The engine runs the normal attempt loop with a hard 240 s clock: each move's time cost counts, falls cost 15 s of walking back. Plastic has `friction_base` 0.95, zero `sharpness`, abundant `volume` holds, so `dynamic_movement`, `body_position` and `route_reading` dominate; dynamic moves come up more often (coordination moves).
 
 **Lead.** One attempt, 6-minute limit, scored by hold count (plus for a controlled move toward the next hold) and time as the tiebreak. Onsight rules: observation period only. `aerobic_capacity`, `finger_endurance`, `route_reading`, `focus`.
 

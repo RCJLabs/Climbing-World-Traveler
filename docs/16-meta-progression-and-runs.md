@@ -15,7 +15,7 @@ Every step writes into the single `new_run` action (`background`, `body`, `trait
 | Step | Screen | Choice | Notes |
 |---|---|---|---|
 | 1 | Mode | New career · Daily run · Seeded run · Scenario | Daily and Seeded prefill steps 2–6 (§3); Scenario fixes some of them (§4.3) |
-| 2 | Options | `difficulty`, `death_enabled`, `auto_commit`, `sweep_speed` | All changeable later via `settings` except `difficulty` and `death_enabled` after day 1 (death can still be switched off, never on) |
+| 2 | Options | `difficulty`, `death_enabled` | Fixed for the run (death may later become switchable off, never on). The on-wall options `auto_commit` and `sweep_speed` went with player input ([24](24-simulation-game.md) §6) |
 | 3 | Background | one of the unlocked backgrounds | Sets point bonus, money, start crag ([04](04-backgrounds.md)) |
 | 4 | Body | sliders or a Quick-build preset | Trade-off panel per slider ([02 §A](02-character-model.md)) |
 | 5 | Attributes | distribute `attr_points` | Separate from trait points ([02 §F](02-character-model.md)) |
@@ -53,7 +53,7 @@ Story is for players who want the career and the places; hard is for players who
 
 - **Seeded run:** the player types or pastes `run_seed`. Same seed, same `new_run` payload and same data version give the same weather, routes, NPCs and event draws ([18 §4](18-tech-architecture.md)). The seed is shown on the Run Summary with a copy button.
 - **Daily run:** `RunOptions.daily_seed` is the UTC date (`2027-03-14`). The daily fixes background, body, allocation and traits (derived from the seed), runs standard difficulty with `death_enabled: false`, and ends after 90 sim days. Score = Hall of Fame formula (§6) over that window. There is no server: the game keeps a local history of daily scores and produces a 12-character share code (`seed · score · log hash`) that another player can paste to compare. Daily runs do not grant unlocks beyond the pyramid.
-- **Determinism caveat:** changing `auto_commit` or `sweep_speed` changes the action log but not the world; two players on the same daily see the same routes and weather, and their outcomes differ only by choices and taps.
+- **Determinism caveat:** two players on the same daily see the same routes and weather; their outcomes differ only by their builds, plans and choices of what to try ([24](24-simulation-game.md)).
 
 ---
 
