@@ -43,7 +43,7 @@ export async function boot(): Promise<void> {
     storageNote.value = 'Saving is unavailable in this browser mode. Progress will be lost when you close the tab.';
   }
   meta.value = await backend.getMeta();
-  settings.value = await backend.getSettings();
+  settings.value = { ...DEFAULT_SETTINGS, ...(await backend.getSettings()) };
   runs.value = (await backend.listRuns()).sort((a, b) => b.last_played.localeCompare(a.last_played));
 }
 

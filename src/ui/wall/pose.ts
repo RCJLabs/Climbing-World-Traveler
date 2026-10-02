@@ -88,6 +88,21 @@ export function flightPose(wall: readonly WallSegment[], st: SwingSetup, v: SPt,
   return { sh: shP, hip: hipP, ends, on: { LH: false, RH: false, LF: false, RF: false, [limb]: false }, k: base.k };
 }
 
+/**
+ * Mid-reach (docs/23 §2.1): the moving limb's end follows the player's drag, kept within a limb's length of the
+ * shoulder or hip (or the target, if the figure is drawn stretched to it already), and lets go of its hold.
+ */
+export function reachingPose(base: Pose, limb: Limb, end: P, target: P): Pose {
+  const hand = limbKind(limb) === 'hand';
+  const root = hand ? base.sh : base.hip;
+  const len = Math.max((hand ? 0.66 : 0.88) * base.k, Math.hypot(target[0] - root[0], target[1] - root[1]) + 0.04);
+  const dx = end[0] - root[0];
+  const dy = end[1] - root[1];
+  const d = Math.hypot(dx, dy);
+  const at: P = d > len ? [root[0] + (dx / d) * len, root[1] + (dy / d) * len] : end;
+  return { ...base, ends: { ...base.ends, [limb]: at }, on: { ...base.on, [limb]: false } };
+}
+
 export const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 /** A fall: accelerates from rest and lands at 65% of the ending, then holds. */
 export const drop = (t: number): number => Math.min(1, t / 0.65) ** 2;
