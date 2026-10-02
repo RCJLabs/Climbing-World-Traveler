@@ -1,15 +1,16 @@
 // Shared harness helpers (docs/19): synthetic runs for arbitrary athletes, single dice attempts through the
-// real attempt loop, and the Swing and Catch skill models that stand in for players (19 §3, docs/23 §3.4).
+// real attempt loop, and the Swing and Catch and Reach skill models that stand in for players (19 §3, docs/23 §3.4).
 
-import { autoClimbAction, doCommit, doMove, doWallAction, registerRoute, startAttempt } from '../sim/attempt';
+import { autoClimbAction, doCommit, doMove, doWallAction, reachBudget, registerRoute, startAttempt } from '../sim/attempt';
 import { NEUTRAL_MODS, refMass, type Athlete } from '../sim/character';
 import { REFERENCE_BODY } from '../sim/grade';
 import { DEFAULT_OPTIONS, presetSpec } from '../sim/presets';
+import type { MovePerf } from '../sim/reach';
 import { stream, type Rng } from '../sim/rng';
 import { fly, goodSwing, launchVelocity, type SwingPerf, type SwingSetup } from '../sim/swing';
 import { createRun } from '../sim/run';
 import type { AttemptResult, RunState } from '../sim/state';
-import { ALL_ATTRS, type AttrId, type DataBundle, type Route } from '../sim/types';
+import { ALL_ATTRS, type Action, type AttrId, type DataBundle, type Route } from '../sim/types';
 
 export type Timing = 'auto' | 'novice' | 'average' | 'expert' | 'oracle';
 
@@ -34,6 +35,32 @@ export function harnessSwing(st: SwingSetup, timing: Timing, rng: Rng): SwingPer
   // A player grabs when the hold looks in reach: at the dead point of their own flight, give or take.
   const aim = f.slowest ?? (st.v_top * power * Math.sin((angle_deg * Math.PI) / 180)) / 9.81;
   return { power, angle_deg, catch_ms: Math.round(aim * 1000 + rng.normal(m.mu, m.sd)) };
+}
+
+/**
+ * A player's Two-Thumb Grip: how long the drag takes (mean and sd, ms, whatever the move) and how far from the hold's
+ * centre it lands (sd of a half-normal, as a share of the placement ring). (tune, docs/19 C8)
+ */
+export const REACH_SKILL: Record<Exclude<Timing, 'auto' | 'oracle'>, { mu: number; sd: number; place: number }> = {
+  novice: { mu: 1100, sd: 400, place: 0.5 },
+  average: { mu: 800, sd: 250, place: 0.3 },
+  expert: { mu: 600, sd: 150, place: 0.15 },
+};
+
+/** The drag a harness player of skill `timing` makes on a Reach move with this grip budget; null = Auto. */
+export function harnessReach(budget: number, timing: Timing, rng: Rng): MovePerf | null {
+  if (timing === 'auto') return null;
+  if (timing === 'oracle') return { kind: 'reach', time_ms: Math.round(0.5 * budget), place: 0 };
+  const m = REACH_SKILL[timing];
+  return { kind: 'reach', time_ms: Math.round(Math.max(250, rng.normal(m.mu, m.sd))), place: Math.abs(rng.normal(0, m.place)) };
+}
+
+/** The `move` the bot chose, with a harness player's drag on it when it is a Reach move. */
+export function withReach(run: RunState, a: Extract<Action, { t: 'move' }>, timing: Timing, rng: Rng, bundle: DataBundle): Extract<Action, { t: 'move' }> {
+  if (timing === 'auto') return a;
+  const budget = reachBudget(run, a.limb, a.hold, a.class, bundle);
+  const perf = budget === null ? null : harnessReach(budget, timing, rng);
+  return perf ? { ...a, perf } : a;
 }
 
 /** A run whose climber is exactly `ath` (attributes, body, no traits), on a neutral sending-temperature day. */
@@ -84,7 +111,7 @@ export function diceAttempt(base: RunState, route: Route, k: number, bundle: Dat
     }
     const a = autoClimbAction(run, bundle, { bot: true });
     if (!a || a.t === 'commit') { doCommit(run, null, bundle); continue; }
-    if (a.t === 'move') doMove(run, a.limb, a.hold, a.class, bundle);
+    if (a.t === 'move') { const m = withReach(run, a, timing, rng, bundle); doMove(run, m.limb, m.hold, m.class, bundle, m.perf); }
     else if (a.t === 'wall_action') doWallAction(run, a.kind, bundle);
   }
   if (run.attempt) doWallAction(run, 'jump_off', bundle);
