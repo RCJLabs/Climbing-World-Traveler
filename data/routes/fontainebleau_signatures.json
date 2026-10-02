@@ -1,0 +1,829 @@
+[
+ {
+  "id": "sig_marie_rose",
+  "crag": "fontainebleau",
+  "area": "bas_cuvier",
+  "name": "La Marie-Rose",
+  "discipline": "boulder",
+  "rock": "sandstone_font",
+  "di_target": 13,
+  "di_graded": 13.01,
+  "danger": "safe",
+  "wall": [
+   {
+    "y0": 0,
+    "y1": 0.3,
+    "angle": 88,
+    "feature": "none"
+   },
+   {
+    "y0": 0.3,
+    "y1": 1.5,
+    "angle": 90,
+    "feature": "none"
+   },
+   {
+    "y0": 1.5,
+    "y1": 2.1496601958817405,
+    "angle": 93,
+    "feature": "lip"
+   }
+  ],
+  "width_m": 2,
+  "holds": [
+   {
+    "id": "s_lh",
+    "x": -0.22,
+    "y": 1.2,
+    "type": "crimp",
+    "size": "l",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.1
+   },
+   {
+    "id": "s_rh",
+    "x": 0.18,
+    "y": 1.25,
+    "type": "edge",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.3
+   },
+   {
+    "id": "s_lf",
+    "x": -0.18,
+    "y": 0.42,
+    "type": "foot_chip",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": false,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0
+   },
+   {
+    "id": "s_rf",
+    "x": 0.2,
+    "y": 0.48,
+    "type": "edge",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.3
+   },
+   {
+    "id": "m0",
+    "x": 0.18,
+    "y": 1.4815212635378694,
+    "type": "crimp",
+    "size": "xl",
+    "quality": 0.8,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.1
+   },
+   {
+    "id": "f1",
+    "x": -0.11000000000000001,
+    "y": 0.4403803158844673,
+    "type": "foot_chip",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": false,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0
+   },
+   {
+    "id": "m2",
+    "x": -0.27,
+    "y": 1.5765567597403618,
+    "type": "edge",
+    "size": "xl",
+    "quality": 0.8,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.3
+   },
+   {
+    "id": "f3",
+    "x": 0.1725,
+    "y": 0.7547359293525022,
+    "type": "edge",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.3
+   },
+   {
+    "id": "m4",
+    "x": 0.22999999999999998,
+    "y": 1.7354472845261961,
+    "type": "crimp",
+    "size": "xl",
+    "quality": 0.8,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.1
+   },
+   {
+    "id": "f5",
+    "x": -0.12375000000000003,
+    "y": 0.7554760201182618,
+    "type": "foot_chip",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": false,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0
+   },
+   {
+    "id": "m6",
+    "x": -0.32,
+    "y": 1.7770299856368093,
+    "type": "edge",
+    "size": "xl",
+    "quality": 0.8,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.3
+   },
+   {
+    "id": "f7",
+    "x": 0.11562499999999999,
+    "y": 0.7860331516325656,
+    "type": "foot_chip",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": false,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0
+   },
+   {
+    "id": "m8",
+    "x": 0.27999999999999997,
+    "y": 1.8219793538525273,
+    "type": "crimp",
+    "size": "xl",
+    "quality": 0.8,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.1
+   },
+   {
+    "id": "f9",
+    "x": -0.15218750000000003,
+    "y": 0.8429744227060583,
+    "type": "edge",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.3
+   },
+   {
+    "id": "top",
+    "x": -0.27,
+    "y": 2.0896601958817405,
+    "type": "sloper",
+    "size": "xl",
+    "quality": 0.9,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.2
+   },
+   {
+    "id": "d1",
+    "x": 0.55,
+    "y": 1.55,
+    "type": "crimp",
+    "size": "s",
+    "quality": 0.25,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.45599999999999996,
+    "polish": 0.6,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.1
+   }
+  ],
+  "protection": [
+   {
+    "id": "pad",
+    "kind": "pad_zone",
+    "y": 0.3,
+    "x": 0,
+    "width_m": 2,
+    "quality": 0.8
+   }
+  ],
+  "start": {
+   "LH": "s_lh",
+   "RH": "s_rh",
+   "LF": "s_lf",
+   "RF": "s_rf"
+  },
+  "finish_hold": "top",
+  "length_m": 2.1496601958817405,
+  "style_tags": [
+   "vertical",
+   "crimp",
+   "sloper",
+   "dynamic"
+  ],
+  "signature": true,
+  "seed": "sig_marie_rose",
+  "beta_line": [
+   {
+    "limb": "RH",
+    "hold": "m0",
+    "class": "static"
+   },
+   {
+    "limb": "LF",
+    "hold": "f1",
+    "class": "static"
+   },
+   {
+    "limb": "LH",
+    "hold": "m2",
+    "class": "static"
+   },
+   {
+    "limb": "RF",
+    "hold": "f3",
+    "class": "high_step"
+   },
+   {
+    "limb": "RH",
+    "hold": "m4",
+    "class": "static"
+   },
+   {
+    "limb": "LF",
+    "hold": "f5",
+    "class": "static"
+   },
+   {
+    "limb": "LH",
+    "hold": "m6",
+    "class": "static"
+   },
+   {
+    "limb": "RF",
+    "hold": "f7",
+    "class": "static"
+   },
+   {
+    "limb": "RH",
+    "hold": "m8",
+    "class": "static"
+   },
+   {
+    "limb": "LF",
+    "hold": "f9",
+    "class": "static"
+   },
+   {
+    "limb": "LH",
+    "hold": "top",
+    "class": "deadpoint"
+   },
+   {
+    "limb": "LH",
+    "hold": "top",
+    "class": "mantle"
+   }
+  ],
+  "fa_note": "Opened by a Bleausard whose name the sand forgot; the game credits no real person. The first 6A in the forest, polished glassy by eighty years of hands.",
+  "components": {
+   "hardest_move": 13.183868582273105,
+   "crux_density": 3,
+   "pump_peak": 19.56891978495616,
+   "rests": 0,
+   "dynamic_share": 0.14285714285714285
+  }
+ },
+ {
+  "id": "sig_toit_cul_de_chien",
+  "crag": "fontainebleau",
+  "area": "cul_de_chien",
+  "name": "Le Toit du Cul de Chien",
+  "discipline": "boulder",
+  "rock": "sandstone_font",
+  "di_target": 19,
+  "di_graded": 19.06,
+  "danger": "safe",
+  "wall": [
+   {
+    "y0": 0,
+    "y1": 0.3,
+    "angle": 100,
+    "feature": "none"
+   },
+   {
+    "y0": 0.3,
+    "y1": 0.95,
+    "angle": 150,
+    "feature": "none"
+   },
+   {
+    "y0": 0.95,
+    "y1": 1.3130047534054463,
+    "angle": 125,
+    "feature": "lip"
+   }
+  ],
+  "width_m": 2,
+  "holds": [
+   {
+    "id": "s_lh",
+    "x": -0.2,
+    "y": 0.85,
+    "type": "jug",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.528,
+    "polish": 0.3,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.9
+   },
+   {
+    "id": "s_rh",
+    "x": 0.2,
+    "y": 0.9,
+    "type": "sloper",
+    "size": "l",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.528,
+    "polish": 0.3,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.2
+   },
+   {
+    "id": "s_lf",
+    "x": -0.2,
+    "y": 0.3,
+    "type": "foot_chip",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.528,
+    "polish": 0.3,
+    "hands_ok": false,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0
+   },
+   {
+    "id": "s_rf",
+    "x": 0.22,
+    "y": 0.34,
+    "type": "edge",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.528,
+    "polish": 0.3,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.3
+   },
+   {
+    "id": "m0",
+    "x": 0.2,
+    "y": 0.9143886068719469,
+    "type": "sloper",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.528,
+    "polish": 0.3,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.2
+   },
+   {
+    "id": "f1",
+    "x": 0.30000000000000004,
+    "y": 0.39109715171798676,
+    "type": "jug",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.528,
+    "polish": 0.3,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.9
+   },
+   {
+    "id": "m2",
+    "x": -0.2,
+    "y": 1.0196403377941199,
+    "type": "pinch",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.528,
+    "polish": 0.3,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.2
+   },
+   {
+    "id": "f3",
+    "x": -0.09999999999999998,
+    "y": 0.4222726219184583,
+    "type": "edge",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.528,
+    "polish": 0.3,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.3
+   },
+   {
+    "id": "top",
+    "x": 0.15000000000000002,
+    "y": 1.2530047534054463,
+    "type": "sloper",
+    "size": "l",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.528,
+    "polish": 0.3,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.2
+   },
+   {
+    "id": "d1",
+    "x": -0.55,
+    "y": 1.1,
+    "type": "sloper",
+    "size": "s",
+    "quality": 0.2,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.528,
+    "polish": 0.3,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.2
+   }
+  ],
+  "protection": [
+   {
+    "id": "pad",
+    "kind": "pad_zone",
+    "y": 0.3,
+    "x": 0,
+    "width_m": 2,
+    "quality": 0.8
+   }
+  ],
+  "start": {
+   "LH": "s_lh",
+   "RH": "s_rh",
+   "LF": "s_lf",
+   "RF": "s_rf"
+  },
+  "finish_hold": "top",
+  "length_m": 1.3130047534054463,
+  "style_tags": [
+   "roof",
+   "sloper",
+   "flexibility",
+   "dynamic"
+  ],
+  "signature": true,
+  "seed": "sig_toit_cul_de_chien",
+  "beta_line": [
+   {
+    "limb": "RH",
+    "hold": "m0",
+    "class": "static"
+   },
+   {
+    "limb": "RF",
+    "hold": "f1",
+    "class": "heel_hook"
+   },
+   {
+    "limb": "LH",
+    "hold": "m2",
+    "class": "static"
+   },
+   {
+    "limb": "LF",
+    "hold": "f3",
+    "class": "static"
+   },
+   {
+    "limb": "RH",
+    "hold": "top",
+    "class": "deadpoint"
+   },
+   {
+    "limb": "RH",
+    "hold": "top",
+    "class": "mantle"
+   }
+  ],
+  "fa_note": "A sandy-floored classic whose first ascent is lost to the dune. The game credits no real person.",
+  "components": {
+   "hardest_move": 20.460660171779818,
+   "crux_density": 2,
+   "pump_peak": 30.524896677977168,
+   "rests": 0,
+   "dynamic_share": 0.25
+  }
+ },
+ {
+  "id": "sig_rainbow_rocket",
+  "crag": "fontainebleau",
+  "area": "franchard_isatis",
+  "name": "Rainbow Rocket",
+  "discipline": "boulder",
+  "rock": "sandstone_font",
+  "di_target": 25,
+  "di_graded": 24.55,
+  "danger": "safe",
+  "wall": [
+   {
+    "y0": 0,
+    "y1": 0.3,
+    "angle": 95,
+    "feature": "none"
+   },
+   {
+    "y0": 0.3,
+    "y1": 1.6,
+    "angle": 100,
+    "feature": "none"
+   },
+   {
+    "y0": 1.6,
+    "y1": 2.0297462509308115,
+    "angle": 104,
+    "feature": "lip"
+   }
+  ],
+  "width_m": 2,
+  "holds": [
+   {
+    "id": "s_lh",
+    "x": -0.3,
+    "y": 1.4,
+    "type": "sloper",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 40,
+    "sharpness": 0.3,
+    "friction": 0.564,
+    "polish": 0.15,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.2
+   },
+   {
+    "id": "s_rh",
+    "x": 0.25,
+    "y": 1.45,
+    "type": "sloper",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": -40,
+    "sharpness": 0.3,
+    "friction": 0.564,
+    "polish": 0.15,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.2
+   },
+   {
+    "id": "s_lf",
+    "x": -0.2,
+    "y": 0.55,
+    "type": "smear",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.564,
+    "polish": 0.15,
+    "hands_ok": false,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0
+   },
+   {
+    "id": "s_rf",
+    "x": 0.25,
+    "y": 0.6,
+    "type": "foot_chip",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.564,
+    "polish": 0.15,
+    "hands_ok": false,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0
+   },
+   {
+    "id": "f0",
+    "x": -0.012499999999999997,
+    "y": 0.7905384493975584,
+    "type": "foot_chip",
+    "size": "m",
+    "quality": 0.5,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.564,
+    "polish": 0.15,
+    "hands_ok": false,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0
+   },
+   {
+    "id": "top",
+    "x": 0.15,
+    "y": 1.9697462509308117,
+    "type": "sloper",
+    "size": "xs",
+    "quality": 0.15,
+    "orientation": 0,
+    "sharpness": 0.3,
+    "friction": 0.564,
+    "polish": 0.15,
+    "hands_ok": true,
+    "feet_ok": true,
+    "hidden": false,
+    "rest_value": 0.2
+   }
+  ],
+  "protection": [
+   {
+    "id": "pad",
+    "kind": "pad_zone",
+    "y": 0.3,
+    "x": 0,
+    "width_m": 2,
+    "quality": 0.8
+   }
+  ],
+  "start": {
+   "LH": "s_lh",
+   "RH": "s_rh",
+   "LF": "s_lf",
+   "RF": "s_rf"
+  },
+  "finish_hold": "top",
+  "length_m": 2.0297462509308115,
+  "style_tags": [
+   "vertical",
+   "sloper",
+   "dynamic",
+   "power"
+  ],
+  "signature": true,
+  "seed": "sig_rainbow_rocket",
+  "beta_line": [
+   {
+    "limb": "RF",
+    "hold": "f0",
+    "class": "high_step"
+   },
+   {
+    "limb": "RH",
+    "hold": "top",
+    "class": "dyno"
+   },
+   {
+    "limb": "RH",
+    "hold": "top",
+    "class": "mantle"
+   }
+  ],
+  "fa_note": "One move, one rocket, one rainbow of chalk on the lip. The game credits no real person.",
+  "components": {
+   "hardest_move": 25.01125703272551,
+   "crux_density": 1,
+   "pump_peak": 12.478515264245999,
+   "rests": 0,
+   "dynamic_share": 0.5
+  }
+ }
+]

@@ -4,6 +4,8 @@ One career is one run. Runs end ([11](11-time-career-aging.md)) and feed a thin 
 
 Related: [schemas](schemas.md) · [02 Character Model](02-character-model.md) · [03 Traits](03-traits.md) · [04 Backgrounds](04-backgrounds.md) · [11 Time, Career, Aging](11-time-career-aging.md) · [15 Social](15-social-reputation-events.md) · [17 UI/UX](17-ui-ux.md) · [18 Tech Architecture](18-tech-architecture.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 ---
 
 ## 1. Run creation flow
@@ -73,7 +75,7 @@ Unlocks are strings in `RunSummary.unlocks[]`, granted at run end from the summa
 | `bg:guides_apprentice` | Guide's Apprentice background | 20 paid guiding days |
 | `bg:dirtbag_dropout` | Dirtbag Dropout background | 180 nights camping or in a vehicle |
 | `bg:coastal_fisher` | Coastal Fisher background | 15 DWS ticks |
-| `p1a:second_background` | the P1a unlock: a 6th background | finish any P1a run |
+| `p1a:second_background` | the P1a unlock: a 6th background, **Farm Kid** (starts at Fontainebleau until travel exists) | finish any P1a run |
 
 The five P1a backgrounds and the base trait catalogue need no unlock.
 

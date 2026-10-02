@@ -4,6 +4,8 @@ The atlas is the data appendix for the world: every crag the game ships, with ev
 
 Related: [schemas](schemas.md) (`Crag`, `Climate`, `AccessRule`, `TravelEdge`, `CragStyleProfile`) · [06 Procedural Routes](06-procedural-routes.md) · [07 Disciplines](07-disciplines.md) · [08 Grades](08-grades.md) · [10 Weather](10-weather-and-conditions.md) · [14 Economy](14-economy-gear-logistics.md) · [15 Social](15-social-reputation-events.md) · [20 Content Pipeline](20-content-pipeline.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 Research anchors (costs, permits, access) come from the plan appendix A6–A7 and the sources in [08 §6](08-grades.md) and [14](14-economy-gear-logistics.md). Altitudes, coordinates and climate values are approximate and marked **(tune)** collectively; they are good enough for the generator and should be checked against station data before data files ship.
 
 ---

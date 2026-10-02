@@ -1,0 +1,207 @@
+[
+  {
+    "id": "font_sloper_slab",
+    "rock": "sandstone_font",
+    "hold_weights": {
+      "sloper": 0.35,
+      "edge": 0.15,
+      "pinch": 0.1,
+      "crimp": 0.1,
+      "jug": 0.1,
+      "volume": 0.05,
+      "smear": 0.15,
+      "foot_chip": 0.1
+    },
+    "angle_dist": [
+      {
+        "angle": 75,
+        "weight": 0.25
+      },
+      {
+        "angle": 82,
+        "weight": 0.3
+      },
+      {
+        "angle": 90,
+        "weight": 0.3
+      },
+      {
+        "angle": 98,
+        "weight": 0.15
+      }
+    ],
+    "length_m": {
+      "min": 2.2,
+      "mode": 2.8,
+      "max": 3.8
+    },
+    "hold_density_max": 4.0,
+    "polish": 0.25,
+    "sharpness": 0.3,
+    "seep_susceptibility": 0.0,
+    "crux_position": "high",
+    "move_grammar": {
+      "static": 0.62,
+      "deadpoint": 0.06,
+      "dyno": 0.02,
+      "high_step": 0.18,
+      "match": 0.06,
+      "mantle": 0.06
+    },
+    "feature_weights": {
+      "arete": 0.15
+    },
+    "decoy_rate": 0.3,
+    "hidden_rate": 0.04,
+    "drift_max_m": 0.6,
+    "pad_coverage": 0.8,
+    "name_bank": "font_fr",
+    "tags": [
+      "boulder",
+      "slab",
+      "sloper",
+      "friction",
+      "footwork"
+    ]
+  },
+  {
+    "id": "font_sloper_bulge",
+    "rock": "sandstone_font",
+    "hold_weights": {
+      "sloper": 0.34,
+      "edge": 0.14,
+      "crimp": 0.1,
+      "pinch": 0.1,
+      "volume": 0.08,
+      "jug": 0.06,
+      "sidepull": 0.06,
+      "pocket3": 0.04,
+      "foot_chip": 0.05,
+      "smear": 0.03
+    },
+    "angle_dist": [
+      {
+        "angle": 80,
+        "weight": 0.1
+      },
+      {
+        "angle": 92,
+        "weight": 0.25
+      },
+      {
+        "angle": 100,
+        "weight": 0.35
+      },
+      {
+        "angle": 110,
+        "weight": 0.2
+      },
+      {
+        "angle": 125,
+        "weight": 0.1
+      }
+    ],
+    "length_m": {
+      "min": 2.4,
+      "mode": 3.0,
+      "max": 4.2
+    },
+    "hold_density_max": 4.0,
+    "polish": 0.25,
+    "sharpness": 0.3,
+    "seep_susceptibility": 0.1,
+    "crux_position": "high",
+    "move_grammar": {
+      "static": 0.55,
+      "match": 0.08,
+      "bump": 0.05,
+      "deadpoint": 0.08,
+      "dyno": 0.03,
+      "high_step": 0.1,
+      "heel_hook": 0.05,
+      "mantle": 0.06
+    },
+    "feature_weights": {
+      "arete": 0.3
+    },
+    "decoy_rate": 0.3,
+    "hidden_rate": 0.04,
+    "drift_max_m": 0.6,
+    "pad_coverage": 0.8,
+    "name_bank": "font_fr",
+    "tags": [
+      "boulder",
+      "sloper",
+      "compression",
+      "friction",
+      "footwork",
+      "overhang",
+      "arete"
+    ]
+  },
+  {
+    "id": "font_roof",
+    "rock": "sandstone_font",
+    "hold_weights": {
+      "sloper": 0.3,
+      "jug": 0.2,
+      "pinch": 0.15,
+      "edge": 0.12,
+      "volume": 0.08,
+      "sidepull": 0.06,
+      "foot_chip": 0.05,
+      "crimp": 0.04
+    },
+    "angle_dist": [
+      {
+        "angle": 110,
+        "weight": 0.25
+      },
+      {
+        "angle": 125,
+        "weight": 0.3
+      },
+      {
+        "angle": 140,
+        "weight": 0.25
+      },
+      {
+        "angle": 155,
+        "weight": 0.2
+      }
+    ],
+    "length_m": {
+      "min": 2.2,
+      "mode": 2.7,
+      "max": 3.6
+    },
+    "hold_density_max": 3.5,
+    "polish": 0.2,
+    "sharpness": 0.3,
+    "seep_susceptibility": 0.1,
+    "crux_position": "mid",
+    "move_grammar": {
+      "static": 0.5,
+      "deadpoint": 0.1,
+      "dyno": 0.04,
+      "heel_hook": 0.18,
+      "toe_hook": 0.08,
+      "match": 0.04,
+      "mantle": 0.06
+    },
+    "feature_weights": {},
+    "decoy_rate": 0.3,
+    "hidden_rate": 0.04,
+    "drift_max_m": 0.6,
+    "pad_coverage": 0.8,
+    "name_bank": "font_fr",
+    "tags": [
+      "boulder",
+      "roof",
+      "overhang",
+      "sloper",
+      "core",
+      "power"
+    ]
+  }
+]

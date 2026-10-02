@@ -4,6 +4,8 @@ A solo developer ships this as a static web app: a PWA on GitHub Pages and the s
 
 Related: [schemas](schemas.md) · [05b Move Resolution](05b-move-resolution-and-attempt-loop.md) · [17 UI/UX](17-ui-ux.md) · [19 Balance and Simulation Testing](19-balance-and-simulation-testing.md) · [20 Content Pipeline](20-content-pipeline.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 ---
 
 ## 1. Stack

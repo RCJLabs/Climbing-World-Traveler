@@ -56,6 +56,7 @@ Each phase ships something playable or measurable. A phase is done when its exit
 All docs in `docs/` written, cross-linked and consistent with [schemas.md](schemas.md). Exit: the verification list in the approved plan passes.
 
 ### P1a — Fontainebleau slice
+**Status:** implemented on the P1a branch; measured results and deviations in [22](22-p1a-implementation-notes.md).
 **In:** character creation with full Body sliders, attribute allocation and ~40 P1a-live traits across 5 backgrounds; Fontainebleau only, with circuits and 6–8 named areas; procedural boulders plus 3 signature problems; the turn-based engine with reach envelope, matrix resolution, pump/power/skin/fear meters, auto-climb, commit window and Auto-commit; sessions and days; friction as a seeded daily scalar; a fixed daily-cost money stub; headless harness and grade calibration; event-sourced saves; run end by voluntary retirement or skin/energy exhaustion loop, with one meta unlock.
 **Out:** travel, other crags, injuries beyond skin, NPCs beyond a default spotter stub, events, sponsorship, full weather.
 **Exit criterion:** two different builds (a Slab Wizard preset and a Compression Monster preset) produce visibly different outcomes on the same Font 6B+ problem within a 20-minute phone session, and the harness reports generated boulders within ±1 DI of target at ≥ 90%.

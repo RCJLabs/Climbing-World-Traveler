@@ -4,6 +4,8 @@ A background is the first choice at creation and the only one that touches every
 
 Related: [schemas §4.5](schemas.md) · [02 Character Model](02-character-model.md) · [03 Traits](03-traits.md) · [09 World Atlas](09-world-atlas.md) · [14 Economy](14-economy-gear-logistics.md) · [15 Social](15-social-reputation-events.md) · [16 Meta-progression](16-meta-progression-and-runs.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 All numbers are first-pass proposals **(tune)**; the balance harness ([19](19-balance-and-simulation-testing.md)) re-costs `point_bonus` and `attr_points` so that every background's median 5-year outcome lands within ±1 DI of the others while the *shape* of the career stays distinct.
 
 ---

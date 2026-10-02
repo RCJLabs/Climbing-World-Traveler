@@ -4,6 +4,8 @@ The climber is four layers: a mostly fixed **Body**, trainable **Attributes**, *
 
 Related: [schemas](schemas.md) · [03 Traits](03-traits.md) · [04 Backgrounds](04-backgrounds.md) · [05a Kinematics](05a-wall-and-kinematics.md) · [05c Grade Engine](05c-grade-engine.md) · [12 Training](12-training-and-adaptation.md)
 
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+
 Research grounding for this doc is summarised in §G. Numbers marked **(tune)** are design proposals the balance harness ([19](19-balance-and-simulation-testing.md)) is expected to move.
 
 ---
