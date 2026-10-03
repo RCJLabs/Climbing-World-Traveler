@@ -58,6 +58,7 @@ Read in this order for a first pass: 00 → 01 → 24 → 02 → 05b → 03.
 | 22 | [P1a Implementation Notes](docs/22-p1a-implementation-notes.md) | Where the Fontainebleau slice departs from the design, why, and the measured harness results |
 | 23 | [Move Types and Art Direction](docs/23-move-types-and-art-direction.md) | Flat Dusk, the art direction; the per-move controls it also describes are retired (24) |
 | 24 | [The Simulation Game](docs/24-simulation-game.md) | How the game is played: the week plan, the climber's own tactics, simulated days, reports, watching an attempt |
+| 25 | [Watching the Simulation](docs/25-visual-representation.md) | Proposal: what the playback must show, the engine's data for it, ten styles mocked up on one attempt, recreating real climbs |
 
 ## Conventions
 

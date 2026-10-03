@@ -139,6 +139,8 @@ A `WeekPoint` ([schemas](schemas.md) §8) is written at creation and at every we
 
 The frames are taken by running the same simulation on the very state the attempt is applied to, so the playback is the attempt, not an illustration of it. The wall shows the meters, the fear sources and the climber's running commentary; pinch and drag move the camera; nothing on it changes the climb. Sieges and whole sessions are not played back: their attempts are listed in the report.
 
+How the playback should look, now that nothing on the wall is input, is open: [25](25-visual-representation.md) compares ten styles on one simulated attempt and proposes Flat Dusk on the wall, a guidebook topo as the overview and a blueprint overlay for the analysis.
+
 ## 6. What changed
 
 | Was | Now |

@@ -185,7 +185,7 @@ The prototype (§6) used a stat-based top speed (`(2.6 + 0.024 × power) × …`
 
 **Type and HUD:** a heavy grotesque in caps for labels (the mockups use Archivo 800), bars `12 px` tall and rounded, every control `≥ 44 px`, controls in the bottom third. A move-type chip (`DYNO`, `SLAB · BALANCE`) sits under the problem name.
 
-**Mockups:** the canvas "Climbing Overhaul Mockups", page *Flat Dusk: dyno and balance* (load and aim, catch, off balance, balanced). The mechanics and the nine other visual directions are on its other pages.
+**Mockups:** the canvas "Climbing Overhaul Mockups", page *Flat Dusk: dyno and balance* (load and aim, catch, off balance, balanced). The mechanics and the nine other visual directions are on its other pages. For watching simulated climbs ([24](24-simulation-game.md)), ten styles including *Flat Dusk 2* (this direction with the mechanics drawn on the wall) are compared in [25](25-visual-representation.md).
 
 ---
 
