@@ -25,7 +25,7 @@ const LIMBS: Limb[] = ['LH', 'RH', 'LF', 'RF'];
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
 type V3 = [number, number, number];
 
-/** Body points out from the face, as the wall view draws them (src/ui/wall/pose.ts): shoulders 0.28 m, hips 0.22 m. */
+/** Body points out from the face, as the cartoon rig starts from them (src/ui/wall/rig.ts): shoulders 0.28 m, hips 0.22 m. */
 function pose3(g: RouteGeom, ath: Athlete, climb: ClimbState) {
   const bp = bodyPoints(g, ath, climb);
   const k = ath.body.height_cm / 170;

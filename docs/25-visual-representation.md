@@ -1,10 +1,12 @@
 # 25 · Watching the simulation: visual representation
 
-**Status (2026-10-03):** proposal. Since [24](24-simulation-game.md) the wall is only ever watched, never played, so the picture no longer has to serve as an input surface. This doc sets what the picture must do, the data a renderer gets from the engine, ten candidate styles mocked up on one simulated attempt, how real climbs get recreated, and a recommendation. The owner picks; nothing here changes the engine or the shipped wall yet.
+**Status (2026-10-03):** decided and built for the wall. The owner chose the **cartoon** (style 6), with natural legs and every problem drawn as a cartoon of its own climb; §10 is the spec as built and replaces Flat Dusk on the Watch screen. §1–§9 are the proposal it was chosen from, kept as the record: the scores and the recommendation in §5–§6 were the author's, not the decision. The topo and blueprint lenses of §6 are not adopted; they stay options (open questions).
+
+Since [24](24-simulation-game.md) the wall is only ever watched, never played, so the picture no longer has to serve as an input surface. This doc sets what the picture must do, the data a renderer gets from the engine, ten candidate styles mocked up on one simulated attempt, how real climbs get recreated, and the cartoon wall that was built.
 
 **Mockups:** the Design canvas *Climbing Simulator Visual Styles*: ten phone artboards (390 × 844), each playing the same attempt sequence live with Play, Replay and a speed button, ordered from realistic to stylised. The renderers behind them are in `scripts/dev/visual-styles/` (§9).
 
-Related: [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [06 Procedural Routes](06-procedural-routes.md) · [07 Disciplines](07-disciplines.md) · [17 UI](17-ui-ux.md) · [18 Tech](18-tech-architecture.md) · [23 §4 Flat Dusk](23-move-types-and-art-direction.md) · [24 The Simulation Game](24-simulation-game.md)
+Related: [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [06 Procedural Routes](06-procedural-routes.md) · [07 Disciplines](07-disciplines.md) · [17 UI](17-ui-ux.md) · [18 Tech](18-tech-architecture.md) · [22 Implementation Notes](22-p1a-implementation-notes.md) · [23 §4 Flat Dusk](23-move-types-and-art-direction.md) · [24 The Simulation Game](24-simulation-game.md)
 
 ---
 
@@ -182,15 +184,17 @@ At 0.8 s a step a 30-move sport pitch plays in about half a minute plus rests; l
 
 ## 8. If adopted: build order
 
-| Step | Work | Size |
-|---|---|---|
-| 1 | Playback frames from the engine: body points in 3D and the event per step, with the landing and top-out as rules | S |
-| 2 | Port the playback core (timeline, interpolation, slips, falls, mantle, IK) to TypeScript in `src/ui/wall`, replacing the current tween | M |
-| 3 | Flat Dusk 2's on-wall mechanics in `render.ts` | S |
-| 4 | Topo: route overview and attempt summary in the Routes, Result and Report screens | M |
-| 5 | Blueprint overlay toggle on the Watch screen | M |
-| 6 | Real-problem authoring page (§7 steps 1–3), dev only | L |
-| 7 | Frame time on a low-end Android for each lens; budget from 18 | S |
+Written for the proposal (Flat Dusk 2 on the wall). With the cartoon chosen, steps 1–3 became §10.
+
+| Step | Work | Size | Status |
+|---|---|---|---|
+| 1 | Playback frames from the engine: body points in 3D and the event per step, with the landing and top-out as rules | S | ✓ §10.5, §10.6 |
+| 2 | Port the playback core (timeline, interpolation, slips, falls, mantle, IK) to TypeScript in `src/ui/wall`, replacing the current tween | M | ✓ §10 |
+| 3 | Flat Dusk 2's on-wall mechanics in `render.ts` | S | Replaced by the cartoon renderer; `render.ts` removed |
+| 4 | Topo: route overview and attempt summary in the Routes, Result and Report screens | M | Not adopted |
+| 5 | Blueprint overlay toggle on the Watch screen | M | Not adopted |
+| 6 | Real-problem authoring page (§7 steps 1–3), dev only | L | Open |
+| 7 | Frame time on a low-end Android for each lens; budget from 18 | S | Open for the cartoon |
 
 ---
 
@@ -206,17 +210,124 @@ At 0.8 s a step a 30-move sport pitch plays in about half a minute plus rests; l
 | `scripts/dev/visual-styles/src/mount.js` | Playback driver: plays a style in a canvas and reports the HUD |
 | `scripts/dev/visual-styles/build.sh`, `index.html` | Bundles to `dist/cwt-viz.js`; the page plays all ten, or one with `?s=<id>`, or a still with `?m=<moment>` |
 
-Plain browser JavaScript, outside the TypeScript build and never shipped: a prototype to choose from, not code to keep. Whatever is chosen gets ported (§8 step 2).
+Plain browser JavaScript, outside the TypeScript build and never shipped: a prototype to choose from, not code to keep. The cartoon was ported (§10); the prototypes stay as the record of the comparison.
+
+---
+
+## 10. The cartoon wall (as built)
+
+The look of the mockup the owner chose, rebuilt in TypeScript on the engine's frames: thick ink outlines, flat toon shading, a big-headed climber in a yellow shirt with a star, blue trousers, red shoes and a red headband, white chalky hands, comic lettering in bursts. Two things changed from the mockup at the owner's request: the legs (§10.4) and the rock, which is now each problem's own block (§10.2) rather than one invented dome. Code in `src/ui/wall/`: `block.ts`, `camera.ts`, `rig.ts`, `moves.ts`, `playback.ts`, `toon.ts`, `WallCanvas.tsx`; all but the last two are pure and tested (`tests/cartoon.test.ts`).
+
+### 10.1 One frame
+
+| Layer, back to front | From |
+|---|---|
+| Sky, drifting clouds, two bands of hills, lollipop trees, sand; a little parallax with the camera | Seeded by the problem, so a problem keeps its scenery |
+| The block: its side (the profile in cross-section), its top with moss, the face in strips | `Route.wall`, the holds, the seed (§10.2) |
+| Holds by type, drawn 1.5× size; white chalk popcorn on every hold held so far; hidden holds not drawn until held (05b §13) | `Route.holds`, the frames |
+| The hold the move goes for, ringed (dashed and moving; longer dashes for a dynamic move) until the move lands | The step |
+| The circuit's paint mark (a disc and an arrow) by the start; two pads at the pad zone | `Route.circuit`, `protection` |
+| The climber, depth-sorted part by part | §10.4 |
+| Effects: the word, speed lines, chalk and dust puffs, sweat, strain marks, stars | §10.5, §10.6 |
+
+### 10.2 The block is the problem
+
+Built by `buildBlock(route)`; the seed is `stream('toon-block', route.id)`, so the same problem is always the same block. **(tune)** throughout.
+
+| On screen | From the data | Rule |
+|---|---|---|
+| The face, row by row | `wall` segments | 22 rows to the shoulders and 10 over them; each row at `z = zOfY(wall, y)` with the segment's angle, so a slab leans back, a roof juts out over the pads and a lip noses over |
+| Its shading | Each row's angle | Four flat tones by the face's normal against a light from up-left-front `(−0.35, 0.8, 0.5)`: lit, base, shade, deep; roof undersides take the deep tone; an ink crease where the tone changes |
+| Its width | The holds' x, `width_m` | The holds plus seeded margins of 0.38–0.75 m each side; at least the route's width |
+| Its top corners | Seed | Round on circles of 0.25–0.55 m, never far enough in to reach a hold |
+| An arête | `feature: arete` | The face's left edge is 0.14 m left of the leftmost hold all the way up, so the line climbs the block's corner, which the camera sees; its top corner 0.08 m |
+| A lip | `feature: lip` | The block's nose over the top is 0.1 m (0.04 m without) |
+| The side and back | Seed, the steepest overhang | Depth `1.3–2.1 + 0.4 × max z` m; a crown 0.06–0.28 m; the back narrows by 0.05–0.2 m |
+| Markings | `crack`, `hueco`, `ledge` features; seed | Features become marks where they are; three cracks, four scoops (kept 0.35 m off the line) and fourteen texture flicks; nine moss blobs on top |
+| The pads | The `pad_zone` | Two pads across its width, colours by seed |
+| The colours | `rock` | Sandstone warm, limestone grey-blue, granite grey; each problem's tint shifted ±7% |
+
+A real problem's own outline (§3, §7) is not in the data; generated and signature problems alike get the seeded block above.
+
+### 10.3 The camera
+
+| Piece | Rule | |
+|---|---|---|
+| View | Orthographic three-quarter from the front-left, tilted down 8°: `X = x cos ψ + z sin ψ`, `Y = y cos 8° − (−x sin ψ + z cos ψ) sin 8°` | |
+| Turn `ψ` | `clamp(24° + 0.55 × (steepest angle − 92°), 24°, 56°)`: a vertical face nearly head-on, a roof nearly in profile so the moves under it are not hidden behind the body | **(tune)** |
+| Framing | The head, shoulders, hips, hands, knees and feet and the target hold, padded 1.2 m across and 1.0 m up, at least 2.2 × 2.8 m, never wider than the whole problem at zoom 1 | **(tune)** |
+| Follow | Eases to the framing with a 140 ms time constant; a drag holds until the next step starts, then eases back over 500 ms; double-tap recentres | **(tune)** |
+| Zoom | 0.6–2.5× by pinch or wheel; the view is clamped to the problem | 17 §2 |
+
+### 10.4 The body, and the knees
+
+The engine's body model is for reach: it puts the hips 0.35 m below the middle of the hands and feet (05a §4.2), which on most problems leaves the hips level with the feet. Drawn flat from the front, as in the mockup, that folded the legs sideways with the shins horizontal: the knees the owner called unnatural. The rig keeps every hand and foot on its hold and re-poses the rest in 3D for the picture only; the engine's reach model is unchanged.
+
+| Part | Rule | |
+|---|---|---|
+| Off the rock | Shoulders 0.28 k and hips 0.22 k out along the face's normal (k = height / 1.7 m), so under a roof the body hangs below it, not in it | **(tune)** |
+| Hips sit back | Along the normal until each placed foot is at least 0.74 leg lengths away, at most 0.62 k off the rock, so a high foot bends the knee instead of splaying it | **(tune)** |
+| Stretch | A hand or foot past 1.06 × its limb's length pulls the body after it | **(tune)** |
+| Bones | Upper arm 0.46, forearm 0.54 of the arm; thigh and shin half the leg each (02 §C); two-bone IK in 3D towards a pole | |
+| Knees | Forward to the rock, up along the body and a little out, more up as the leg folds; a high step drives the knee up to the chest; a heel hook opens it out and up; a drop knee turns it in and down; a foot off the rock hangs with the knee towards the rock | |
+| Knees never in the rock | A knee nearer the rock than 8 cm turns round the hip-to-foot line, 15° at a time the shorter way first, until it clears; failing that, as far off as it goes | Tested on every frame |
+| Feet | Toes into the rock on a hold, up and out on a heel hook, along the rock on a toe hook, pointed down hanging; a hook stays hooked until that foot moves | |
+| Elbows | Down, out and off the wall; up and back pressing a mantle | |
+| Head | Up the spine, leaning in to the rock; seen from behind (hair, spikes, the headband), its face coming round on the side the climber looks to: an eye, the nose, the mouth, the expression | |
+| Torso | An egg from just below the hips to above the shoulders, shorts at the bottom, so the thighs show where they leave the hips | |
+
+### 10.5 The moves
+
+Each step plays from the engine's pose before it to the pose after it (tested), for its own time at 1×, then holds 250 ms so the commentary can be read. 2× and 4× divide both. **(tune)** throughout.
+
+| Step | ms | What it looks like | Word |
+|---|---|---|---|
+| Static, hand / foot | 600 / 480 | The weight shifts first, then the limb arcs off the rock (0.38 × distance, at most 0.24 m) and lands | |
+| Match, bump | 620 / 700 | A short reach; a bump touches a hold on the way | |
+| High step | 950 | The knee comes to the chest and the foot lands high, then the body rocks over it towards the foot | |
+| Heel hook, toe hook | 850 | The leg swings out and up onto the hold, then pulls the hips in | |
+| Deadpoint | 850 | Load (sink and sit back, 30%), drive (hips in and up 0.13 k), the slap at the top of the movement, settle | STICK!, CATCH! or SLAP! |
+| Dyno | 1150 | A deeper load; the feet push until the legs straighten, then trail; the other hand lets go; up 0.24 k; the catch, the feet swing out from the rock and come back if there are footholds | HUP!, then STICK!, CATCH! or SLAP! |
+| Sketchy | +250 | A barn-door wobble as the hold is taken | NNGH! |
+| Slip held | +450 | The limb gets to the hold, pops off down and out, and is caught back; a dynamic one launches the body and drops it back | WHOA! (hand), SKRRT! (foot) |
+| Shake-out | 1300 | One hand drops, hangs and shakes, and goes back | |
+| Chalk | 850 | A hand to the bag at the hips, a puff | |
+
+The words follow the engine's result: STICK! for a catch at the apex, CATCH! for a catch, SLAP! when the move was sketchy. The face goes with the move: focus, strain on the effort, scared or surprised on a slip, calm on a rest.
+
+### 10.6 The endings
+
+| Ending | ms | Phases | Word |
+|---|---|---|---|
+| Send | 2600 | Hands to the lip; press until the shoulders are over them while the feet walk up to smears under the lip; the right foot onto the lip; stand on top facing out, arms up, grinning | SENT! |
+| Fall | 2300 | The failed move replayed as a near miss (a slap or a strain); the hands come off; peel and drop, feet under the body; land sitting on the pads with a squash, dust and dizzy stars | WHOA!, WAAAH!, THUD! |
+| Pumped | 2300 | As a fall, letting go | ARGH! |
+| Jump | 1500 | Let go and drop feet first into a crouch on the pads | |
+
+The start pose shows for 600 ms before the first move and the ending's last frame 450 ms before the result. Reduced motion skips the Watch screen (24 §5).
+
+### 10.7 Checking it
+
+| Check | Where |
+|---|---|
+| Hands and feet on their holds mid-move; knees at least 8 cm off the rock; upper limbs at their lengths; every step starts and ends on the engine's poses; a dyno lifts the hips above a static move's; endings stand on top or land on the pads; the camera keeps the climber in frame at 390 × 460, 360 × 400 and 800 × 600 and the view on the problem; the block is the same every time, differs between problems, follows the wall profile and holds every hold | `tests/cartoon.test.ts`, on attempts on the signatures and every eighth benchmark |
+| By eye: every problem's block, every move of an attempt at any point through it, the endings, live playback; `skel=1` draws the bones over the picture; `bench` times a frame | `scripts/dev/cartoon/` on the dev server: `?sheet=blocks`, `moves`, `at`, `ending`, `play`, `bench` |
+| The joints in numbers for one attempt | `npx tsx scripts/dev/cartoon/probe-rig.ts [route seed] [DI offset]` |
+
+### 10.8 Routes and walls
+
+P1a has boulders only; no sport route exists in the data yet (P1b). Nothing in §10.2–§10.6 assumes a height: the block takes its rows from the wall, the camera frames the climber with the problem as the limit, so a 30 m pitch would draw as a tall face with the climber followed up it. Not built and not tested: the rope, quickdraws, bolts and the belayer, clipping, lowering off, rests on a pitch, and a 30 m face's shading with 32 rows. Those come with P1b.
 
 ---
 
 ## Open questions
 
-1. **Which lenses?** §6 is a proposal; the scores in §5 are one person's reading of the mockups.
-2. **Side or front for the wall?** The side view shows the wall's angle and how far the hips hang off the rock; the front view shows the line and the holds. Flat Dusk's oblique view is a compromise; the silhouette and the blueprint's section show what a pure side view adds.
-3. **Real problems:** which crag and how many first; whether the owner's own photos can be the source; whether the three existing signatures get re-authored from photos.
-4. **The block's shape** is invented in every mockup. `Route.outline` needs a source per real problem, and a rule for generated ones.
-5. **Endings as rules:** the landing and top-out poses are authored for the mockups; making them rules (by height, pads, the finish hold's type) is step 1 of §8.
-6. **Phone performance** is unmeasured. The painted and low-poly styles are the likeliest to miss 60 fps.
-7. **Long routes:** a 30-move pitch at 0.8 s a step is long to watch. Default to the summary and offer the playback, or play at 2×?
-8. **Highlights** (24 open questions): sessions and sieges show no playback. The sketchbook's key frames or the silhouette could be the highlight.
+1. **The other lenses.** The cartoon is the wall. The topo overview and the blueprint overlay of §6 are not adopted; whether either is wanted, drawn in the cartoon's look, is open.
+2. **Tone.** The vision ([00](00-vision.md)) is grounded and respectful; §5 marked the cartoon down for that, and the owner chose it. The gags (THUD!, dizzy stars) suit pad falls; serious injuries, highball falls and the `deadly` routes and objective hazard of P3–P4 need their own treatment in this look, never played for laughs (CLAUDE.md content rules).
+3. **Real problems:** which crag and how many first; whether the owner's own photos can be the source; whether the three existing signatures get re-authored from photos. Until then the block is seeded from the data (§10.2), not traced.
+4. **The block's outline** is generated (§10.2). A real problem's own silhouette would need `Route.outline` (§3) and a source.
+5. **The engine's body model** keeps the hips 0.35 m under the middle of the hands and feet (05a §4.2), which the rig corrects for the picture (§10.4). If the reach model ever moves the hips by the legs' fold, the rig's sit-back should shrink to match.
+6. **Phone performance** is unmeasured. Headless desktop Chromium draws a 390 × 470 wall in 3.7 ms a frame at 1× pixel ratio and 7.2 ms at 2× (4,080 frames over the 12 problems of the dev gallery's `?sheet=bench`); the canvas is capped at 2× pixel ratio. A low-end Android is the test (18). If it misses 60 fps, the first saving is to draw the scenery and the block once per step instead of every frame.
+7. **Sport routes** (§10.8): the rope and the clips, and whether a 30-move pitch plays in full (about half a minute at 1×) or defaults to 2× or a summary.
+8. **Highlights** (24 open questions): sessions and sieges show no playback.
+9. **The rest of the app** keeps the Flat Dusk theme ([23 §4](23-move-types-and-art-direction.md)); only the Watch screen is cartoon. Whether the cartoon becomes the whole game's look is the owner's call.

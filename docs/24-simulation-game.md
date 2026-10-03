@@ -2,7 +2,7 @@
 
 **Decision (2026-10-02, the owner):** the climbing is simulated, not played. You build a climber, plan their training and their days, and every climb plays out by itself; the results are the game's output. The character builder, the training plan and the climber's progression are the main feature.
 
-This doc is authoritative for how the game is played. It supersedes the player-input parts of [05b](05b-move-resolution-and-attempt-loop.md) (§7 previews as a decision aid, §8 the commit window as an input, §10 auto-climb hand-backs), [17](17-ui-ux.md) §2–§4 (the wall as an input surface), and all of [23](23-move-types-and-art-direction.md) except §4 (Flat Dusk, which stays the art direction). The engine itself (05a, 05b's resolution, 05c, 06) is unchanged: with no player input it plays exactly as it did on Auto (§6).
+This doc is authoritative for how the game is played. It supersedes the player-input parts of [05b](05b-move-resolution-and-attempt-loop.md) (§7 previews as a decision aid, §8 the commit window as an input, §10 auto-climb hand-backs), [17](17-ui-ux.md) §2–§4 (the wall as an input surface), and all of [23](23-move-types-and-art-direction.md) except §4 (Flat Dusk, which stays the art direction for the app's screens; the wall is the cartoon of [25 §10](25-visual-representation.md) since 2026-10-03). The engine itself (05a, 05b's resolution, 05c, 06) is unchanged: with no player input it plays exactly as it did on Auto (§6).
 
 Related: [02 Character Model](02-character-model.md) · [11 Time, Career and Aging](11-time-career-aging.md) · [12 Training and Adaptation](12-training-and-adaptation.md) · [19 Balance](19-balance-and-simulation-testing.md) · [schemas](schemas.md)
 
@@ -132,14 +132,14 @@ A `WeekPoint` ([schemas](schemas.md) §8) is written at creation and at every we
 
 | Setting | Effect |
 |---|---|
-| Single attempts: Watch on the wall | A *Try* plays the attempt back in Flat Dusk ([23](23-move-types-and-art-direction.md) §4), then the result |
+| Single attempts: Watch on the wall | A *Try* plays the attempt back on the cartoon wall ([25 §10](25-visual-representation.md)), then the result |
 | Single attempts: Result only | Straight to the result |
-| Playback speed | 1×, 2×, 4×; 750 ms a step at 1× **(tune)** |
+| Playback speed | 1×, 2×, 4×; at 1× each step plays for its move's own time, 480 ms (a foot) to 1150 ms (a dyno), and holds 250 ms ([25 §10.5](25-visual-representation.md)) **(tune)** |
 | Reduced motion | Result only |
 
 The frames are taken by running the same simulation on the very state the attempt is applied to, so the playback is the attempt, not an illustration of it. The wall shows the meters, the fear sources and the climber's running commentary; pinch and drag move the camera; nothing on it changes the climb. Sieges and whole sessions are not played back: their attempts are listed in the report.
 
-How the playback should look, now that nothing on the wall is input, is open: [25](25-visual-representation.md) compares ten styles on one simulated attempt and proposes Flat Dusk on the wall, a guidebook topo as the overview and a blueprint overlay for the analysis.
+How the playback looks: [25](25-visual-representation.md) compared ten styles on one simulated attempt, and the owner chose the cartoon (2026-10-03). Each problem is drawn as a cartoon of its own block from its data, and each move class, slip and ending has its own animation ([25 §10](25-visual-representation.md)).
 
 ## 6. What changed
 

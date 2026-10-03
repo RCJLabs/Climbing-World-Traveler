@@ -1,4 +1,4 @@
-// 5 · Flat Dusk 2: the game's wall view as it ships (docs/23 §4, src/ui/wall/render.ts): the oblique side view, the
+// 5 · Flat Dusk 2: the game's wall view as it shipped until the cartoon replaced it (docs/23 §4; render.ts, now removed): the oblique side view, the
 // dusk palette, flat fills with no outlines. Added for the simulation: teal rings on the holds in use that turn coral
 // with pump, the move and its odds at the hold being reached, the fear that rose and why, a deadpoint's arc and apex,
 // and the word over the wall at the end of an attempt.
@@ -66,7 +66,7 @@ STYLES.flat = (function () {
   }
 
   /**
-   * The figure exactly as the game draws it (src/ui/wall/render.ts drawFigure): far (left) limbs behind and a tone
+   * The figure exactly as the game drew it (render.ts drawFigure, now removed): far (left) limbs behind and a tone
    * darker, elbows dropping off the wall, knees toward it, a jacket capsule, the head and hair. Posed from the same
    * shoulder, hip and limb-end points the playback core gives every style.
    */

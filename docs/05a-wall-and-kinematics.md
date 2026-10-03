@@ -250,7 +250,7 @@ joint = R + l1 × rotate(unit(A − R), ±acos((l1² + D² − l2²)/(2 l1 D)))
 
 The bend sign is fixed per limb: elbows bend outward and down, knees bend outward, except `drop_knee` (the dropped knee bends inward) and `kneebar` (knee locked at `cosθ = 0.2`). A free limb is drawn relaxed: hands at `shoulder + (±0.15, −0.30)`, feet at `hip + (±0.12, −0.55)`. The torso is the segment `hip → shoulder`; the head sits `0.13 × height_m` above the shoulder line.
 
-Transitions interpolate joint positions over `250 ms` (static), or play a two-keyframe launch/catch over the commit-window sweep for dynamic moves ([05b §8](05b-move-resolution-and-attempt-loop.md#8-commit-window)). A fall is a scripted animation to the resolved landing, not a simulation.
+Transitions interpolate joint positions over `250 ms` (static), or play a two-keyframe launch/catch over the commit-window sweep for dynamic moves ([05b §8](05b-move-resolution-and-attempt-loop.md#8-commit-window)). A fall is a scripted animation to the resolved landing, not a simulation. The watched wall draws its own rig from these points and animates each move class for its own time ([25 §10](25-visual-representation.md)); this section's poses stay the reach model.
 
 **There is no physics.** No gravity integration, no collision, no ragdoll, no friction simulation. Balance, friction and strength are numbers in [05b](05b-move-resolution-and-attempt-loop.md); the rig only shows the result. The overhaul in [23](23-move-types-and-art-direction.md) adds two closed-form exceptions, not a simulation step: a dyno's centre of mass follows a ballistic arc, and on a balance move it drifts at a set speed. Both are pure functions of the logged inputs.
 
