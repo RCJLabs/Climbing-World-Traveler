@@ -61,14 +61,40 @@ export function effectText(t: Trait): string[] {
   for (const [k, v] of Object.entries(e.ceiling_add ?? {})) out.push(`${ATTR_LABEL[k as AttrId].toLowerCase()} ceiling ${v > 0 ? '+' : '−'}${Math.abs(v)}`);
   for (const [k, v] of Object.entries(e.hold_mult ?? {})) out.push(`${k.replace('_', ' ')} ×${v}`);
   for (const [k, v] of Object.entries(e.move_mult ?? {})) out.push(`${k.replace('_', ' ')} ×${v}`);
+  for (const [k, v] of Object.entries(e.condition_mult ?? {})) if (k !== 'altitude') out.push(`${k} days ×${v}`);
+  // Learning: one line for a trait that speeds or slows several attributes alike.
+  const rates = Object.entries(e.adapt_rate_mult ?? {});
+  if (rates.length >= 3 && rates.every(([, v]) => v === rates[0]![1])) out.push(`technique learning ×${rates[0]![1]}`);
+  else for (const [k, v] of rates) out.push(`${ATTR_LABEL[k as AttrId].toLowerCase()} learning ×${v}`);
+  for (const [k, v] of Object.entries(e.resource_mult ?? {})) {
+    const what = RESOURCE_TEXT[k];
+    if (what) out.push(`${what} ×${v}`);
+  }
   if (e.fear_add) out.push(`fear ${e.fear_add > 0 ? '+' : '−'}${Math.abs(e.fear_add)}`);
   if (e.cost_mult) out.push(`living costs ×${e.cost_mult}`);
   for (const f of e.flags ?? []) {
-    if (f.startsWith('reach_mult=')) out.push(`reach ×${f.split('=')[1]}`);
-    if (f.startsWith('familiarity_k_mult=')) out.push('learns problems faster');
+    const [name, value = ''] = f.split('=');
+    const v = Number(value.replace('+', ''));
+    if (name === 'reach_mult') out.push(`reach ×${value}`);
+    else if (name === 'familiarity_k_mult') out.push(v >= 1 ? 'learns problems faster' : 'learns problems slower');
+    else if (name === 'fear_source_mult:height') out.push(`height fear ×${value}`);
+    else if (name === 'stakes_mult') out.push(`${v >= 1 ? 'stronger' : 'weaker'} on a redpoint at your best (×${value})`);
+    else if (name === 'pre_move_time_mult') out.push(`slower over each move (×${value})`);
+    else if (name === 'visualise_action') out.push(`a look first: familiarity +${v.toFixed(2)}`);
+    else if (name === 'redpoint_stoke_penalty') out.push(`each go after the third on a route costs ${v} stoke`);
+    else if (name === 'sketchy_send_stoke') out.push(`ugly sends cost ${Math.abs(v)} stoke`);
+    else if (name === 'mass_shift') out.push(`${v > 0 ? '+' : '−'}${Math.abs(v)} kg`);
+    else if (name === 'split_risk_cold') out.push(`skin wears faster on cold days (×${value})`);
+    else if (name === 'beta_mult') out.push(`beta from others ×${value}`);
   }
   return out;
 }
+
+/** How the creation screen names a resource a trait multiplies (03 §2: regeneration or gain). */
+const RESOURCE_TEXT: Record<string, string> = {
+  skin: 'skin healing', chalk: 'chalk per chalk-up', stoke: 'stoke gains', burnout: 'burnout', aerobic_reserve: 'aerobic reserve',
+  focus_meter: 'focus gains', power: 'power', energy: 'energy', health: 'health',
+};
 
 export function Create(props: { seed?: string | undefined; preset?: string | undefined }) {
   const unlocked = new Set(meta.value.unlocks);
@@ -191,7 +217,7 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
               <span class="tiny muted mono">background +{budget.bonus} · refunds +{budget.refunds} / 12 cap · spent −{budget.spent} · traits {budget.traitCount} / 12</span>
               <span class="tiny muted">Unspent points are lost when the run starts.</span>
             </div>
-            <Seg label="Trait category" value={cat} onChange={setCat} options={[['all', 'All'], ['body', 'Body'], ['aptitude', 'Aptitude'], ['mental', 'Mental'], ['history', 'History'], ['health', 'Health'], ['quirk', 'Quirk']]} />
+            <Seg label="Trait category" value={cat} onChange={setCat} options={[['all', 'All'], ['body', 'Body'], ['aptitude', 'Aptitude'], ['mental', 'Mental'], ['history', 'History'], ['lifestyle', 'Life'], ['health', 'Health'], ['quirk', 'Quirk']]} />
             {[...data.traits.values()]
               .filter((t) => phaseLive(t.phase) && (t.kind === 'creation' || t.kind === 'evolving') && (cat === 'all' || t.category === cat))
               .filter((t) => !bg.locked_traits.includes(t.id))
