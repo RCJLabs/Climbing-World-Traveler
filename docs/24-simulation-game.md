@@ -89,12 +89,13 @@ What 05b §10 called auto-climb's bot is now the whole attempt. The climber foll
 | Situation | Step |
 |---|---|
 | Pump ≥ 35, the stance's shake value ≤ −1.5 pump and fewer than 3 shakes here | Shake ([05b](05b-move-resolution-and-attempt-loop.md) §6) |
-| Chalk < 35 and pump < 60 | Chalk |
+| Chalk < 35 | Chalk (P1a also waited for pump < 60; on a route that left a pumped climber on dry hands, [26 §3](26-p1b-implementation-notes.md)) |
 | The line's next hold not found yet | Look around once (a shake reveals what is in reach, 05b §13), then jump off |
 | No legal move to the next hold, or the line has run out | Jump off |
 | Otherwise | The line's next move, in its class or the easiest legal one |
 | A dyno or deadpoint | Auto-commit (05b §8.4): caught at the apex with p = 0.25 + 0.25 × (commitment + dynamic movement) / 200, else caught; −0.1 margin tax |
-| 120 steps without an end | Jump off (a guard; no line takes this many) |
+| 120 steps without an end (1,500 on a rope) | Jump off or lower off (a guard; no line takes this many) |
+| On a rope ([07 §2](07-disciplines.md), [26 §2](26-p1b-implementation-notes.md)) | Clip the anchor from the finish jug; clip the next bolt from the first stance it can be clipped from, unless a clearly better one is next and a fall from here is not bold; after a fall, a minute's hang and back on in working mode; while working, take at pump 85 and pull through on the draw after three falls on one move; lower off after six falls, a ground fall, or when spent |
 
 Every roll comes from `stream(run_seed, route, attempt, move)` as before, so the same attempt from the same state plays out the same way.
 

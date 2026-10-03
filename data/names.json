@@ -6,5 +6,14 @@
     "adj_fem": ["Parfaite", "Tordue", "Oubliée", "Lisse", "Ronde", "Petite", "Grande", "Grosse", "Sournoise", "Jolie", "Vieille", "Douce", "Folle", "Perdue", "Bleue", "Rouge", "Noire", "Sèche", "Mouillée", "Cruelle"],
     "place": ["Renard", "Sanglier", "Hibou", "Bouleau", "Sable", "Pignon", "Chêne", "Rocher", "Vallon", "Puits", "Cuvier", "Charme", "Moulin", "Chapitre", "Bois", "Désert"],
     "suffix": ["Gauche", "Droite", "Direct", "Assis", "Debout", "Bis", "Variante"]
+  },
+  "kalymnos_gr": {
+    "lang": "en",
+    "masc": ["Thalassa", "Meltemi", "Kyma", "Ilios", "Fengari", "Limani", "Vrachos", "Spilia", "Ammos", "Thymari", "Melissa", "Kafenio", "Taverna", "Ouranos", "Asteri", "Glaros", "Kima", "Elia"],
+    "fem": ["Tufa", "Stalactite", "Goat", "Ferry", "Sponge", "Octopus", "Lizard", "Siesta", "Dragon", "Ladder", "Organ", "Curtain", "Cathedral", "Bell", "Lantern", "Swallow", "Anchor", "Fig"],
+    "adj_masc": ["Blue", "Salty", "Lazy", "Hidden", "Golden", "Windy", "Sleepy", "Thirsty", "Crooked", "Endless", "Secret", "Shady"],
+    "adj_fem": ["Long", "Red", "Wild", "Silent", "Burning", "Hanging", "Little", "Grand", "Wet", "Last", "Upside-Down", "Lucky"],
+    "place": ["Masouri", "Arginonta", "Myrties", "Telendos", "Emporios", "Skalia", "Pothia", "Vathy"],
+    "suffix": ["Direct", "Extension", "Left", "Right", "Bis"]
   }
 }

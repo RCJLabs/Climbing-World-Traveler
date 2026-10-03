@@ -3,7 +3,7 @@
 // Font no-damp rule that closes sectors after rain.
 
 import type { Athlete } from './character';
-import type { Conditions } from './resolve';
+import { chalkTerm, type Conditions } from './resolve';
 import { stream } from './rng';
 import type { ClimateMonth, Crag, Difficulty, Sector } from './types';
 
@@ -161,7 +161,7 @@ export function sessionConditions(ath: Athlete, w: DayWeather, sector: Sector, c
   const t = sessionTemp(w, sector);
   const wind = 1 + 0.01 * Math.min(w.wind, 6);
   return {
-    chalk_term: 1 + 0.216 * chalk / 100,
+    chalk_term: chalkTerm(chalk),
     temp_term: tempTerm(t, sendingCentre(ath)) * wind * (1 + w.noise),
     wet_term: 1,
     humid: w.rh > 75,

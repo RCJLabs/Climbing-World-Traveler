@@ -63,6 +63,8 @@ y bounds  = cumulative Δy = seg_len × sin(angle_k)            WallSegment { y0
 
 Boulders start with a `0.3 m` ground segment at the first angle; routes end with a `1.0 m` anchor segment at `≤ 95°`.
 
+On a route no segment is steeper than `95° + 3.5° × (di_target − 10)`, clamped to 95–150°: an angle above it is redrawn up to four times, then clamped. Pump is paid on every move of a steep wall, so a low-grade route there can only be a ladder of jugs; crags keep their caves for the harder grades **(tune)** ([26 §4](26-p1b-implementation-notes.md)).
+
 ### 2.2 Features
 
 At most one `feature` per segment ([05a §1.3](05a-wall-and-kinematics.md#13-features)). Probabilities per segment come from the profile's tags **(tune)**: `arete` tag → `0.30` arête · `compression` → `0.25` arête or tufa · `crack` → `0.60` crack (then every crack segment is contiguous) · `corner` → `0.20` corner · `roof` → `0.50` hueco on roof segments (syenite/limestone only) · `tufa`-rock (`limestone` with `endurance` tag) → `0.35` tufa. Forced placements: a `lip` at every transition from `> 120°` to `≤ 100°`; a `ledge` at most once per 8 m on routes ≥ 12 m, never on boulders; `hueco` and `tufa` only on `syenite`, `limestone`, `dolomite`, `conglomerate`.
@@ -105,18 +107,18 @@ orientation = canonical(type) + N(0, 10°); sidepulls/gastons face away from the
 friction = base(profile.rock) × (1 − 0.4 × polish);  rest_value from 05a §2.2; hidden = true with p 0.04 (boulder) · 0.08 (route), never start/finish/crux holds
 ```
 
-Footholds use the foot columns of the matrix and `H_foot`; their `MD_target` is `di_target − 1.5` **(tune)** so feet are reliable but not free. The `−0.05` offset is the empirical gap between a homogeneous six-move problem's move difficulty and its route DI under `X = 0.35`; the accept/adjust loop (§2.8) corrects the rest. It was `−0.30` while the stretch penalty of [05b §4.2](05b-move-resolution-and-attempt-loop.md) was charged, which made near-full-reach moves harder than their `MD` said.
+Footholds use the foot columns of the matrix and `H_foot`; their `MD_target` is `di_target − 1.5` **(tune)** so feet are reliable but not free. Routes differ ([26 §3–§4](26-p1b-implementation-notes.md)): their cruxes are set at `di_target − 2.5` (a route's crux is climbed pumped), the other hand moves at `di_target + base`, where `base` is searched per route (secant, from `−2.0` in `[−8, 1.5]`, until the route grades within 0.25 DI) so that the route's pump makes its grade, and footholds at `base − 2.0`: a route has a hundred foot moves, and near the grade they became the crux once the climber was pumped **(tune)**. The `−0.05` offset is the empirical gap between a homogeneous six-move problem's move difficulty and its route DI under `X = 0.35`; the accept/adjust loop (§2.8) corrects the rest. It was `−0.30` while the stretch penalty of [05b §4.2](05b-move-resolution-and-attempt-loop.md) was charged, which made near-full-reach moves harder than their `MD` said.
 
 ### 2.5 Rests
 
-Routes: every `rest_spacing` metres (from tags: `endurance` 7 m · default 10 m · `power` 13 m **(tune)**) the nearest node's hold is replaced by a rest hold — `jug` (`rest_value 0.9`), `horn` (0.7), `crack_hand` on crack segments (0.6), a `kneebar` pairing on `tufa`/`hueco`/`corner` segments (`+0.5`), or a `ledge` feature if one is there — and the node is annotated `rest` in the line. Boulders get no designed rests; a `kneebar` tag may add one.
+Routes: every `rest_spacing` metres (from tags: `endurance` 7 m · default 10 m · `power` 13 m **(tune)**; P1b reads `CragStyleProfile.rest_spacing_m`) the nearest node's hold, and in P1b the next hand node after it, so that both hands are on the rest ([26 §3](26-p1b-implementation-notes.md)), is replaced by a rest hold — `jug` (`rest_value 0.9`), `horn` (0.7), `crack_hand` on crack segments (0.6), a `kneebar` pairing on `tufa`/`hueco`/`corner` segments (`+0.5`), or a `ledge` feature if one is there — and the node is annotated `rest` in the line. Boulders get no designed rests; a `kneebar` tag may add one.
 
 ### 2.6 Protection
 
 | Discipline | Rule |
 |---|---|
 | `boulder` | one `pad_zone` at `y = 0.3` (pad top), `x = x0`, `quality` = pad coverage from the crag (`Fontainebleau 0.8`, `Hueco 0.7`, highball sectors `0.4`) |
-| `sport` | `bolt`s from `y = 3.5 ± 0.5` every `profile.protection.spacing_m × U(0.8, 1.2)`; `reach_from` = hand nodes within `1.2 m` below the bolt and `0.6 m` laterally; `anchor` at the top; `quality 0.9 ± 0.1` |
+| `sport` | `bolt`s from `y = 3.5 ± 0.5` every `profile.protection.spacing_m × U(0.8, 1.2)` while more than 1.2 m below the anchor, plus a last bolt when the gap to the anchor exceeds `1.1 × spacing_m`; `reach_from` = hand nodes within `1.2 m` below the bolt and `0.6 m` laterally (a bolt with none moves down to just above the highest hand node below it); `anchor` 0.15 m under the top, clipped from the finish jug; `quality 0.9 ± 0.1` |
 | `trad` | `gear` opportunities on crack segments every `1.5–3 m` with `gear_sizes` drawn from `profile.protection.gear_sizes` and `quality ~ U(0.5, 1.0)`; blank face segments get none (that is where `danger` comes from) |
 | `dws` | one `water` object at `y = 0`, `quality` from the crag's depth map; swell from weather |
 
@@ -261,7 +263,7 @@ Field names are those of `CragStyleProfile` in [schemas §6](schemas.md#6-world)
 |---|---|---|---|---|---|---|---|
 | `font_sloper_bulge` | arete 0.30 · lip forced at roof→wall · none 0.70 | — | 0.30 | 0.04 | 0.6 | pad 0.80 | `font_fr` |
 | `hueco_syenite_roof` | hueco 0.50 on roof segments · lip forced · none | — | 0.30 | 0.04 | 0.6 | pad 0.70 | `hueco_tx` |
-| `kalymnos_tufa_sport` | tufa 0.35 · corner 0.10 · ledge ≤ 1 per 8 m · none | 7 | 0.50 | 0.08 | 0.9 | bolt 0.95 (friendly bolting) | `kalymnos_gr` |
+| `kalymnos_tufa_sport` | tufa 0.35 · corner 0.10 · ledge 0.01, at most 1 per 8 m ([26 §4](26-p1b-implementation-notes.md)) · none | 7 | 0.50 | 0.08 | 0.9 | bolt 0.95 (friendly bolting) | `kalymnos_gr` |
 
 Expected character after generation (05c components): Font — one high crux, "powerful", dynamic share 8–11 %, pump at the top `< 20`; Hueco — mid crux, "powerful" but pump `25–40` from `angle_pump` on the roof, heel/toe hooks on most problems, dynamic share 12–15 %; Kalymnos — "pumpy" to "enduro", 2–4 good rests including a kneebar, dynamic share `< 5 %`, danger `safe`.
 

@@ -17,7 +17,7 @@ const bump = (t: number): number => Math.sin(Math.PI * clamp(t, 0, 1));
 
 /** One step of the attempt log, as the wall needs it. */
 export interface StepInfo {
-  kind: 'move' | 'rest' | 'chalk' | 'jump';
+  kind: 'move' | 'rest' | 'chalk' | 'jump' | 'clip' | 'fall' | 'take' | 'lower';
   limb?: Limb | undefined;
   cls?: MoveClass | undefined;
   outcome?: MoveOutcome | undefined;
@@ -105,6 +105,9 @@ export function animateStep(a: Body3, b: Body3, step: StepInfo, rock: Rock, t: n
   const mods: RigMods = {};
   if (step.kind === 'rest') return landOn(shakeOut(a, rock, t), b, t);
   if (step.kind === 'chalk') return landOn(chalkUp(a, rock, t), b, t);
+  // Rope steps (P1b) until the wall draws the rope: a clip reads as a hand going to the harness and back.
+  if (step.kind === 'clip') return landOn(chalkUp(a, rock, t), b, t);
+  if (step.kind === 'fall' || step.kind === 'take' || step.kind === 'lower') return { body: mixBody(a, b, ease(t)), mods, fx };
   const l = step.limb;
   if (!l) return { body: mixBody(a, b, ease(t)), mods, fx };
   const hand = l === 'LH' || l === 'RH';

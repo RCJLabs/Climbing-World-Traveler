@@ -59,16 +59,29 @@ for (const c of bundle.crags.values()) {
   if (c.phase === 'P1a' && (!bench || bench.length < 12)) err(`crag ${c.id}: benchmark set missing or short (run scripts/build-benchmarks.ts)`);
 }
 
+// Crags and profiles agree on the discipline (06 §2.6): a sport crag's sectors use bolted profiles, a bouldering
+// crag's sectors use profiles without protection, which the generator builds as boulders.
+for (const c of bundle.crags.values()) {
+  const sport = c.disciplines.includes('sport');
+  for (const s of c.sectors) {
+    for (const id of s.style_profiles) {
+      const bolted = bundle.profiles.get(id)?.protection?.kind === 'bolt';
+      if (sport && !bolted) err(`crag ${c.id}/${s.id}: sport crag uses unbolted profile ${id}`);
+      if (!sport && bolted) err(`crag ${c.id}/${s.id}: bouldering crag uses bolted profile ${id}`);
+    }
+  }
+}
+
 // Profiles: name banks exist; hold weights use real hold types.
 for (const p of bundle.profiles.values()) {
   if (!bundle.names[p.name_bank]) err(`profile ${p.id}: name bank ${p.name_bank} missing`);
   for (const k of Object.keys(p.hold_weights)) if (!holdTypes.has(k)) err(`profile ${p.id}: unknown hold type ${k}`);
 }
 
-// Signature routes: holds referenced by start, beta and finish exist; engine grade within ±1.0 (C7).
+// Signature routes: holds referenced by start, beta, finish and the bolts' clipping holds exist; engine grade within ±1.0 (C7).
 for (const r of bundle.signatures.values()) {
   const ids = new Set(r.holds.map((h) => h.id));
-  for (const id of [...Object.values(r.start), r.finish_hold, ...r.beta_line.map((s) => s.hold)]) if (!ids.has(id)) err(`signature ${r.id}: hold ${id} missing`);
+  for (const id of [...Object.values(r.start), r.finish_hold, ...r.beta_line.map((s) => s.hold), ...r.protection.flatMap((p) => p.reach_from ?? [])]) if (!ids.has(id)) err(`signature ${r.id}: hold ${id} missing`);
   const g = gradeRoute(r);
   if (g.di === null) err(`signature ${r.id}: ungradeable`);
   else if (Math.abs(g.di - r.di_target) > 1.0) err(`signature ${r.id}: grades ${g.di.toFixed(2)}, canonical ${r.di_target}`);

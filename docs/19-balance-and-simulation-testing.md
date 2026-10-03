@@ -72,6 +72,8 @@ Dynos resolve by Auto-commit, as in play ([24](24-simulation-game.md)), so gradi
 | Style fairness | reference climber on each style profile at equal DI | send rate spread across profiles ≤ 8 points |
 | Signature routes | each `signature: true` route graded | within ±1.0 of its `di_target` ([schemas §9.6](schemas.md)) |
 | Build distinctness (P1a success criterion) | two preset builds on the same three Font problems | per-attempt send probability differs by ≥ 15 points on at least two of three |
+| Sport generator and consistency (P1b) | the C1–C4 tests on generated Kalymnos routes ([05c §4](05c-grade-engine.md), [26 §5](26-p1b-implementation-notes.md)) | as C1–C4; dice vs grade within 35% ± 10, a warning |
+| Build swap (P1b exit criterion, C10) | the Reference Climber at DI 18 tilted towards power or endurance by equal points, on Font problems and on 35 m Kalymnos pitches of equal DI | power ahead on the problems and endurance ahead on the pitches, each by ≥ 0.10 mean send probability |
 
 ---
 

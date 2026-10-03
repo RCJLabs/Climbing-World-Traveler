@@ -193,7 +193,10 @@ export interface Protection {
   y: number;
   x?: number;
   width_m?: number;
+  /** Placement quality (gear) or bolt condition: 1.0 glue-in, 0.8 expansion, 0.5 rusted (05a §3). */
   quality: number;
+  /** Hold ids a bolt or anchor can be clipped from: a hand on one of them (05a §3). */
+  reach_from?: string[];
 }
 
 export interface BetaStep {
@@ -250,6 +253,10 @@ export interface CragStyleProfile {
   name_bank: string;
   /** Hardest DI this style can be built to (06 §2.1); above it a sector uses its other profiles. Unset = no cap. */
   di_max?: number;
+  /** Fixed protection a route of this style gets (06 §2.6): bolts every `spacing_m` on sport. Unset = a boulder. */
+  protection?: { kind: ProtectionKind; spacing_m?: number };
+  /** A rest hold every this many metres up a route (06 §2.5). */
+  rest_spacing_m?: number;
   tags: Tag[];
 }
 
@@ -293,6 +300,8 @@ export interface Crag {
 }
 
 export interface NameBank {
+  /** How names are put together: French articles and genders (default), or English word order. */
+  lang?: 'fr' | 'en';
   masc: string[];
   fem: string[];
   adj_masc: string[];

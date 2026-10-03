@@ -3,7 +3,7 @@
 
 import type { Athlete } from './character';
 import { applyMove, prepareMove } from './engine';
-import { gradeRoute, referenceAthlete, startState } from './grade';
+import { DI_MAX, gradeRoute, referenceAthlete, startState } from './grade';
 import { routeName } from './names';
 import { cyrb53, stream, type Rng } from './rng';
 import { moveDifficulty, type MoveSpec } from './resolve';
@@ -58,7 +58,22 @@ export interface GenRequest {
   di_target: number;
   seed: string;
   bundle: Pick<DataBundle, 'names'>;
+  /** A route of this height (m) instead of one drawn from the profile: the harness's 35 m pitches. */
+  length_m?: number;
 }
+
+/**
+ * What kind of line the tracer draws (06 §2.3): a boulder is narrow, at most twenty hand moves with one dynamic move,
+ * and finishes with a mantle onto the top; a sport route is wider, as long as the wall, and finishes at the anchor jug.
+ */
+interface Shape {
+  discipline: Route['discipline'];
+  width: number;
+  maxIter: number;
+  maxDyn: number;
+  finish: 'mantle' | 'anchor';
+}
+const BOULDER_SHAPE: Shape = { discipline: 'boulder', width: BOULDER_WIDTH, maxIter: 20, maxDyn: 1, finish: 'mantle' };
 
 // ---------------------------------------------------------------- seeds
 
@@ -161,12 +176,12 @@ interface Traced {
   handSteps: number[];
 }
 
-function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlete, rng: Rng): Traced | null {
+function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlete, rng: Rng, shape: Shape = BOULDER_SHAPE): Traced | null {
   const { profile } = req;
   const holds: Hold[] = [];
   let n = 0;
   const nid = () => `h${n++}`;
-  const W = BOULDER_WIDTH;
+  const W = shape.width;
   const x0 = rng.range(-0.3, 0.3);
   const ys = rng.range(TRACE.startY[0], TRACE.startY[1]);
   const start: Record<Limb, string> = { LH: '', RH: '', LF: '', RF: '' };
@@ -184,7 +199,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
   start.RF = add(x0 + 0.18, fy + rng.range(-0.05, 0.08), sampleFootType(profile, rng, segmentAt(wall, fy).angle, 'static'), 'RF').id;
 
   const route: Route = {
-    id: '', crag: req.crag.id, area: req.sector.id, name: '', discipline: 'boulder', rock: profile.rock,
+    id: '', crag: req.crag.id, area: req.sector.id, name: '', discipline: shape.discipline, rock: profile.rock,
     di_target: req.di_target, di_graded: 0, danger: 'safe', wall, width_m: W, holds, protection: [],
     start, finish_hold: '', length_m: height, style_tags: [], signature: false, beta_line: [],
   };
@@ -224,6 +239,12 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
   let prevDyn = false;
   let lastHand: Limb = rng.bool(0.5) ? 'LH' : 'RH';
   const topY = height;
+  // The last hand hold: the lip on a boulder, the anchor jug half a metre under the top of a route. Written out per
+  // shape so a boulder's thresholds stay bit-for-bit what they were.
+  const anchorFinish = shape.finish === 'anchor';
+  const finishY = anchorFinish ? topY - 0.5 : topY - 0.06;
+  const finishLo = anchorFinish ? topY - 0.8 : topY - 0.35;
+  const belowFinish = anchorFinish ? topY - 0.75 : topY - 0.3;
 
   /** Feet follow the hands (06 §2.3). Returns how many feet moved. `force` lowers the trailing threshold. */
   const stepFeet = (force: boolean): number => {
@@ -291,14 +312,14 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
   };
 
   let stalls = 0;
-  for (let iter = 0; iter < 20; iter++) {
+  for (let iter = 0; iter < shape.maxIter; iter++) {
     const hand: Limb = iter === 0 ? lastHand : otherHand(lastHand);
     const bp = bodyPoints(geom, ath, freeState(st, hand));
     const R = reachRadius(ath, 'hand', st.posture);
     const cur = geom.holds.get(st.anchors[hand]!)!;
     const other = geom.holds.get(st.anchors[otherHand(hand)]!)!;
     let cls: MoveClass = 'static';
-    if (!prevDyn && dynCount < 1 && bp.feetOn >= 1 && rng.bool(dynWeight / Math.max(0.01, dynWeight + (grammar.static ?? 0.5)))) {
+    if (!prevDyn && dynCount < shape.maxDyn && bp.feetOn >= 1 && rng.bool(dynWeight / Math.max(0.01, dynWeight + (grammar.static ?? 0.5)))) {
       cls = rng.weighted<MoveClass>({ deadpoint: grammar.deadpoint ?? 0.01, dyno: grammar.dyno ?? 0 });
     }
     const reach = cls === 'static' ? TRACE.staticReach : cls === 'deadpoint' ? TRACE.deadpointReach : TRACE.dynoReach;
@@ -313,13 +334,13 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
     let ts = bp.shoulder.s + Math.sqrt(Math.max(0, d * d - dx * dx));
     if (ts < cur.s + 0.15) { ts = cur.s + 0.25; d = Math.hypot(dx, ts - bp.shoulder.s); }
     let ty = yOfS(wall, ts);
-    // Finish only when the lip is genuinely within this move's reach; otherwise keep climbing below it.
-    const finishS = sOfY(wall, topY - 0.06);
+    // Finish only when the lip (or the anchor jug) is genuinely within this move's reach; otherwise keep climbing below it.
+    const finishS = sOfY(wall, finishY);
     const dFinish = Math.hypot(tx - bp.shoulder.x, finishS - bp.shoulder.s);
     const finishReach = R * (cls === 'static' ? 0.95 : cls === 'deadpoint' ? 1.1 : 1.35);
-    const finishing = ty >= topY - 0.35 && dFinish <= finishReach;
-    if (finishing) ty = topY - 0.06;
-    else if (ty > topY - 0.3) ty = Math.max(cur.y + 0.1, topY - 0.3);
+    const finishing = ty >= finishLo && dFinish <= finishReach;
+    if (finishing) ty = finishY;
+    else if (ty > belowFinish) ty = Math.max(cur.y + 0.1, belowFinish);
     // A hand move that barely gains height means the feet are trailing: step them up first.
     const gain = ty - Math.max(cur.y, other.y - 0.05);
     if (!finishing && gain < TRACE.minGain && stalls < 3) {
@@ -333,7 +354,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
       const jx = tx + (k === 0 ? 0 : (k % 2 ? 1 : -1) * 0.1 * Math.ceil(k / 2));
       const jy = ty - (k >= 4 && !finishing ? 0.08 : 0);
       if (tooClose(holds, wall, jx, jy)) continue;
-      const type = finishing ? rng.weighted<HoldType>({ sloper: 0.45, edge: 0.4, jug: 0.15 }) : sampleHandType(profile, rng, cls);
+      const type = finishing ? (shape.finish === 'anchor' ? 'jug' : rng.weighted<HoldType>({ sloper: 0.45, edge: 0.4, jug: 0.15 })) : sampleHandType(profile, rng, cls);
       placed = add(jx, jy, type, hand);
     }
     if (!placed) return note('spacing');
@@ -388,7 +409,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
     lastHand = hand;
     if (finishing) {
       route.finish_hold = placed.id;
-      beta.push({ limb: hand, hold: placed.id, class: 'mantle' });
+      if (shape.finish === 'mantle') beta.push({ limb: hand, hold: placed.id, class: 'mantle' });
       break;
     }
     stepFeet(false);
@@ -406,7 +427,9 @@ const NATURAL_SIZES: SizeClass[] = ['m', 'l', 's'];
 
 const TOPOUT_TYPES: readonly HoldType[] = ['sloper', 'edge', 'jug', 'volume'];
 
-function solveHold(hold: Hold, spec: MoveSpec, mdTarget: number, profile: CragStyleProfile, rng: Rng, kind: 'hand' | 'foot', finish: boolean): void {
+const DIRECTIONAL: readonly HoldType[] = ['sidepull', 'gaston', 'undercling'];
+
+function solveHold(hold: Hold, spec: MoveSpec, mdTarget: number, profile: CragStyleProfile, rng: Rng, kind: 'hand' | 'foot', finish: boolean, directional = true): void {
   const locked = false;
   for (let attempt = 0; attempt < 6; attempt++) {
     for (const size of attempt < 3 && !locked ? NATURAL_SIZES : SIZE_ORDER) {
@@ -426,7 +449,7 @@ function solveHold(hold: Hold, spec: MoveSpec, mdTarget: number, profile: CragSt
     const pool = Object.keys(kind === 'hand' ? H_HAND : H_FOOT).filter((t) => {
       const h = (kind === 'hand' ? H_HAND : H_FOOT)[t as HoldType] ?? 12;
       const ok = kind === 'hand' ? HANDS_OK[t as HoldType] && !t.startsWith('crack_') && t !== 'pocket1' : FEET_OK[t as HoldType] && !t.startsWith('crack_');
-      return ok && (needEasier ? h < H : h > H) && (!finish || TOPOUT_TYPES.includes(t as HoldType));
+      return ok && (needEasier ? h < H : h > H) && (!finish || TOPOUT_TYPES.includes(t as HoldType)) && (directional || !DIRECTIONAL.includes(t as HoldType));
     }) as HoldType[];
     if (pool.length === 0) break;
     const weighted: Partial<Record<HoldType, number>> = {};
@@ -456,8 +479,20 @@ export function cruxIndexes(handSteps: number[], position: CragStyleProfile['cru
   return new Set([rng.pick(pool.length ? pool : handSteps)]);
 }
 
-function solveAll(route: Route, traced: Traced, ath: Athlete, req: GenRequest, rng: Rng): Set<number> {
-  const crux = cruxIndexes(traced.handSteps, req.profile.crux_position, rng);
+/** Move targets relative to the route's DI (06 §2.4): the crux above it, the other hand moves below it. */
+interface Targets {
+  crux: number;
+  base: number;
+  /** Footholds, relative to the route's DI. */
+  foot: number;
+  fixed: ReadonlySet<string>;
+  /** Whether a hold may be re-typed to a sidepull, gaston or undercling, which face one way and can make a move illegal. */
+  directional: boolean;
+}
+const BOULDER_TARGETS: Targets = { crux: 0.6, base: -0.3, foot: -1.5, fixed: new Set(), directional: true };
+
+function solveAll(route: Route, traced: Traced, ath: Athlete, req: GenRequest, rng: Rng, targets: Targets = BOULDER_TARGETS, cruxSet?: Set<number>): Set<number> {
+  const crux = cruxSet ?? cruxIndexes(traced.handSteps, req.profile.crux_position, rng);
   let geom = routeGeom(route);
   // Start holds: comfortable for the reference climber.
   for (const limb of ['LH', 'RH', 'LF', 'RF'] as Limb[]) {
@@ -475,7 +510,7 @@ function solveAll(route: Route, traced: Traced, ath: Athlete, req: GenRequest, r
   route.beta_line.forEach((step, i) => {
     const prep = prepareMove(geom, ath, st, step.limb, step.hold, step.class) ?? prepareMove(geom, ath, st, step.limb, step.hold);
     if (!prep) return;
-    if (step.class !== 'mantle' && solved.has(step.hold)) {
+    if (step.class !== 'mantle' && (solved.has(step.hold) || targets.fixed.has(step.hold))) {
       st = applyMove(geom, ath, st, step.limb, step.hold, prep.cls);
       step.class = prep.cls;
       return;
@@ -486,9 +521,9 @@ function solveAll(route: Route, traced: Traced, ath: Athlete, req: GenRequest, r
       const kind = limbKind(step.limb);
       const dynamic = prep.cls === 'deadpoint' || prep.cls === 'dyno';
       const target = kind === 'foot'
-        ? req.di_target - 1.5
-        : req.di_target + (crux.has(i) ? 0.6 : -0.3) - 0.05 + (dynamic ? -0.4 : 0);
-      solveHold(hold, prep.spec, target, req.profile, rng, kind, hold.id === route.finish_hold);
+        ? req.di_target + targets.foot
+        : req.di_target + (crux.has(i) ? targets.crux : targets.base) - 0.05 + (dynamic ? -0.4 : 0);
+      solveHold(hold, prep.spec, target, req.profile, rng, kind, hold.id === route.finish_hold, targets.directional);
       geom = routeGeom(route);
       const again = prepareMove(geom, ath, st, step.limb, step.hold, prep.cls) ?? prepareMove(geom, ath, st, step.limb, step.hold);
       if (again) { st = applyMove(geom, ath, st, step.limb, step.hold, again.cls); step.class = again.cls; }
@@ -501,7 +536,7 @@ function solveAll(route: Route, traced: Traced, ath: Athlete, req: GenRequest, r
 
 // ---------------------------------------------------------------- decoys (06 §2.7)
 
-function addDecoys(route: Route, profile: CragStyleProfile, rng: Rng): void {
+function addDecoys(route: Route, profile: CragStyleProfile, rng: Rng, width = BOULDER_WIDTH): void {
   const lineHolds = route.holds.length;
   const n = Math.round(profile.decoy_rate * lineHolds);
   let idx = 0;
@@ -512,7 +547,7 @@ function addDecoys(route: Route, profile: CragStyleProfile, rng: Rng): void {
     const rr = rng.range(0.25, 0.6);
     const x = anchor.x + Math.cos(ang) * rr;
     const y = anchor.y + Math.sin(ang) * rr * 0.8;
-    if (y < 0.2 || y > route.length_m - 0.3 || Math.abs(x) > BOULDER_WIDTH / 2 - 0.1) continue;
+    if (y < 0.2 || y > route.length_m - 0.3 || Math.abs(x) > width / 2 - 0.1) continue;
     if (tooClose(route.holds, route.wall, x, y)) continue;
     const footish = y < 0.9 && rng.bool(0.5);
     const type: HoldType = footish ? rng.weighted<HoldType>({ foot_chip: 0.6, edge: 0.4 }) : sampleHandType(profile, rng, null);
@@ -526,10 +561,10 @@ function addDecoys(route: Route, profile: CragStyleProfile, rng: Rng): void {
 
 // ---------------------------------------------------------------- accept/adjust (06 §2.8)
 
-export function adjust(route: Route, crux: Set<number>, excess: number): void {
+export function adjust(route: Route, crux: Set<number>, excess: number, fixed: ReadonlySet<string> = new Set()): void {
   const steps = Math.round(excess / 0.25);
   if (steps === 0) return;
-  const lineIds = new Set(route.beta_line.filter((s) => limbKind(s.limb) === 'hand' && s.class !== 'mantle').map((s) => s.hold));
+  const lineIds = new Set(route.beta_line.filter((s) => limbKind(s.limb) === 'hand' && s.class !== 'mantle' && !fixed.has(s.hold)).map((s) => s.hold));
   const cruxIds = new Set([...crux].map((i) => route.beta_line[i]?.hold).filter((x): x is string => !!x));
   for (const h of route.holds) {
     if (!lineIds.has(h.id)) continue;
@@ -568,7 +603,12 @@ function styleTags(route: Route): Route['style_tags'] {
   if (route.beta_line.some((s) => s.class === 'high_step')) tags.push('footwork');
   if (route.beta_line.some((s) => s.class === 'heel_hook')) tags.push('flexibility');
   if (route.wall.some((w) => w.feature === 'arete')) tags.push('arete');
-  if (route.length_m > 4.2) tags.push('highball');
+  if (route.discipline === 'sport') {
+    tags.push('sport');
+    const pump = route.components?.pump_peak ?? 0;
+    if (pump >= 60) tags.push('endurance');
+    else if (pump < 30) tags.push('power');
+  } else if (route.length_m > 4.2) tags.push('highball');
   return tags;
 }
 
@@ -619,6 +659,238 @@ export function generateBoulder(req: GenRequest): Route {
   return best;
 }
 
+// ---------------------------------------------------------------- sport routes (06 §2, P1b)
+
+/**
+ * Sport-route shape (06 §2, 07 §2) **(tune)**: a 2.4 m wide line up a 15–40 m wall in segments of about 4 m, a 1 m anchor
+ * segment at the top. Hand moves off the crux sit `base` below the route's DI, because the grade comes from the pump of
+ * many of them; the two or three crux moves sit `crux` from it. Bolts from 3–4 m, then every `spacing_m × 0.8–1.2`.
+ */
+export const SPORT = {
+  width: 2.4,
+  segment_m: 4,
+  anchor_m: 1.0,
+  base: -2.0,
+  crux: -2.5,
+  foot: -2.0,
+  steepPerDi: 3.5,
+  /** The base search stops within this of the target (DI). */
+  tolerance: 0.25,
+  cruxes: [2, 3] as const,
+  firstBolt: [3.0, 4.0] as const,
+  boltReach: { below: 1.2, side: 0.6 },
+  maxIter: 400,
+};
+/**
+ * What the sport solver aims for: the cruxes at `SPORT.crux`, the rest of the hand moves at `base` (searched per route),
+ * the footholds `SPORT.foot` below that. A route has a hundred-odd foot moves, so footholds near the grade, as on a
+ * boulder, would make the feet the route's crux once the climber is pumped.
+ */
+const sportTargets = (base: number, fixed: ReadonlySet<string>): Targets =>
+  ({ crux: SPORT.crux, base, foot: base + SPORT.foot, fixed, directional: false });
+const SPORT_SHAPE: Shape = { discipline: 'sport', width: SPORT.width, maxIter: SPORT.maxIter, maxDyn: Infinity, finish: 'anchor' };
+
+const TUFA_ROCK: readonly string[] = ['limestone', 'dolomite', 'conglomerate', 'syenite'];
+
+/**
+ * The steepest wall a route of this DI is put on (06 §2.1): pump on a steep wall is paid on every move, so a low-grade
+ * route there can only be a ladder of jugs; real crags keep their caves for the harder grades. **(tune)**
+ */
+export const sportMaxAngle = (di: number): number => Math.min(150, Math.max(95, 95 + SPORT.steepPerDi * (di - 10)));
+
+/** A sport wall (06 §2.1): angles from the profile in ~4 m segments, tufas, the odd ledge, a 1 m anchor segment at the top. */
+function buildSportWall(profile: CragStyleProfile, rng: Rng, di: number, height?: number): { wall: WallSegment[]; height: number } {
+  const top = height ?? rng.triangular(profile.length_m.min, profile.length_m.mode, profile.length_m.max);
+  const wall: WallSegment[] = [];
+  const cap = sportMaxAngle(di);
+  // Up to four draws under the grade's steepest angle, then the cap itself.
+  const sample = (): number => {
+    let a = sampleAngle(profile, rng);
+    for (let i = 0; i < 4 && a > cap; i++) a = sampleAngle(profile, rng);
+    return Math.min(cap, a);
+  };
+  let angle = Math.min(105, sample());
+  wall.push({ y0: 0, y1: 0.3, angle, feature: 'none' });
+  let y = 0.3;
+  let lastLedge = -Infinity;
+  const fw = profile.feature_weights;
+  const end = top - SPORT.anchor_m;
+  while (y < end - 0.05) {
+    let next = sample();
+    for (let i = 0; i < 4 && Math.abs(next - angle) > 25; i++) next = sample();
+    if (Math.abs(next - angle) > 25) next = angle + Math.sign(next - angle) * 25;
+    // A ledge at most once per 8 m (06 §2.2): a short shelf, then the wall carries on.
+    if (y - lastLedge >= 8 && y > 4 && y < end - 3 && rng.bool(fw.ledge ?? 0)) {
+      wall.push({ y0: y, y1: y + 0.3, angle: 80, feature: 'ledge' });
+      y += 0.3;
+      lastLedge = y;
+      continue;
+    }
+    angle = next;
+    const dy = SPORT.segment_m * Math.sin((angle * Math.PI) / 180);
+    const y1 = Math.min(end, y + Math.max(1.0, dy));
+    const tufa = TUFA_ROCK.includes(profile.rock) && rng.bool(fw.tufa ?? 0);
+    const corner = !tufa && rng.bool(fw.corner ?? 0);
+    wall.push({ y0: y, y1, angle, feature: tufa ? 'tufa' : corner ? 'corner' : 'none' });
+    y = y1;
+  }
+  wall.push({ y0: y, y1: top, angle: Math.min(95, angle), feature: 'none' });
+  return { wall, height: top };
+}
+
+/** Two or three crux moves spread up the route (06 §2.4, `crux_position: spread`), never on the first hand move. */
+function sportCruxes(handSteps: number[], rng: Rng): Set<number> {
+  const n = rng.int(SPORT.cruxes[0], SPORT.cruxes[1]);
+  const out = new Set<number>();
+  for (let k = 0; k < n; k++) {
+    const f = (k + rng.range(0.25, 0.75)) / n;
+    out.add(handSteps[Math.min(handSteps.length - 1, Math.max(1, Math.round(f * (handSteps.length - 1))))]!);
+  }
+  return out;
+}
+
+/**
+ * Rests (06 §2.5): every `rest_spacing_m` up the route, the line's nearest hand hold and the next one become big jugs
+ * (a horn on a tufa), so both hands are on the rest at once: a stance averages its hand holds (05b §6), and one jug
+ * beside a crimp gives back little. They are fixed: the solver and the adjust loop leave them alone.
+ */
+function placeRests(route: Route, crux: Set<number>, profile: CragStyleProfile, rng: Rng): Set<string> {
+  const fixed = new Set<string>();
+  const every = profile.rest_spacing_m;
+  if (!every) return fixed;
+  const banned = new Set<string>([...Object.values(route.start), route.finish_hold, ...[...crux].map((i) => route.beta_line[i]!.hold)]);
+  const hands = route.beta_line.filter((s) => limbKind(s.limb) === 'hand').map((s) => route.holds.find((h) => h.id === s.hold)!);
+  const make = (h: Hold): void => {
+    const tufa = segmentAt(route.wall, h.y).feature === 'tufa';
+    h.type = tufa && rng.bool(0.4) ? 'horn' : 'jug';
+    h.size = 'l';
+    h.quality = 0.75;
+    h.orientation = canonicalOrientation(h.type, 0);
+    h.rest_value = REST_BASE[h.type];
+    h.hands_ok = HANDS_OK[h.type];
+    h.feet_ok = FEET_OK[h.type];
+    fixed.add(h.id);
+  };
+  for (let y = every * rng.range(0.8, 1.1); y < route.length_m - 3; y += every * rng.range(0.85, 1.15)) {
+    const i = hands.map((h, k) => [h, k] as const)
+      .filter(([x]) => !fixed.has(x.id) && !banned.has(x.id) && Math.abs(x.y - y) <= 1.5)
+      .sort((a, b) => Math.abs(a[0].y - y) - Math.abs(b[0].y - y))[0]?.[1];
+    if (i === undefined) continue;
+    make(hands[i]!);
+    const pair = hands[i + 1];
+    if (pair && !fixed.has(pair.id) && !banned.has(pair.id)) make(pair);
+  }
+  return fixed;
+}
+
+/**
+ * Bolts (06 §2.6): the first at 3–4 m, then every `spacing_m × U(0.8, 1.2)` to the anchor. Each bolt sits by the line
+ * and can be clipped from the line's hand holds up to 1.2 m below it and 0.6 m to the side; where none is, it moves down
+ * to just above the highest one. The anchor is clipped from the finish jug.
+ */
+function placeBolts(route: Route, profile: CragStyleProfile, rng: Rng): void {
+  const spacing = profile.protection?.spacing_m ?? 2.8;
+  const seen = new Set<string>();
+  const line: Hold[] = [];
+  for (const s of route.beta_line) {
+    if (limbKind(s.limb) !== 'hand' || seen.has(s.hold)) continue;
+    seen.add(s.hold);
+    line.push(route.holds.find((h) => h.id === s.hold)!);
+  }
+  const fin = route.holds.find((h) => h.id === route.finish_hold)!;
+  const lineX = (y: number): number => {
+    const near = line.filter((h) => Math.abs(h.y - y) <= 1.0);
+    return near.length ? near.reduce((a, h) => a + h.x, 0) / near.length : fin.x;
+  };
+  const bolts: Route['protection'] = [];
+  const anchorY = route.length_m - 0.15;
+  let y = rng.range(SPORT.firstBolt[0], SPORT.firstBolt[1]);
+  let prev = 0;
+  // Bolts up to the anchor: none right under it, and one more if the gap to it is longer than the spacing.
+  for (let filled = false; ;) {
+    if (y >= anchorY - 1.2) {
+      if (filled || anchorY - prev <= spacing * 1.1) break;
+      y = (prev + anchorY) / 2;
+      filled = true;
+    }
+    const x = lineX(y) + rng.range(-0.15, 0.15);
+    const fromOf = (by: number) => line.filter((h) => h.y <= by - 0.05 && h.y >= by - SPORT.boltReach.below && Math.abs(h.x - x) <= SPORT.boltReach.side);
+    let from = fromOf(y);
+    if (from.length === 0) {
+      const below = line.filter((h) => h.y < y && Math.abs(h.x - x) <= SPORT.boltReach.side).sort((a, b) => b.y - a.y)[0];
+      if (below && below.y + 0.6 > prev + 1.5) { y = below.y + 0.6; from = fromOf(y); }
+    }
+    if (from.length) {
+      bolts.push({ id: `b${bolts.length + 1}`, kind: 'bolt', y: Math.round(y * 1000) / 1000, x: Math.round(x * 1000) / 1000, quality: Math.min(1, Math.max(0.5, 0.9 + rng.normal(0, 0.05))), reach_from: from.map((h) => h.id) });
+      prev = y;
+    }
+    y += spacing * rng.range(0.8, 1.2);
+  }
+  bolts.push({ id: 'anchor', kind: 'anchor', y: Math.round(anchorY * 1000) / 1000, x: fin.x, quality: 1, reach_from: [fin.id] });
+  route.protection = bolts;
+}
+
+/** A sport route (06 §2, P1b): the same line tracer and solver as a boulder, on a tall wall, with rests, bolts and an anchor. */
+export function generateSport(req: GenRequest): Route {
+  let best: Route | null = null;
+  let bestGap = Infinity;
+  const ath = referenceAthlete(req.di_target);
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const seed = attempt === 0 ? req.seed : `${req.seed}:retry${attempt}`;
+    const { wall, height } = buildSportWall(req.profile, stream(seed, 'wall'), req.di_target, req.length_m);
+    const traced = trace(req, wall, height, ath, stream(seed, 'line'), SPORT_SHAPE);
+    if (!traced) continue;
+    const route = traced.route;
+    const rng = stream(seed, 'holds');
+    const crux = sportCruxes(traced.handSteps, rng);
+    const fixed = placeRests(route, crux, req.profile, stream(seed, 'rests'));
+    placeBolts(route, req.profile, stream(seed, 'bolts'));
+    // A route's grade is mostly the pump of its many moves, so the moves off the crux are set by a search on how far
+    // below the route's DI they sit (a secant on `base`), before the small per-hold adjustments below.
+    let base = SPORT.base;
+    solveAll(route, traced, ath, req, rng, sportTargets(base, fixed), crux);
+    let g0 = gradeRoute(route);
+    if (g0.ungradeable) { note('ungradeable'); continue; }
+    let prev: { base: number; di: number } | null = null;
+    for (let i = 0; i < 6; i++) {
+      const di = g0.di ?? DI_MAX + 2;
+      if (Math.abs(di - req.di_target) <= SPORT.tolerance) break;
+      let nextBase = base - (di - req.di_target) * 0.6;
+      if (prev && Math.abs(prev.di - di) > 0.05) nextBase = base - (di - req.di_target) * (base - prev.base) / (di - prev.di);
+      prev = { base, di };
+      base = Math.max(-8, Math.min(1.5, nextBase));
+      solveAll(route, traced, ath, req, rng, sportTargets(base, fixed), crux);
+      g0 = gradeRoute(route);
+    }
+    addDecoys(route, req.profile, stream(seed, 'decoys'), SPORT.width);
+    const hr = stream(seed, 'hidden');
+    for (const h of route.holds) {
+      const onLine = route.beta_line.some((s) => s.hold === h.id);
+      const keep = Object.values(route.start).includes(h.id) || h.id === route.finish_hold || fixed.has(h.id) || [...crux].some((i) => route.beta_line[i]?.hold === h.id);
+      if (onLine && !keep && hr.bool(req.profile.hidden_rate)) h.hidden = true;
+    }
+    let g = g0;
+    for (let i = 0; i < 6 && g.di !== null && Math.abs(g.di - req.di_target) > 0.5; i++) {
+      adjust(route, crux, g.di - req.di_target, fixed);
+      g = gradeRoute(route);
+    }
+    if (g.di === null) { note('ungradeable'); continue; }
+    route.di_graded = Math.round(g.di * 100) / 100;
+    route.danger = g.danger;
+    route.components = g.components;
+    const gap = Math.abs(g.di - req.di_target);
+    if (gap < bestGap) { best = route; bestGap = gap; }
+    if (gap <= 1.0) break;
+    note('off_target');
+  }
+  if (!best) throw new Error(`generator failed for ${req.seed}`);
+  best.seed = req.seed;
+  best.id = routeIdFor(req.seed);
+  best.style_tags = styleTags(best);
+  best.name = routeName(req.bundle.names[req.profile.name_bank], stream(req.seed, 'name'));
+  return best;
+}
+
 /** Regenerate a procedural problem from its seed string (06 §5). */
 export function routeFromSeed(seed: string, bundle: DataBundle): Route {
   const sig = bundle.signatures.get(seed);
@@ -629,7 +901,8 @@ export function routeFromSeed(seed: string, bundle: DataBundle): Route {
   const sector = crag?.sectors.find((s) => s.id === p.sector);
   if (!crag || !sector) throw new Error(`unknown sector in ${seed}`);
   const profile = profileFor(sector, p.di, bundle, stream(seed, 'profile'));
-  return generateBoulder({ crag, sector, profile, di_target: p.di, seed, bundle });
+  const req = { crag, sector, profile, di_target: p.di, seed, bundle };
+  return profile.protection?.kind === 'bolt' ? generateSport(req) : generateBoulder(req);
 }
 
 /**

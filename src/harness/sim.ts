@@ -3,7 +3,7 @@
 
 import { registerRoute, simulateAttempt } from '../sim/attempt';
 import { NEUTRAL_MODS, refMass, type Athlete } from '../sim/character';
-import { REFERENCE_BODY } from '../sim/grade';
+import { REFERENCE_BODY, referenceAthlete } from '../sim/grade';
 import { DEFAULT_OPTIONS, presetSpec } from '../sim/presets';
 import { createRun } from '../sim/run';
 import type { AttemptResult, RunState } from '../sim/state';
@@ -20,8 +20,9 @@ export function syntheticRun(ath: Athlete, seed: string, bundle: DataBundle, tra
   return run;
 }
 
-/** Put a synthetic run at the route's sector with a one-slot session, fresh resources. */
+/** Put a synthetic run at the route's crag and sector with a one-slot session, fresh resources. */
 export function atRoute(run: RunState, route: Route): void {
+  run.crag = route.crag;
   run.blocks_today = ['climb'];
   run.block = {
     kind: 'climb', target: route.area,
@@ -93,6 +94,24 @@ function athlete(a: Partial<Record<AttrId, number>>, body: Partial<Athlete['body
   const b = { ...ref, ...body };
   b.mass_kg = refMass(b.sex, b.height_cm) + (body.mass_kg ?? 0);
   return { body: b, a: vals, mods: NEUTRAL_MODS, rock_knowledge: {} };
+}
+
+/**
+ * The P1b exit-criterion builds (01 §4): the Reference Climber at `di` tilted towards power or towards endurance by
+ * the same number of attribute points, `m` on each of six power attributes against `1.5 m` on each of four endurance
+ * ones. Used by calibration C10.
+ */
+export const POWER_ATTRS: readonly AttrId[] = ['finger_strength', 'pull_power', 'contact_strength', 'anaerobic_capacity', 'lockoff', 'dynamic_movement'];
+export const ENDURANCE_ATTRS: readonly AttrId[] = ['finger_endurance', 'aerobic_capacity', 'footwork', 'body_position'];
+export function tiltedBuilds(di: number, m = 4): { power: Athlete; endurance: Athlete } {
+  const tilt = (sign: number): Athlete => {
+    const ref = referenceAthlete(di);
+    const a = { ...ref.a };
+    for (const id of POWER_ATTRS) a[id] = Math.min(100, Math.max(1, a[id] + sign * m));
+    for (const id of ENDURANCE_ATTRS) a[id] = Math.min(100, Math.max(1, a[id] - sign * 1.5 * m));
+    return { ...ref, a };
+  };
+  return { power: tilt(1), endurance: tilt(-1) };
 }
 
 /**

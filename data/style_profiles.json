@@ -205,5 +205,89 @@
       "core",
       "power"
     ]
+  },
+  {
+    "id": "kalymnos_tufa_sport",
+    "rock": "limestone",
+    "hold_weights": {
+      "pinch": 0.2,
+      "jug": 0.2,
+      "sloper": 0.12,
+      "edge": 0.12,
+      "pocket3": 0.08,
+      "pocket2": 0.06,
+      "sidepull": 0.08,
+      "undercling": 0.06,
+      "horn": 0.04,
+      "crimp": 0.04
+    },
+    "angle_dist": [
+      {
+        "angle": 92,
+        "weight": 0.15
+      },
+      {
+        "angle": 100,
+        "weight": 0.3
+      },
+      {
+        "angle": 110,
+        "weight": 0.3
+      },
+      {
+        "angle": 125,
+        "weight": 0.2
+      },
+      {
+        "angle": 145,
+        "weight": 0.05
+      }
+    ],
+    "length_m": {
+      "min": 15,
+      "mode": 28,
+      "max": 40
+    },
+    "hold_density_max": 2.5,
+    "polish": 0.35,
+    "sharpness": 0.45,
+    "seep_susceptibility": 0.6,
+    "crux_position": "spread",
+    "move_grammar": {
+      "static": 0.56,
+      "match": 0.08,
+      "bump": 0.06,
+      "deadpoint": 0.06,
+      "dyno": 0.01,
+      "high_step": 0.06,
+      "heel_hook": 0.04,
+      "kneebar": 0.07
+    },
+    "feature_weights": {
+      "tufa": 0.35,
+      "corner": 0.1,
+      "ledge": 0.01
+    },
+    "decoy_rate": 0.5,
+    "hidden_rate": 0.08,
+    "drift_max_m": 0.9,
+    "pad_coverage": 0,
+    "name_bank": "kalymnos_gr",
+    "protection": {
+      "kind": "bolt",
+      "spacing_m": 2.8
+    },
+    "rest_spacing_m": 7,
+    "tags": [
+      "sport",
+      "endurance",
+      "pinch",
+      "jug",
+      "overhang",
+      "humid",
+      "polished",
+      "redpoint",
+      "onsight"
+    ]
   }
 ]

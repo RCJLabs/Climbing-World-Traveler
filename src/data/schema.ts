@@ -115,8 +115,15 @@ export const ProfileSchema = z.object({
   pad_coverage: z.number(),
   name_bank: z.string(),
   di_max: z.number().min(8).max(33).optional(),
+  protection: z.object({ kind: z.enum(['bolt', 'gear', 'none']), spacing_m: z.number().min(1).max(8).optional() }).strict().optional(),
+  rest_spacing_m: z.number().min(3).max(20).optional(),
   tags: z.array(tag),
-}).strict();
+}).strict().superRefine((p, ctx) => {
+  // A bolted profile is a sport profile (06 §2.6): the generator needs its bolt spacing and its rest spacing.
+  if (p.protection?.kind === 'bolt' && (p.protection.spacing_m === undefined || p.rest_spacing_m === undefined)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: `profile ${p.id}: a bolted profile needs protection.spacing_m and rest_spacing_m` });
+  }
+});
 
 const hold = z.object({
   id: z.string(), x: z.number(), y: z.number(), type: holdType, size: z.enum(['xs', 's', 'm', 'l', 'xl']),
@@ -137,7 +144,10 @@ export const RouteSchema = z.object({
   wall: z.array(z.object({ y0: z.number(), y1: z.number(), angle: z.number().min(60).max(170), feature: z.string() }).strict()).min(1),
   width_m: z.number(),
   holds: z.array(hold).min(4),
-  protection: z.array(z.object({ id: z.string(), kind: z.string(), y: z.number(), x: z.number().optional(), width_m: z.number().optional(), quality: z.number() }).strict()),
+  protection: z.array(z.object({
+    id: z.string(), kind: z.string(), y: z.number(), x: z.number().optional(), width_m: z.number().optional(), quality: z.number(),
+    reach_from: z.array(z.string()).optional(),
+  }).strict()),
   start: z.object({ LH: z.string(), RH: z.string(), LF: z.string(), RF: z.string() }).strict(),
   finish_hold: z.string(),
   length_m: z.number(),
@@ -151,6 +161,7 @@ export const RouteSchema = z.object({
 }).strict();
 
 export const NamesSchema = z.record(z.string(), z.object({
+  lang: z.enum(['fr', 'en']).optional(),
   masc: z.array(z.string()).min(5), fem: z.array(z.string()).min(5), adj_masc: z.array(z.string()).min(5),
   adj_fem: z.array(z.string()).min(5), place: z.array(z.string()).min(3), suffix: z.array(z.string()).min(2),
 }).strict());

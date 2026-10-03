@@ -74,6 +74,9 @@ Rope (60/70/80 m; the atlas lists minimum rope lengths per crag; a too-short rop
 - Falls on rope are low-consequence, so `fear` sources are smaller (height +1/5 m, runout +3/skipped clip, last fall +2) and `confidence` grows mostly from redpoints. Fryer 2013 (no lead–toprope anxiety gap in advanced climbers) is encoded as `composure` shrinking the lead fear baseline toward zero above 70.
 - Power is secondary; the generator spreads cruxes (`crux_position: 'spread'`) and adds rests, so DI comes from pump accumulation ([05c](05c-grade-engine.md) surfaces "pump accumulation" as a component).
 
+### 2.7 As implemented (P1b M1)
+[26](26-p1b-implementation-notes.md) records how the engine resolves the places where this section and 05b disagree (05b wins: clip cost, lead and height fear, take, familiarity; slack follows 15) and the climber's rope tactics: the first bolt always stick-clipped, clipping from the first stance unless a clearly better one is next and a fall from here is not bold, a minute's hang after each fall then back on in `work` mode, taking at pump 85 while working, pulling through on the draw after three falls on one move, lowering off after six falls or a ground fall. Reaching the anchor after the rope has held the climber is `worked`: no tick.
+
 ---
 
 ## 3. Trad (P3)
