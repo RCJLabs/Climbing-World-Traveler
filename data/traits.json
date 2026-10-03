@@ -672,6 +672,18 @@
   "excludes": [
    "topout_tidy"
   ],
+  "evolves_to": [
+   {
+    "trait": null,
+    "needs": [
+     {
+      "counter": "clean_mantles",
+      "n": 40
+     }
+    ],
+    "min_weeks": 4
+   }
+  ],
   "flavour": "The hard part is over. Now the terrifying part."
  },
  {
@@ -728,6 +740,18 @@
    "ice_in_the_veins",
    "falls_well"
   ],
+  "evolves_to": [
+   {
+    "trait": "falls_ok",
+    "needs": [
+     {
+      "counter": "practice_falls",
+      "n": 30
+     }
+    ],
+    "min_weeks": 6
+   }
+  ],
   "flavour": "The pad is right there. The pad is very far away."
  },
  {
@@ -776,6 +800,18 @@
   },
   "excludes": [
    "clutch"
+  ],
+  "evolves_to": [
+   {
+    "trait": null,
+    "needs": [
+     {
+      "counter": "stakes_sends",
+      "n": 5
+     }
+    ],
+    "min_weeks": 8
+   }
   ],
   "flavour": "Flawless in the warm-up. Different person in the final."
  },
@@ -1210,6 +1246,22 @@
   ],
   "effect": {},
   "excludes": [],
+  "evolves_to": [
+   {
+    "trait": "falls_well",
+    "needs": [
+     {
+      "counter": "practice_falls",
+      "n": 60
+     },
+     {
+      "counter": "unhurt_falls",
+      "n": 10
+     }
+    ],
+    "min_weeks": 12
+   }
+  ],
   "flavour": "Still not fun. Fine though."
  },
  {

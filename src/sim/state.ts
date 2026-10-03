@@ -5,11 +5,11 @@ import type { CommitOutcome } from './resolve';
 import type { ClimbState } from './wall';
 import type { DayWeather, RainMark } from './weather';
 import type {
-  AttemptMode, AttrId, Attributes, BlockKind, Body, Discipline, Limb, MoveClass, RunOptions, RunSummary, Tick, WeekPlan,
+  AttemptMode, AttrId, Attributes, BlockKind, Body, Discipline, EvolveCounter, Limb, MoveClass, RunOptions, RunSummary, Tick, WeekPlan,
 } from './types';
 
 /** Reducer version (18 §5). Bump when replaying an old log through the new reducer would change outcomes. */
-export const REDUCER_VERSION = 6;
+export const REDUCER_VERSION = 7;
 
 export interface Resources {
   energy: number;
@@ -201,6 +201,8 @@ export interface Counters {
   rope_falls_logged: number;
   /** First route sends by rounded DI (P1b); `pyramid` keeps the boulders. */
   pyramid_route: Record<string, number>;
+  /** What evolving traits count (03 §1.7, schemas §8), with the day each was first counted; never reset. */
+  evolve: Partial<Record<EvolveCounter, { n: number; first_day: number }>>;
 }
 
 export interface JournalEntry {

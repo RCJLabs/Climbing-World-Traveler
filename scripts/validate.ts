@@ -5,6 +5,7 @@ import { loadBundle } from '../src/data/bundle';
 import { contentOf, realNameHits } from '../src/data/realnames';
 import { RealNamesSchema } from '../src/data/schema';
 import { phaseLive, traitEffectErrors, validateCreation } from '../src/sim/character';
+import { evolutionErrors } from '../src/sim/evolve';
 import { gradeRoute } from '../src/sim/grade';
 import { PRESETS, presetSpec } from '../src/sim/presets';
 import { travelGraphErrors } from '../src/sim/travel';
@@ -34,6 +35,7 @@ for (const t of bundle.traits.values()) {
   }
   for (const k of Object.keys(e.hold_mult ?? {})) if (!holdTypes.has(k)) err(`trait ${t.id}: unknown hold type ${k}`);
   for (const m of traitEffectErrors(t)) err(m);
+  for (const m of evolutionErrors(t, bundle.traits)) err(m);
   for (const x of t.excludes) {
     const other = bundle.traits.get(x);
     if (other && !other.excludes.includes(t.id)) warn(`trait ${t.id} excludes ${x} but not the reverse`);

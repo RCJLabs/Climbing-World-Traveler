@@ -4,6 +4,7 @@
 import { ageMoneyBonus, aggregateMods, buildAttributes, ceilingFor, clamp, phaseLive, resourceMult, validateCreation, type Athlete } from './character';
 import { ageOf, athleteOf, doWallAction, InvalidAction, modsOf, routeEntry, sectorOf, simulateAttempt } from './attempt';
 import { estimateBoulderDI } from './estimate';
+import { countEvolve, evolveTraits, PRACTICE_FALLS_PER_SESSION } from './evolve';
 import { cyrb53, stream } from './rng';
 import { routeSeed, sectorFloor } from './routes';
 import { REDUCER_VERSION, type Counters, type DaySummary, type RouteSlot, type RunState, type SessionState, type WeekPoint } from './state';
@@ -47,7 +48,7 @@ function emptyCounters(): Counters {
   return {
     neg_money_days: 0, failure_streak: 0, monotony_weeks: 0, week_sectors: [], prev_week_sectors: [], loads: [],
     forced_break_until: -1, burnout_hits: { season: -1, hits: 0 }, climb_days: 0, rest_days: 0, attempts: 0, sends: 0,
-    work_blocks: 0, train_blocks: 0, pyramid: {}, new_sectors_today: 0, rope_falls_logged: 0, pyramid_route: {},
+    work_blocks: 0, train_blocks: 0, pyramid: {}, new_sectors_today: 0, rope_falls_logged: 0, pyramid_route: {}, evolve: {},
   };
 }
 
@@ -290,6 +291,7 @@ function startBlock(run: RunState, kind: BlockKind, target: string | undefined, 
       run.today.money_delta -= act.cost;
       addGains(run, applyStimulus(gainCtx(run, bundle), act.stim));
       todayLoad(run, act.load);
+      if (act.id === 'fall_practice') countEvolve(run, 'practice_falls', PRACTICE_FALLS_PER_SESSION);
       run.counters.train_blocks++;
       run.today.notes.push(`${act.name}${act.cost ? ` ($${act.cost})` : ''}.`);
       return;
@@ -390,6 +392,9 @@ function endDay(run: RunState, bundle: DataBundle): void {
   // Overnight regeneration (02 §D).
   const sleep = sleepMult(run.attrs.sleep_hygiene.value);
   run.res.skin = Math.min(100, run.res.skin + (20 + 0.3 * run.attrs.skin_durability.value) * sleep * resourceMult(mods, 'skin'));
+
+  // Evolving traits (03 §1.7): a trait whose evolution the day completed becomes its next stage, or goes.
+  evolveTraits(run, bundle);
 
   // Advance the calendar and the weather.
   run.yesterday = run.today;

@@ -128,6 +128,17 @@ export interface TraitEffect {
   flags?: string[];
 }
 
+/** What an evolution counts (schemas §4.4, 03 §1.7). */
+export const EVOLVE_COUNTERS = ['practice_falls', 'unhurt_falls', 'stakes_sends', 'clean_mantles'] as const;
+export type EvolveCounter = (typeof EVOLVE_COUNTERS)[number];
+
+/** One evolution: every count reached and `min_weeks` since the first of the first need, then `trait` (or removal). */
+export interface Evolution {
+  trait: string | null;
+  needs: { counter: EvolveCounter; n: number }[];
+  min_weeks: number;
+}
+
 export interface Trait {
   id: string;
   name: string;
@@ -139,6 +150,8 @@ export interface Trait {
   effect: TraitEffect;
   excludes: string[];
   requires_age?: [number, number];
+  /** Evolving traits and the acquired stages they lead to (03 §1.7); the first evolution met applies. */
+  evolves_to?: Evolution[];
   flavour: string;
 }
 

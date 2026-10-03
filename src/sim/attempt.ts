@@ -5,6 +5,7 @@
 
 import { aggregateMods, athleteFrom, clamp, resourceMult, type Athlete, type Mods } from './character';
 import { applyMove, canMantle, CHALK_RULE, chalkNow, prepareMove, shakeNow, stanceHoldCost, stanceRest, type Prepared } from './engine';
+import { countEvolve } from './evolve';
 import { boulderKappa, startState } from './grade';
 import {
   autoCommitPApex, climbClear, evaluate, fearEffects, izof, powerPool, probs, pumpForm, recoveryChance, reserveStart,
@@ -388,6 +389,7 @@ function resolveMove(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athl
   }
 
   if (prep.cls === 'mantle') {
+    if (outcome === 'clean') countEvolve(run, 'clean_mantles');
     report(at, { ...base, outcome: 'sent', text: outcome === 'clean' ? 'Topped out.' : 'An ugly mantle, but you are standing on top.' });
     finishAttempt(run, at, geom, ath, 'sent', bundle);
     return;
@@ -466,6 +468,8 @@ function ropeFall(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athlete
   rope.falls_here++;
   rope.weighted = true;
   run.counters.rope_falls_logged = (run.counters.rope_falls_logged ?? 0) + 1;
+  // No injuries before P2, so every fall the rope holds is one without injury (03 §1.7).
+  countEvolve(run, 'unhurt_falls');
   addFear(at, ath, 'last fall', 8);
   const ground = reachesGround(comY, rope.last_clip_y, BELAY_QUALITY);
   const len = rope.last_clip_y === null ? comY : fallLength(comY, rope.last_clip_y, BELAY_QUALITY);
@@ -642,6 +646,8 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
   session.di_sum += route.di_graded;
   session.load += 0.3 * clamp(route.di_graded - pb + 2, 0.5, 3);
   run.counters.attempts++;
+  // A fall or pump-off onto the pads is a fall without injury until P2's injuries (03 §1.7); rope falls count in ropeFall.
+  if (!roped && (outcome === 'fell' || outcome === 'pumped')) countEvolve(run, 'unhurt_falls');
   if (progress > project.best + 0.1 || outcome === 'sent') session.progress_made = true;
   const firstTry = project.attempts === 0;
   project.attempts++;
@@ -658,6 +664,8 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
   let text: string;
   let tick: Tick | undefined;
   if (outcome === 'sent' && at.mode !== 'work') {
+    // A send on a go that carried stakes is what Choker's evolution counts (03 §1.7).
+    if (at.stakes) countEvolve(run, 'stakes_sends');
     const style: Tick['style'] = project.sent ? 'repeat' : firstTry ? (at.mode === 'flash' ? 'flash' : 'onsight') : 'redpoint';
     tick = {
       route: route.id, route_seed: at.route_seed, name: route.name, day: run.day, style, attempts: project.attempts,
