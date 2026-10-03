@@ -46,6 +46,8 @@ export function Watch({ run }: { run: RunState }) {
   // The commentary: the last few things that happened, and how it ended once the ending plays.
   const lines = [...at.log.slice(-3).map((m) => m.text), ...(ending ? [result.log[result.log.length - 1]?.text ?? result.text] : [])].slice(-3);
   const progress = route.beta_line.length ? Math.min(at.beta_ptr, route.beta_line.length) : 0;
+  // On a route, the bolts clipped so far instead of the line's steps.
+  const where = pb.pitch ? `bolts ${pb.clips[Math.min(i, n - 1)]?.length ?? 0}/${pb.pitch.bolts.length}` : `line ${progress}/${route.beta_line.length}`;
 
   return (
     <div class="screen attempt toon">
@@ -53,7 +55,7 @@ export function Watch({ run }: { run: RunState }) {
         <div class="top-row">
           <div class="col" style={{ gap: '2px', minWidth: 0 }}>
             <span class="card-title one-line">{route.name} · {gradeOf(route)}</span>
-            <span class="tiny row"><Circuit c={route.circuit} />{MODE_LABEL[at.mode]} · attempt {at.attempt_index + 1} · move {at.moves} · line {progress}/{route.beta_line.length}</span>
+            <span class="tiny row"><Circuit c={route.circuit} />{MODE_LABEL[at.mode]} · attempt {at.attempt_index + 1} · move {at.moves} · {where}</span>
           </div>
           <button class="chip-btn" onClick={() => goto({ name: 'result' })}>Skip</button>
         </div>
@@ -61,7 +63,7 @@ export function Watch({ run }: { run: RunState }) {
       <WallCanvas
         pb={pb}
         hidden={hidden}
-        label={`${route.name}: ${run.name} on the problem`}
+        label={`${route.name}: ${run.name} on the ${pb.pitch ? 'route' : 'problem'}`}
         speed={speed}
         reduceMotion={settings.value.reduce_motion}
         onStep={setI}

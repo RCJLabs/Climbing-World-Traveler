@@ -1,6 +1,7 @@
-// Draws the cartoon wall (docs/25 §10): the forest, the problem's block and holds, the pads, the climber and the
-// comic effects. Thick ink outlines, flat toon shading, a big-headed climber whose face shows the effort. Everything
-// comes from the block, the joints and the effects it is handed; nothing here decides anything about the climb.
+// Draws the cartoon wall (docs/25 §10): the forest (or the sea under a limestone crag), the problem's block and holds,
+// the pads, on a pitch the bolts, quickdraws, rope and belayer (§10.8), the climber and the comic effects. Thick ink
+// outlines, flat toon shading, a big-headed climber whose face shows the effort. Everything comes from the block, the
+// joints and the effects it is handed; nothing here decides anything about the climb.
 
 import { stream } from '../../sim/rng';
 import type { CircuitColour, HoldType, SizeClass } from '../../sim/types';
@@ -8,6 +9,8 @@ import { zOfY, type RouteGeom } from '../../sim/wall';
 import { faceEdges, tint, type Block } from './block';
 import type { P2, Proj } from './camera';
 import type { Face, Fx } from './moves';
+import type { PitchMoment } from './playback';
+import type { Pitch } from './pitch';
 import { add3, mul3, norm3, rockOf, sub3, type Joints, type Rock, type V3 } from './rig';
 
 export const INK = '#2B2340';
@@ -16,6 +19,12 @@ const C = {
   sand: '#F6DC93', sandDot: '#E2BE6C', skin: '#FFC9A0', skinShade: '#F2AE83', shirt: '#FFCC33', shirtShade: '#E9AF12', pants: '#4C6FD8',
   pantsShade: '#3B57B0', hair: '#6B3E26', band: '#E8453C', shoe: '#E8453C', mitt: '#FFFFFF', target: '#FFD93D', chalk: '#FFFFFF',
 };
+/** A figure's colours: the climber's, and the belayer's so the two never read as one. */
+export interface Outfit { skin: string; skinShade: string; shirt: string; pants: string; hair: string; band: string | null; shoe: string; star: string | null }
+const CLIMBER: Outfit = { skin: C.skin, skinShade: C.skinShade, shirt: C.shirt, pants: C.pants, hair: C.hair, band: C.band, shoe: C.shoe, star: '#FF8A3D' };
+const BELAYER: Outfit = { skin: '#E9B48A', skinShade: '#D99B70', shirt: '#3CC6B4', pants: '#7A5BD1', hair: '#2E2A3A', band: null, shoe: '#5B6472', star: null };
+const SEA = { sky0: '#4FC0F2', sky1: '#DDF6FF', sea0: '#5DB8EC', sea1: '#2C7FCB', foam: '#FFFFFF', isle: '#A99BD0', isleHi: '#BEB2DE', scrub: '#7DBA5C', scrubHi: '#98CF72', path: '#E9D7AE', stone: '#C9C2B4' };
+const ROPE = { core: '#FF5F8F', fleck: '#FFE066', sling: ['#2EC4B6', '#FF9F1C', '#B49BF2'], metal: '#D5DCE6', metalShade: '#9AA5B5', tarp: '#E8453C' };
 const CIRCUIT: Record<CircuitColour, string> = { yellow: '#F3C623', orange: '#F08A24', blue: '#2E7FD1', red: '#D63A2F', black: '#26232E', white: '#F7F7F7' };
 const SIZE: Record<SizeClass, number> = { xs: 0.7, s: 0.85, m: 1, l: 1.2, xl: 1.4 };
 
@@ -35,6 +44,8 @@ export interface ToonScene {
   target: { at: V3; dynamic: boolean } | null;
   /** Seconds, for things that idle (clouds, sweat). */
   time: number;
+  /** On a pitch: the bolts and the anchor, and the rope, the quickdraws and the belayer at this moment. */
+  pitch?: (PitchMoment & { hardware: Pitch }) | undefined;
 }
 
 const rad = (d: number): number => (d * Math.PI) / 180;
@@ -51,14 +62,36 @@ export function drawToon(ctx: CanvasRenderingContext2D, w: number, h: number, S:
   const depth = sc.proj.depth;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  drawScenery(ctx, w, h, S, scale, sc.block, sc.time);
-  drawBlock(ctx, P, scale, sc.block);
-  drawHolds(ctx, P, depth, scale, sc.block, sc.geom, sc.touched, sc.hidden);
+  const view = { w, h };
+  if (sc.block.look === 'sea') drawSea(ctx, w, h, S, scale, sc.block, sc.time); else drawScenery(ctx, w, h, S, scale, sc.block, sc.time);
+  drawBlock(ctx, P, scale, sc.block, view);
+  drawHolds(ctx, P, depth, scale, sc.block, sc.geom, sc.touched, sc.hidden, view);
+  const pitch = sc.pitch;
+  if (pitch) drawHardware(ctx, P, scale, pitch);
   if (sc.target) drawTarget(ctx, P(sc.target.at), scale, sc.target.dynamic, sc.time);
   drawPads(ctx, P, depth, scale, sc.block);
-  drawClimber(ctx, P, depth, scale, sc.joints, rockOf(sc.block.route.wall), sc.fx, sc.time);
+  const rock = rockOf(sc.block.route.wall);
+  if (!pitch) {
+    drawClimber(ctx, P, depth, scale, sc.joints, rock, sc.fx, sc.time);
+  } else {
+    // The rope runs behind the climber (between the body and the rock) and into the belayer's hands; the nearer
+    // figure is drawn last.
+    drawRopePile(ctx, P, scale, pitch);
+    drawRope(ctx, P, scale, pitch);
+    const belayerFirst = depth(pitch.belayer.hip) <= depth(sc.joints.hip);
+    const still = { strain: 0.15, wobble: 0, squash: 1, face: 'focus' as const, stars: false, sweat: false };
+    if (belayerFirst) drawClimber(ctx, P, depth, scale, pitch.belayer, FLAT_FRONT, still, sc.time, BELAYER, false);
+    drawClimber(ctx, P, depth, scale, sc.joints, rock, sc.fx, sc.time, CLIMBER, true);
+    if (!belayerFirst) drawClimber(ctx, P, depth, scale, pitch.belayer, FLAT_FRONT, still, sc.time, BELAYER, false);
+  }
   drawFx(ctx, P, scale, sc.joints, sc.fx, sc.time);
 }
+
+/** The ground in front of a route, flat and vertical: the belayer's feet stand on it. */
+const FLAT_FRONT: Rock = { z: () => 0, n: () => [0, 0, 1] };
+
+/** Whether a screen point is on the canvas or within `m` px of it. */
+const onCanvas = (p: P2, view: { w: number; h: number }, m: number): boolean => p[0] > -m && p[0] < view.w + m && p[1] > -m && p[1] < view.h + m;
 
 // ---------------------------------------------------------------- scenery
 
@@ -136,6 +169,110 @@ function drawScenery(ctx: CanvasRenderingContext2D, w: number, h: number, S: ToS
   }
 }
 
+/**
+ * The sea under a limestone crag (§10.8): sky, an island on the horizon, the sea, and the dusty path at the foot of
+ * the rock. The horizon stays near the screen's middle and drops a little as the camera climbs the pitch; the path
+ * belongs to the ground and scrolls away below.
+ */
+function drawSea(ctx: CanvasRenderingContext2D, w: number, h: number, S: ToScreen, scale: number, block: Block, time: number): void {
+  const sky = ctx.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, SEA.sky0);
+  sky.addColorStop(1, SEA.sky1);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+  const r = stream('toon-scenery', block.seed);
+  const anchor = S([0, 0]);
+  const par = (f: number): number => (anchor[0] - w / 2) * f;
+  for (let i = 0; i < 4; i++) {
+    const s = r.range(0.7, 1.2);
+    const x = ((r.range(0, w * 1.6) + time * 6 * s + par(0.1)) % (w * 1.6)) - w * 0.3;
+    const y = r.range(0.05, 0.3) * h;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    for (const [dx, dy, rr] of [[-26, 6, 15], [-8, -6, 20], [14, -2, 17], [30, 7, 12], [0, 9, 15]] as const) ctx.arc(x + dx * s, y + dy * s, rr * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const below = Math.max(0, anchor[1] - h);
+  const horizon = Math.min(h * 0.8, h * 0.42 + below * 0.03);
+  // An island on the horizon, lit from the left.
+  const iw = w * r.range(0.5, 0.75), ih = Math.min(h * 0.2, iw * 0.32);
+  const ix = ((r.range(0, w) + par(0.04)) % (w * 1.3)) - w * 0.1;
+  const isle = (): void => {
+    ctx.beginPath();
+    ctx.moveTo(ix - iw / 2, horizon);
+    ctx.quadraticCurveTo(ix - iw * 0.32, horizon - ih * 0.55, ix - iw * 0.12, horizon - ih);
+    ctx.quadraticCurveTo(ix, horizon - ih * 0.8, ix + iw * 0.1, horizon - ih * 0.88);
+    ctx.quadraticCurveTo(ix + iw * 0.3, horizon - ih * 0.45, ix + iw / 2, horizon);
+    ctx.closePath();
+  };
+  isle();
+  ctx.fillStyle = SEA.isle;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.fill();
+  ctx.stroke();
+  ctx.save();
+  isle();
+  ctx.clip();
+  ctx.fillStyle = SEA.isleHi;
+  ctx.beginPath(); ctx.ellipse(ix - iw * 0.22, horizon - ih * 0.55, iw * 0.16, ih * 0.6, -0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  const sea = ctx.createLinearGradient(0, horizon, 0, h);
+  sea.addColorStop(0, SEA.sea0);
+  sea.addColorStop(1, SEA.sea1);
+  ctx.fillStyle = sea;
+  ctx.fillRect(-10, horizon, w + 20, h - horizon + 10);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  poly(ctx, [[-10, horizon], [w + 10, horizon]], false);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 16; i++) {
+    const f = r.range(0, 1) ** 1.6;
+    const y = horizon + 6 + f * (h - horizon);
+    const x = ((r.range(0, w * 1.3) + time * (3 + 6 * f) + par(0.15 + 0.3 * f)) % (w * 1.3)) - w * 0.15;
+    const len = 5 + 14 * f;
+    poly(ctx, [[x, y], [x + len, y]], false);
+    ctx.stroke();
+  }
+  // The path at the foot of the crag, with stones and scrub.
+  const g0 = S([0, 0.55])[1];
+  if (g0 > h + 30) return;
+  ctx.fillStyle = SEA.path;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-10, h + 10);
+  ctx.lineTo(-10, g0 + 10);
+  ctx.quadraticCurveTo(w / 2, g0 - 14, w + 10, g0 + 10);
+  ctx.lineTo(w + 10, h + 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  for (let i = 0; i < 7; i++) {
+    const x = ((r.range(0, w * 1.4) + par(0.9)) % (w * 1.4)) - w * 0.2, y = g0 + r.range(-4, 8);
+    const s = r.range(0.7, 1.2) * Math.min(1.3, scale / 130);
+    ctx.fillStyle = SEA.scrub;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (const [dx, dy, rr] of [[-12, 0, 11], [0, -7, 13], [12, 0, 10]] as const) ctx.arc(x + dx * s, y + dy * s, rr * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = SEA.scrubHi;
+    ctx.beginPath(); ctx.arc(x - 3 * s, y - 11 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = SEA.stone;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 14; i++) {
+    const x = ((r.range(0, w * 1.3) + par(1)) % (w * 1.3)) - w * 0.15;
+    const y = g0 + 16 + r.range(0, Math.max(10, h - g0));
+    const rr = r.range(2.5, 6);
+    ctx.beginPath(); ctx.ellipse(x, y, rr * 1.4, rr, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+}
+
 // ---------------------------------------------------------------- the block
 
 const LIGHT = norm3([-0.35, 0.8, 0.5]);
@@ -148,7 +285,7 @@ function faceTone(block: Block, angle: number): string {
   return nd > 0.62 ? p.light : nd > 0.38 ? p.base : nd > 0.12 ? p.shade : p.deep;
 }
 
-function drawBlock(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number, block: Block): void {
+function drawBlock(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number, block: Block, view: { w: number; h: number }): void {
   const rows = block.rows;
   const last = rows[rows.length - 1]!;
   const xAt = (y: number, side: 0 | 1): number => faceEdges(block, Math.min(block.top, Math.max(0, y)))[side];
@@ -178,6 +315,8 @@ function drawBlock(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: numbe
   for (let i = 0; i + 1 < rows.length; i++) {
     const a = rows[i]!, b = rows[i + 1]!;
     const strip = [P([a.xl, a.y, a.z]), P([a.xr, a.y, a.z]), P([b.xr, b.y, b.z]), P([b.xl, b.y, b.z])];
+    // A tall face: only the strips on the canvas.
+    if (block.pitch && (strip.every((p) => p[1] < -20) || strip.every((p) => p[1] > view.h + 20))) continue;
     const tone = faceTone(block, (a.angle + b.angle) / 2);
     ctx.fillStyle = tone;
     ctx.strokeStyle = tone;
@@ -196,7 +335,7 @@ function drawBlock(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: numbe
   ctx.lineWidth = 3;
   poly(ctx, rows.map((w) => P([w.xl, w.y, w.z])), false); ctx.stroke();
   poly(ctx, [P([last.xl, last.y, last.z]), P([last.xr, last.y, last.z])], false); ctx.stroke();
-  const zAt = (y: number): number => zOfY(block.route.wall, Math.max(0, Math.min(block.top, y)));
+  const zAt = (y: number): number => zOfY(block.wall, Math.max(0, Math.min(block.top, y)));
   // A soft shine high on the left of the face, where the light catches it.
   const shineY = block.top * 0.74;
   const [sxl, sxr] = faceEdges(block, shineY);
@@ -208,7 +347,10 @@ function drawBlock(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: numbe
   ctx.fill();
   for (const m of block.marks) {
     const pts = m.pts.map(([x, y]) => P([x, y, zAt(y)]));
+    if (block.pitch && !pts.some((p) => onCanvas(p, view, 0.5 * scale)) && m.kind !== 'streak' && m.kind !== 'tufa') continue;
     ctx.strokeStyle = INK;
+    if (m.kind === 'streak') { drawStreak(ctx, pts, (m.w ?? 0.2) * scale, !!m.warm); continue; }
+    if (m.kind === 'tufa') { drawTufa(ctx, pts, (m.w ?? 0.2) * scale, block); continue; }
     if (m.kind === 'crack') { ctx.lineWidth = 2; poly(ctx, pts, false); ctx.stroke(); }
     else if (m.kind === 'scoop') { ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(pts[0]![0], pts[0]![1]); ctx.quadraticCurveTo(pts[1]![0], pts[1]![1] + 0.05 * scale, pts[2]![0], pts[2]![1]); ctx.stroke(); }
     else if (m.kind === 'texture') { ctx.globalAlpha = 0.45; ctx.lineWidth = 1.6; poly(ctx, pts, false); ctx.stroke(); ctx.globalAlpha = 1; }
@@ -236,6 +378,39 @@ function drawBlock(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: numbe
     poly(ctx, [[c[0], c[1] - 0.06 * scale], up], false); ctx.stroke();
     poly(ctx, [[up[0] - 0.035 * scale, up[1] + 0.04 * scale], up, [up[0] + 0.035 * scale, up[1] + 0.04 * scale]], false); ctx.stroke();
   }
+}
+
+/** A streak of colour down limestone: a soft band, orange or blue-grey, fading at its ends. */
+function drawStreak(ctx: CanvasRenderingContext2D, pts: P2[], w: number, warm: boolean): void {
+  const [a, b] = [pts[0]!, pts[pts.length - 1]!];
+  const g = ctx.createLinearGradient(a[0], a[1], b[0], b[1]);
+  const col = warm ? '233,150,82' : '96,112,140';
+  g.addColorStop(0, `rgba(${col},0)`);
+  g.addColorStop(0.2, `rgba(${col},0.32)`);
+  g.addColorStop(0.75, `rgba(${col},0.22)`);
+  g.addColorStop(1, `rgba(${col},0)`);
+  ctx.strokeStyle = g;
+  ctx.lineWidth = Math.max(4, w);
+  ctx.lineCap = 'round';
+  poly(ctx, pts, false);
+  ctx.stroke();
+}
+
+/** A tufa: a column standing out of the face, lit on the left, inked on both edges. */
+function drawTufa(ctx: CanvasRenderingContext2D, pts: P2[], w: number, block: Block): void {
+  const width = Math.max(6, w);
+  ctx.lineCap = 'round';
+  poly(ctx, pts, false);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = width + 5;
+  ctx.stroke();
+  ctx.strokeStyle = tint(block.palette.light, -0.04);
+  ctx.lineWidth = width;
+  ctx.stroke();
+  ctx.strokeStyle = tint(block.palette.light, 0.35);
+  ctx.lineWidth = width * 0.3;
+  poly(ctx, pts.map(([x, y]) => [x - width * 0.22, y] as P2), false);
+  ctx.stroke();
 }
 
 // ---------------------------------------------------------------- holds
@@ -271,8 +446,10 @@ function holdShape(ctx: CanvasRenderingContext2D, type: HoldType, s: number, ori
 /** Holds are drawn this much bigger than they are, so they read at phone size. */
 const HOLD_BIG = 1.5;
 
-function drawHolds(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, depth: (p: V3) => number, scale: number, block: Block, geom: RouteGeom, touched: ReadonlySet<string>, hidden?: ReadonlySet<string>): void {
-  const holds = geom.list.filter((h) => !hidden?.has(h.id) || touched.has(h.id)).sort((a, b) => depth([a.x, a.y, a.z]) - depth([b.x, b.y, b.z]));
+function drawHolds(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, depth: (p: V3) => number, scale: number, block: Block, geom: RouteGeom, touched: ReadonlySet<string>, hidden: ReadonlySet<string> | undefined, view: { w: number; h: number }): void {
+  const holds = geom.list
+    .filter((h) => (!hidden?.has(h.id) || touched.has(h.id)) && onCanvas(P([h.x, h.y, h.z]), view, 0.3 * scale))
+    .sort((a, b) => depth([a.x, a.y, a.z]) - depth([b.x, b.y, b.z]));
   const ink = Math.max(1.6, Math.min(3, 0.018 * scale));
   for (const h of holds) {
     const s = (SIZE[h.size] ?? 1) * HOLD_BIG;
@@ -348,6 +525,123 @@ function drawPads(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, depth: (p: V3
   }
 }
 
+// ---------------------------------------------------------------- bolts, quickdraws, the rope (§10.8)
+
+/** A metal part: a hanger, a ring. */
+function metal(ctx: CanvasRenderingContext2D, c: P2, r: number, ink: number, hole = true): void {
+  ctx.fillStyle = ROPE.metal;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = ink;
+  ctx.beginPath(); ctx.arc(c[0], c[1], r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  if (hole) { ctx.fillStyle = ROPE.metalShade; ctx.beginPath(); ctx.arc(c[0], c[1] + r * 0.15, r * 0.4, 0, Math.PI * 2); ctx.fill(); }
+}
+
+/** A karabiner: an upright oval with a gap for the gate. */
+function biner(ctx: CanvasRenderingContext2D, c: P2, r: number, ink: number): void {
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = Math.max(2, r * 0.75) + 2;
+  ctx.beginPath(); ctx.ellipse(c[0], c[1], r * 0.62, r, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = ROPE.metal;
+  ctx.lineWidth = Math.max(1.5, r * 0.75);
+  ctx.stroke();
+  void ink;
+}
+
+function drawHardware(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number, pm: PitchMoment & { hardware: Pitch }): void {
+  const hw = pm.hardware;
+  // Drawn bigger than they are, as the holds are, so they read at phone size.
+  const r = Math.max(4, 0.045 * scale);
+  const ink = Math.max(1.5, Math.min(2.5, 0.016 * scale));
+  hw.bolts.forEach((b, i) => {
+    const h = P(b.hanger);
+    metal(ctx, h, r, ink);
+    if (!pm.draws.has(i)) return;
+    const lo = P(b.biner);
+    tube(ctx, [lerp2(h, lo, 0.26), lerp2(h, lo, 0.72)], Math.max(4, 0.042 * scale), ROPE.sling[i % ROPE.sling.length]!, ink * 0.8);
+    biner(ctx, lerp2(h, lo, 0.12), r * 0.75, ink);
+    biner(ctx, lo, r * 0.9, ink);
+  });
+  if (hw.anchor) {
+    const L = P(hw.anchor.left), R = P(hw.anchor.right), ring = P(hw.anchor.ring);
+    for (const end of [L, R]) {
+      // The chain: three links from the hanger to the ring.
+      for (let j = 1; j <= 3; j++) {
+        const c = lerp2(end, ring, j / 4);
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = ink + 2;
+        ctx.beginPath(); ctx.ellipse(c[0], c[1], r * 0.4, r * 0.6, Math.atan2(ring[1] - end[1], ring[0] - end[0]) + Math.PI / 2, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = ROPE.metalShade;
+        ctx.lineWidth = ink;
+        ctx.stroke();
+      }
+      metal(ctx, end, r, ink);
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = r * 0.55 + 3;
+    ctx.beginPath(); ctx.arc(ring[0], ring[1], r * 1.1, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = ROPE.metal;
+    ctx.lineWidth = r * 0.55;
+    ctx.stroke();
+    if (pm.anchor >= 1) biner(ctx, [ring[0], ring[1] + r * 1.1], r * 0.9, ink);
+  }
+}
+
+/** The rope: the belayer's device, the quickdraws it is clipped to, the climber; it sags as it slackens. */
+function drawRope(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number, pm: PitchMoment): void {
+  const pts = pm.rope.map(P);
+  if (pts.length < 2) return;
+  const w = Math.max(2.2, 0.02 * scale);
+  ctx.beginPath();
+  ctx.moveTo(pts[0]![0], pts[0]![1]);
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!, b = pts[i]!;
+    const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const sag = (1 - pm.tight) * Math.min(0.6 * scale, 0.16 * d);
+    ctx.quadraticCurveTo((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + sag, b[0], b[1]);
+  }
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = w + 3;
+  ctx.stroke();
+  ctx.strokeStyle = ROPE.core;
+  ctx.lineWidth = w;
+  ctx.stroke();
+  ctx.save();
+  ctx.setLineDash([w * 0.9, w * 2.4]);
+  ctx.strokeStyle = ROPE.fleck;
+  ctx.lineWidth = w * 0.45;
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** The rope bag by the belayer's feet: a tarp, the coils, and the slack end up to the belayer's brake hand. */
+function drawRopePile(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number, pm: PitchMoment & { hardware: Pitch }): void {
+  const at: V3 = add3(pm.hardware.belay, [0.55, 0, 0.25]);
+  const tarp = [P(add3(at, [-0.32, 0, -0.25])), P(add3(at, [0.32, 0, -0.25])), P(add3(at, [0.36, 0, 0.3])), P(add3(at, [-0.36, 0, 0.3]))];
+  poly(ctx, tarp);
+  ctx.fillStyle = ROPE.tarp;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.5;
+  ctx.fill();
+  ctx.stroke();
+  const w = Math.max(2, 0.018 * scale);
+  const c = P(add3(at, [0, 0.03, 0]));
+  for (let i = 0; i < 4; i++) {
+    const rx = (0.17 - 0.025 * i) * scale, ry = rx * 0.38;
+    ctx.beginPath(); ctx.ellipse(c[0] + (i % 2 ? 2 : -2), c[1] - i * w * 0.9, rx, ry, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = INK; ctx.lineWidth = w + 3; ctx.stroke();
+    ctx.strokeStyle = ROPE.core; ctx.lineWidth = w; ctx.stroke();
+  }
+  const brake = P(pm.belayer.RH), dev = P(pm.rope[0]!);
+  ctx.beginPath();
+  ctx.moveTo(c[0], c[1] - 3 * w);
+  ctx.quadraticCurveTo(c[0] - 0.1 * scale, (c[1] + brake[1]) / 2 + 0.15 * scale, brake[0], brake[1]);
+  ctx.lineTo(dev[0], dev[1]);
+  ctx.strokeStyle = INK; ctx.lineWidth = w + 3; ctx.stroke();
+  ctx.strokeStyle = ROPE.core; ctx.lineWidth = w; ctx.stroke();
+}
+
 // ---------------------------------------------------------------- the climber
 
 function tube(ctx: CanvasRenderingContext2D, pts: P2[], w: number, col: string, ink = 3): void {
@@ -371,7 +665,7 @@ function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, co
   ctx.stroke();
 }
 
-function drawClimber(ctx: CanvasRenderingContext2D, P0: (p: V3) => P2, depth: (p: V3) => number, scale: number, j: Joints, rock: Rock, fx: Fx, time: number): void {
+function drawClimber(ctx: CanvasRenderingContext2D, P0: (p: V3) => P2, depth: (p: V3) => number, scale: number, j: Joints, rock: Rock, fx: Fx, time: number, look: Outfit = CLIMBER, harness = false): void {
   const k = j.k;
   const P = (p: V3): P2 => P0(add3(p, [fx.wobble, 0, 0]));
   const hip = P(j.hip);
@@ -391,7 +685,7 @@ function drawClimber(ctx: CanvasRenderingContext2D, P0: (p: V3) => P2, depth: (p
       d: mean(s0, el, end),
       draw: () => {
         const a = P(s0), e = P(el), f = P(end);
-        tube(ctx, [a, e, f], arm, C.skin, ink);
+        tube(ctx, [a, e, f], arm, look.skin, ink);
         // A chalky white hand.
         ctx.fillStyle = C.mitt;
         ctx.strokeStyle = INK;
@@ -404,13 +698,13 @@ function drawClimber(ctx: CanvasRenderingContext2D, P0: (p: V3) => P2, depth: (p
     parts.push({
       d: mean(h0, kn, end),
       draw: () => {
-        tube(ctx, [P(h0), P(kn), P(end)], leg, C.pants, ink);
-        drawShoe(ctx, P, scale, j, rock, f, kn, end, ink);
+        tube(ctx, [P(h0), P(kn), P(end)], leg, look.pants, ink);
+        drawShoe(ctx, P, scale, j, rock, f, kn, end, ink, look);
       },
     });
   }
-  parts.push({ d: mean(j.sh, j.hip) + 0.02, draw: () => drawTorso(ctx, P, scale, j, ink) });
-  parts.push({ d: mean(j.head) + (j.facingOut ? 0.3 : 0.06), draw: () => drawHead(ctx, P, scale, j, fx.face, time, ink) });
+  parts.push({ d: mean(j.sh, j.hip) + 0.02, draw: () => drawTorso(ctx, P, scale, j, ink, look, harness) });
+  parts.push({ d: mean(j.head) + (j.facingOut ? 0.3 : 0.06), draw: () => drawHead(ctx, P, scale, j, fx.face, time, ink, look) });
   parts.sort((a, b) => a.d - b.d);
   for (const p of parts) p.draw();
   ctx.restore();
@@ -419,7 +713,7 @@ function drawClimber(ctx: CanvasRenderingContext2D, P0: (p: V3) => P2, depth: (p
 /** Ink line width for the climber and the props at a scale (px per metre). */
 const inkOf = (scale: number): number => Math.max(2.5, Math.min(4.5, 0.028 * scale));
 
-function drawShoe(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number, j: Joints, rock: Rock, f: 'LF' | 'RF', kn: V3, end: V3, ink: number): void {
+function drawShoe(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number, j: Joints, rock: Rock, f: 'LF' | 'RF', kn: V3, end: V3, ink: number, look: Outfit): void {
   const k = j.k;
   const style = j.foot[f];
   const side = f === 'LF' ? -1 : 1;
@@ -439,7 +733,7 @@ function drawShoe(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number
   ctx.save();
   ctx.translate((c[0] + tip[0]) / 2, (c[1] + tip[1]) / 2);
   ctx.rotate(ang);
-  ctx.fillStyle = C.shoe;
+  ctx.fillStyle = look.shoe;
   ctx.strokeStyle = INK;
   ctx.lineWidth = ink * 0.8;
   ctx.beginPath(); ctx.ellipse(0, 0, L / 2, H / 2, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -448,7 +742,7 @@ function drawShoe(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number
   ctx.restore();
 }
 
-function drawTorso(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number, j: Joints, ink: number): void {
+function drawTorso(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number, j: Joints, ink: number, look: Outfit, harness: boolean): void {
   const k = j.k;
   const sh = P(j.sh), hip = P(j.hip);
   const len = Math.max(0.2 * k * scale, Math.hypot(sh[0] - hip[0], sh[1] - hip[1]));
@@ -463,12 +757,12 @@ function drawTorso(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: numbe
   // The body runs along +y after the rotation, shoulders at +len/2: a yellow egg with the shorts band at the bottom.
   const egg = () => { ctx.beginPath(); ctx.ellipse(0, (above - below) / 2, halfW, halfL, 0, 0, Math.PI * 2); };
   egg();
-  ctx.fillStyle = C.shirt;
+  ctx.fillStyle = look.shirt;
   ctx.fill();
   ctx.save();
   egg();
   ctx.clip();
-  ctx.fillStyle = C.pants;
+  ctx.fillStyle = look.pants;
   // The shorts: from the bottom of the egg to a hand's width above the hips.
   const bottom = -len / 2 - below - 4, band = -len / 2 + 0.13 * k * scale;
   ctx.fillRect(-halfW - 2, bottom, halfW * 2 + 4, band - bottom);
@@ -476,20 +770,29 @@ function drawTorso(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: numbe
   ctx.lineWidth = ink * 0.6;
   poly(ctx, [[-halfW, band], [halfW, band]], false);
   ctx.stroke();
+  if (harness) {
+    // On a rope: the harness's waist belt over the band, a gear loop either side.
+    const bh = Math.max(3, 0.05 * k * scale);
+    ctx.fillStyle = '#4A4F63';
+    ctx.fillRect(-halfW - 2, band - bh * 0.6, halfW * 2 + 4, bh);
+    ctx.strokeRect(-halfW - 2, band - bh * 0.6, halfW * 2 + 4, bh);
+    ctx.fillStyle = ROPE.metal;
+    for (const sx of [-0.62, 0.62]) { ctx.beginPath(); ctx.ellipse(sx * halfW, band - bh * 0.9, bh * 0.35, bh * 0.55, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+  }
   ctx.restore();
   egg();
   ctx.strokeStyle = INK;
   ctx.lineWidth = ink;
   ctx.stroke();
-  star(ctx, 0, len * 0.16, Math.max(6, halfW * 0.4), '#FF8A3D', ink * 0.6);
+  if (look.star) star(ctx, 0, len * 0.16, Math.max(6, halfW * 0.4), look.star, ink * 0.6);
   ctx.restore();
 }
 
-function drawHead(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number, j: Joints, face: Face, time: number, ink: number): void {
+function drawHead(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number, j: Joints, face: Face, time: number, ink: number, outfit: Outfit = CLIMBER): void {
   const k = j.k;
   const c = P(j.head);
   const R = Math.max(11, 0.19 * k * scale);
-  tube(ctx, [P(j.neck), c], Math.max(6, 0.08 * k * scale), C.skin, ink);
+  tube(ctx, [P(j.neck), c], Math.max(6, 0.08 * k * scale), outfit.skin, ink);
   const g = P(add3(j.head, mul3(j.gaze, 0.3)));
   let gx = g[0] - c[0], gy = g[1] - c[1];
   const gl = Math.hypot(gx, gy) || 1;
@@ -497,13 +800,12 @@ function drawHead(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number
   const disc = () => { ctx.beginPath(); ctx.arc(c[0], c[1], R, 0, Math.PI * 2); };
   if (j.facingOut) {
     // Facing us: ears, the face, hair on top, the headband, the expression.
-    for (const s of [-1, 1]) { ctx.fillStyle = C.skin; ctx.strokeStyle = INK; ctx.lineWidth = ink * 0.7; ctx.beginPath(); ctx.ellipse(c[0] + s * R * 0.98, c[1] + R * 0.08, R * 0.2, R * 0.26, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
-    disc(); ctx.fillStyle = C.skin; ctx.fill();
+    for (const s of [-1, 1]) { ctx.fillStyle = outfit.skin; ctx.strokeStyle = INK; ctx.lineWidth = ink * 0.7; ctx.beginPath(); ctx.ellipse(c[0] + s * R * 0.98, c[1] + R * 0.08, R * 0.2, R * 0.26, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    disc(); ctx.fillStyle = outfit.skin; ctx.fill();
     ctx.save(); disc(); ctx.clip();
-    ctx.fillStyle = C.hair;
+    ctx.fillStyle = outfit.hair;
     ctx.beginPath(); ctx.ellipse(c[0], c[1] - R * 0.78, R * 1.2, R * 0.6, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = C.band;
-    ctx.fillRect(c[0] - R, c[1] - R * 0.42, R * 2, R * 0.24);
+    if (outfit.band) { ctx.fillStyle = outfit.band; ctx.fillRect(c[0] - R, c[1] - R * 0.42, R * 2, R * 0.24); }
     ctx.restore();
     disc(); ctx.strokeStyle = INK; ctx.lineWidth = ink; ctx.stroke();
     for (const s of [-1, 1]) eye(ctx, c[0] + s * R * 0.36, c[1] + R * 0.08, R, face, time, s);
@@ -515,7 +817,7 @@ function drawHead(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number
   const turn = Math.max(-1, Math.min(1, gx * 1.4));
   const s = turn >= 0 ? 1 : -1, a = Math.abs(turn);
   const look = Math.max(-1, Math.min(1, -gy));
-  ctx.fillStyle = C.hair;
+  ctx.fillStyle = outfit.hair;
   ctx.strokeStyle = INK;
   ctx.lineWidth = ink * 0.8;
   for (const [dx, h] of [[-0.42, 1.18], [0, 1.32], [0.4, 1.16]] as const) {
@@ -527,30 +829,29 @@ function drawHead(ctx: CanvasRenderingContext2D, P: (p: V3) => P2, scale: number
     const away = e === s;
     if (away && a > 0.35) continue;
     const ex = c[0] + e * R * (away ? 0.98 : 0.98 - 0.75 * a);
-    ctx.fillStyle = C.skin; ctx.strokeStyle = INK; ctx.lineWidth = ink * 0.7;
+    ctx.fillStyle = outfit.skin; ctx.strokeStyle = INK; ctx.lineWidth = ink * 0.7;
     ctx.beginPath(); ctx.ellipse(ex, c[1] + R * 0.1 - look * R * 0.15, R * 0.2, R * 0.27, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   }
-  disc(); ctx.fillStyle = C.hair; ctx.fill();
+  disc(); ctx.fillStyle = outfit.hair; ctx.fill();
   ctx.save(); disc(); ctx.clip();
   if (a > 0.12) {
     // The face's side.
-    ctx.fillStyle = C.skin;
+    ctx.fillStyle = outfit.skin;
     ctx.beginPath(); ctx.ellipse(c[0] + s * R * (1.32 - 0.62 * a), c[1] + R * 0.12 - look * R * 0.12, R * 0.95, R * 1.0, 0, 0, Math.PI * 2); ctx.fill();
   }
-  ctx.fillStyle = C.band;
-  ctx.fillRect(c[0] - R - 2, c[1] - R * 0.36 + look * R * 0.22, R * 2 + 4, R * 0.26);
+  if (outfit.band) { ctx.fillStyle = outfit.band; ctx.fillRect(c[0] - R - 2, c[1] - R * 0.36 + look * R * 0.22, R * 2 + 4, R * 0.26); }
   ctx.restore();
   disc(); ctx.strokeStyle = INK; ctx.lineWidth = ink; ctx.stroke();
   // The visible ear sits over the hair.
   if (a > 0.12) {
     const ex = c[0] - s * R * (0.98 - 0.75 * a);
-    ctx.fillStyle = C.skin; ctx.strokeStyle = INK; ctx.lineWidth = ink * 0.7;
+    ctx.fillStyle = outfit.skin; ctx.strokeStyle = INK; ctx.lineWidth = ink * 0.7;
     ctx.beginPath(); ctx.ellipse(ex, c[1] + R * 0.1 - look * R * 0.15, R * 0.17, R * 0.24, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   }
   if (a > 0.45) {
     // Nose, eye and mouth on the turned side.
     const fx0 = c[0] + s * R * (0.98 - 0.08 * (1 - a));
-    ctx.fillStyle = C.skin; ctx.strokeStyle = INK; ctx.lineWidth = ink * 0.7;
+    ctx.fillStyle = outfit.skin; ctx.strokeStyle = INK; ctx.lineWidth = ink * 0.7;
     ctx.beginPath(); ctx.ellipse(fx0 + s * R * 0.08, c[1] + R * 0.12 - look * R * 0.2, R * 0.16, R * 0.13, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     eye(ctx, c[0] + s * R * (0.4 + 0.25 * a), c[1] - R * 0.02 - look * R * 0.22, R, face, time, s);
     mouth(ctx, c[0] + s * R * (0.55 + 0.2 * a), c[1] + R * 0.5 - look * R * 0.15, R * 0.75, face);

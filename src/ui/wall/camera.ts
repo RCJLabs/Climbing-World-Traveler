@@ -42,8 +42,9 @@ export function yawFor(maxAngle: number): number {
 export interface Cam { cx: number; cy: number; scale: number }
 export interface Bounds { minX: number; maxX: number; minY: number; maxY: number }
 
-/** Smallest window shown (m): enough rock round the climber to see the next holds. **(tune)** */
+/** Smallest window shown (m): enough rock round the climber to see the next holds; on a pitch also the quickdraws below. **(tune)** */
 export const FRAME_MIN: P2 = [2.2, 2.8];
+export const FRAME_MIN_PITCH: P2 = [2.6, 3.4];
 export const ZOOM_RANGE: P2 = [0.6, 2.5];
 
 export function boundsOf(points: P2[], pad: [number, number, number, number] = [0.3, 0.3, 0.25, 0.6]): Bounds {
@@ -52,13 +53,14 @@ export function boundsOf(points: P2[], pad: [number, number, number, number] = [
 }
 
 /**
- * Frame the points of interest (the body, the hold it is going for) with room round them, at least `FRAME_MIN`, never
- * more than the whole problem at zoom 1, then the player's zoom and pan. The view stays on the problem.
+ * Frame the points of interest (the body, the hold it is going for) with room round them, at least `min` (`FRAME_MIN`,
+ * or `FRAME_MIN_PITCH` on a route), never more than the whole problem at zoom 1, then the player's zoom and pan. The
+ * view stays on the problem.
  */
-export function frameFor(points: P2[], w: number, h: number, b: Bounds, zoom = 1, pan: P2 = [0, 0]): Cam {
+export function frameFor(points: P2[], w: number, h: number, b: Bounds, zoom = 1, pan: P2 = [0, 0], min: P2 = FRAME_MIN): Cam {
   const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
-  const fw = Math.max(FRAME_MIN[0], Math.max(...xs) - Math.min(...xs) + 1.2);
-  const fh = Math.max(FRAME_MIN[1], Math.max(...ys) - Math.min(...ys) + 1.0);
+  const fw = Math.max(min[0], Math.max(...xs) - Math.min(...xs) + 1.2);
+  const fh = Math.max(min[1], Math.max(...ys) - Math.min(...ys) + 1.0);
   const fit = Math.min(w / fw, h / fh);
   const whole = Math.min(w / (b.maxX - b.minX), h / (b.maxY - b.minY));
   const scale = Math.max(0.8 * whole, Math.max(fit, whole) * zoom);
