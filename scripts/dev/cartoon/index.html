@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cartoon wall gallery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Bangers&display=swap" rel="stylesheet" />
+    <style>
+      body { margin: 0; padding: 8px; background: #1b1b3a; color: #fff; font: 13px 'Baloo 2', sans-serif; }
+      #sheet { display: flex; flex-wrap: wrap; gap: 8px; }
+      figure { margin: 0; background: #2b2340; border-radius: 10px; overflow: hidden; }
+      figcaption { padding: 4px 8px 6px; line-height: 1.25; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="sheet"></div>
+    <script type="module" src="./gallery.ts"></script>
+  </body>
+</html>
