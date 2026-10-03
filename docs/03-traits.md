@@ -96,16 +96,30 @@ Mixed-sign traits whose first-pass `|M| < 1.5` live in the **Quirk** category at
 
 ### 1.7 Evolving traits
 
-An evolving trait carries `evolves_to` with an exact threshold and a minimum elapsed time, so a player cannot grind it out in a weekend. Counters are stored on the climber and shown on the trait tooltip ("12/30 practice falls, week 3 of 6").
+An evolving trait carries `evolves_to` with an exact threshold and a minimum elapsed time, so a player cannot grind it out in a weekend. Counters are stored on the climber and shown on the trait card ("12/30 practice falls, week 3 of 6").
 
 | Trait | Stage 1 → | Threshold | Stage 2 → | Threshold |
 |---|---|---|---|---|
-| `afraid_of_falling` (−6) | `falls_ok` (0, neutral) | **30 practice falls over ≥ 6 weeks**; max 3 counted per session; a practice fall is a deliberate drop to pads (P1a) or a deliberate lead fall above a bolt (P1b+) | `falls_well` (acquired) | **60 total practice falls** *and* ≥ 10 unplanned falls without injury *and* ≥ 12 weeks since the first counted fall |
-| `choker` (−6) | neutral (trait removed) | 5 high-stakes successes (stakes = comp final, redpoint go on a route at or above personal best, or audience ≥ 3 NPCs) over ≥ 8 weeks | — | — |
+| `afraid_of_falling` (−6) | `falls_ok` (0, neutral) | **30 practice falls over ≥ 6 weeks**; a fall-practice session counts 3 | `falls_well` (acquired) | **60 total practice falls** *and* ≥ 10 falls without injury *and* ≥ 12 weeks since the first counted practice fall |
+| `choker` (−6) | neutral (trait removed) | 5 sends with stakes (stakes = comp final, redpoint go on a route at or above personal best, or audience ≥ 3 NPCs) over ≥ 8 weeks | — | — |
 | `topout_terror` (−3) | neutral (trait removed) | 40 clean `mantle` outcomes over ≥ 4 weeks | — | — |
-| `nervous_flyer` (−3) | neutral (trait removed) | 12 flights taken | — | — |
+| `nervous_flyer` (−3, P2) | neutral (trait removed) | 12 flights taken | — | — |
 
-Points are **not** refunded or charged when a trait evolves; the refund was the price of starting there.
+What the thresholds count (`EvolveCounter`, [schemas §4.4](schemas.md)):
+
+| Counter | One count is |
+|---|---|
+| `practice_falls` | a third of a fall-practice session, the gym training block ([12](12-training-and-adaptation.md)); a deliberate lead fall above a bolt would count too, but a climber's tactics never choose one |
+| `unhurt_falls` | a fall the pads or the rope take without an injury: a boulder attempt that ends in a fall or a pump-out, or a fall the rope holds (no fall injures before P2) |
+| `stakes_sends` | a send on an attempt with stakes; until comps and audiences, the redpoint clause, at or above the personal best − 0.25 ([26 §8.1](26-p1b-implementation-notes.md)) |
+| `clean_mantles` | a topout whose mantle resolves clean |
+
+- Every climber counts from day one, evolving trait or not, and counts never reset, so a second stage counts from the first.
+- The week clock starts at the first count of the evolution's first need.
+- At the end of a day each trait whose evolution is met becomes its next stage, or goes: one stage a day, with a journal line.
+- The new stage's multipliers, fear and flags replace the old stage's at once. Attribute adds are values, not live effects: the old stage's stay where training has taken them, and a gained stage's apply once, on the day it is gained, within the ceilings, which are recomputed then.
+
+Points are **not** refunded or charged when a trait evolves; the refund was the price of starting there. As built: [26 §10](26-p1b-implementation-notes.md).
 
 ### 1.8 Acquired traits
 
@@ -256,11 +270,11 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | id | name | cost | category | kind | phase | effect | tags | excludes | requires | flavour |
 |---|---|---:|---|---|---|---|---|---|---|---|
 | ice_in_the_veins | Ice in the Veins | +8 | mental | creation | P1a | attr_add: composure +12; fear_add: −8 | fear, focus, highball, trad, risk | afraid_of_falling, jittery, unflappable | — | Heart rate on the runout: resting. |
-| afraid_of_falling | Afraid of Falling | −6 | mental | evolving | P1a | attr_add: composure −6, commitment −4; fear_add: +10; flags: fear_source_mult:last_fall=1.5; evolves_to: falls_ok (30 practice falls over ≥ 6 weeks) → falls_well (60 practice falls + 10 unplanned falls without injury, ≥ 12 weeks) | fear, boulder, sport, highball | ice_in_the_veins, falls_well | — | The pad is right there. The pad is very far away. |
+| afraid_of_falling | Afraid of Falling | −6 | mental | evolving | P1a | attr_add: composure −6, commitment −4; fear_add: +10; flags: fear_source_mult:last_fall=1.5; evolves_to: falls_ok (30 practice falls over ≥ 6 weeks) → falls_well (60 practice falls + 10 falls without injury, ≥ 12 weeks) | fear, boulder, sport, highball | ice_in_the_veins, falls_well | — | The pad is right there. The pad is very far away. |
 | overthinker | Overthinker | −4 | mental | creation | P1b | attr_add: focus −6, commitment −4, route_reading +3; flags: pre_move_time_mult=1.2 | focus, reading, patience | — | — | Has found four sequences. Is pumped on all of them. |
 | beta_sponge | Beta Sponge | +4 | mental | creation | P2 | attr_add: route_reading +3; flags: beta_mult=1.5 | reading, partner, social, learning | stubborn | — | Hears "heel there" once and never forgets it. |
 | flow_prone | Flow Prone | +5 | mental | creation | P1a | resource_mult: focus_meter 1.10; flags: flow_chance_mult=1.5 | flow, focus, boulder | — | — | Cannot remember the send. Was definitely there. |
-| choker | Choker | −6 | mental | evolving | P1a | attr_add: confidence −4; flags: stakes_mult=0.94; evolves_to: neutral after 5 high-stakes successes over ≥ 8 weeks | competition, focus, redpoint, comp | clutch | — | Flawless in the warm-up. Different person in the final. |
+| choker | Choker | −6 | mental | evolving | P1a | attr_add: confidence −4; flags: stakes_mult=0.94; evolves_to: neutral after 5 sends with stakes over ≥ 8 weeks | competition, focus, redpoint, comp | clutch | — | Flawless in the warm-up. Different person in the final. |
 | clutch | Clutch | +6 | mental | creation | P1b | flags: stakes_mult=1.05 | competition, focus, redpoint, comp | choker | — | Only shows up when it counts. Annoying to train with. |
 | rage_quitter | Rage Quitter | −5 | mental | creation | P1a | attr_add: resilience −6; flags: quit_after_fails=3, quit_chance=0.3, stoke_hit=8 | patience, flow | zen | — | The shoes came off with some force. |
 | zen | Zen | +6 | mental | creation | P1b | attr_add: resilience +8, composure +6; resource_mult: stoke 1.15 | patience, fear, flow, recovery | rage_quitter | — | Falls off, smiles, re-chalks. People find it unsettling. |

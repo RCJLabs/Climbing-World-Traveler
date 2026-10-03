@@ -267,6 +267,39 @@ Measured on the same six probe careers (365 days at Kalymnos, `sampleBuild`, the
 
 `pnpm harness --n 20 --days 365 --seed 7 --crag kalymnos`, M4 in brackets: route estimate median 17.2 at twelve months (17.2), personal best 17.1 (17.1), p90 18.3 (18.3); at nine months the personal best median is 17.0 (16.6); project careers 17.1 (17.0) on personal best with 86 ticks (85); Mileage unchanged; replay identical. Font careers (`--n 40`) read as M4 line for line: no boulder order changed. Grande Grotta is one sector of six, so most climbing days never meet a signature.
 
+## 10. Evolving traits and trait costs
+
+### 10.1 Evolving traits
+
+| Topic | Implemented | Amends |
+|---|---|---|
+| Data | `evolves_to` on the trait: a list of `Evolution { trait, needs, min_weeks }`, the next stage (`null` removes the trait), the counts it needs and the weeks since the first count of its first need; the first evolution met applies. 03 §1.7's rows whose systems are live: Afraid of Falling → Falls OK → Falls Well, Choker → gone, Topout Terror → gone. Nervous Flyer waits for flights (P2) | [03 §1.7](03-traits.md), [schemas §4.4](schemas.md) |
+| Counters | `RunState.counters.evolve`: per `EvolveCounter`, the count and the day of the first. Every climber counts, carrying an evolving trait or not, and counts never reset, so Falls Well counts from Falls OK's first practice fall | [schemas §8](schemas.md) |
+| Practice falls | 3 per fall-practice session, the gym block P1a already had (`fall_practice`, 12 §1), which is 03 §1.7's "max 3 per session". No climber takes a deliberate lead fall: the tactics never choose one, and a fall in play is not practice | [03 §1.7](03-traits.md) |
+| Falls without injury | every boulder attempt that ends in a fall or a pump-out, and every fall the rope holds: no fall injures before P2. 03 asks for "unplanned" falls; every fall in play is unplanned | [03 §1.7](03-traits.md), [13](13-injury-and-health.md) |
+| Stakes | a send on an attempt with stakes (§8.1: a redpoint go at or above the personal best − 0.25) | [03 §1.7](03-traits.md) |
+| Clean mantles | a topout whose mantle resolves clean ("Topped out."); an ugly mantle still sends and does not count | [03 §1.7](03-traits.md) |
+| When | at the end of a day, after the overnight skin; one stage a day, so a climber who has met both of Afraid of Falling's thresholds becomes Falls OK one evening and Falls Well the next | — |
+| Effects | the new stage's multipliers, fear and flags replace the old stage's at once. Attribute adds are values, not live effects: the old stage's stay where training has taken them, and a gained stage's (Falls Well: composure +4) apply once, on the day it is gained, within the ceilings, which are recomputed then (they otherwise move on birthdays) | [03 §1.7](03-traits.md) |
+| The bot | while one of its traits evolves by practice falls, the bot spends a rest day on fall practice once a week (`FALL_PRACTICE_EVERY_DAYS = 7`), when burnout is at most 60 and the block can start. Without it no harness career would ever practise falling: the bot trains its weakest attribute family | [19 §1](19-balance-and-simulation-testing.md) |
+| The game | fall practice was already a training choice in the week plan. The trait card shows each evolution's progress ("Afraid of Falling → Falls OK: 12/30 practice falls, week 3 of 6. A fall-practice session counts 3."), and a journal line marks each change | [17 §5](17-ui-ux.md) Character Sheet |
+| Validator | schemas §9 rule 17: evolutions only on evolving and acquired traits, one on every evolving trait, known counters, `n ≥ 1`, `min_weeks ≥ 0`, stages that exist | [schemas §9](schemas.md) |
+| Harness | the career result keeps the creation traits and the day of each evolution; the report has an *Evolving traits* table, and `--trait <id>` gives every career one trait | [19 §2](19-balance-and-simulation-testing.md) |
+
+### 10.2 Re-costing
+
+`pnpm recost` (`scripts/recost.ts`, the pure parts in `src/harness/recost.ts`) runs 19 §4. What it does where 19 §4 leaves room, or where it departs:
+
+| Topic | Implemented | Amends |
+|---|---|---|
+| Pairs | n base builds from the harness sampler at one crag; each plays 365 days as sampled and once per live creation or evolving trait with that trait toggled, from the same career seed, so a pair shares its weather and its first dice. The bot alternates the project and volume policies by base. A paired build may break the creation budget, so it is created unchecked (`createRun(…, { unchecked: true })`) | [19 §4 step 1](19-balance-and-simulation-testing.md) |
+| Evolution | evolving traits play with their evolutions, so Afraid of Falling is measured with its weekly fall practice and Topout Terror with the clean topouts that remove it | [03 §1.7](03-traits.md) |
+| Scale | 19 §4 divides by the gain from +5 on one physical attribute. Each base plays that yardstick on all twelve; it reads too small and too noisy to divide by (§10.3), so impact is priced at today's level (19 §4 step 1 as amended) | [19 §4 step 1](19-balance-and-simulation-testing.md), [03 §1.4](03-traits.md) |
+| Sides | the proposal stays on the trait's side: a measured positive worth less than nothing is a *sign* flag, not a refund | [19 §4 step 2](19-balance-and-simulation-testing.md) |
+| Pick rates | one build per live background, so a trait's pick rate moves in steps of one build in seven | [19 §4 step 3](19-balance-and-simulation-testing.md) |
+| Run size | 19 §4 asks for 1,000 pairs per trait. A 365-day career costs about 1.1–1.7 s at Font and about 30 s at Kalymnos, where generating routes is 44% of the time and the estimate 18% (a base's variants share its routes through a 3,000-route cache), so the runs are n 24 at Font and n 8 at Kalymnos, for the 23 traits routes touch most | [19 §4](19-balance-and-simulation-testing.md) |
+| Resume | careers stream to `recost-<crag>-<seed>.jsonl`, keyed by base and career length: a stopped run resumes, a finished one re-reads in seconds, and a larger n reuses the smaller run's careers | — |
+
 ## Open questions
 
 - **Trait costs.** The 03 costs are the design's proposals; 19 §4's re-costing has never run. §8.2 says the Kalymnos endurance traits (Bellows, Runner, Rower, Swimmer) are cheap for what they give on routes and Crimp Machine dear for what it gives at DI 17, and several traits are missing part of what they cost (Onsight Purist, Swimmer, Dirtbag). Re-cost from careers before P1b closes; the harness's carrier table (n 20–40, random builds) is too noisy to do it.

@@ -38,7 +38,7 @@ Each `world/crags/<id>/` folder becomes one lazy chunk at build time ([18 §6](1
 - Crag ids are the common English place name (`fontainebleau`, `hueco_tanks`, `red_river_gorge`); sector-level content uses `<crag>__<sector>`.
 - Style profiles: `<crag>_<flavour>` (`font_slopers`, `font_circuits`, `kalymnos_tufa`).
 - Signature routes: `<crag>__<route_name_snake>` (`fontainebleau__marie_rose`). Real route names are allowed; `fa_note` text is fictional.
-- Traits: the name in snake_case (`gecko_skin`, `afraid_of_falling`); evolving stages share a prefix (`afraid_of_falling`, `afraid_of_falling_neutral`, `falls_well`).
+- Traits: the name in snake_case (`gecko_skin`, `afraid_of_falling`); an evolving trait's later stages are acquired traits named for what they are (`afraid_of_falling` → `falls_ok` → `falls_well`), and a stage that only removes the trait is `null` in `evolves_to` ([03 §1.7](03-traits.md)).
 - Events: `<theme>_<noun>` (`wet_sandstone`, `dropped_scare`); hidden-trait foreshadow events `hidden_foreshadow_<trait>`.
 - Backgrounds: the name in snake_case (`gym_comp_kid`). Gear: `<kind>_<variant>` (`shoes_soft`, `rope_70`).
 - Files match the id they contain where one-per-file.
@@ -59,7 +59,8 @@ Each `world/crags/<id>/` folder becomes one lazy chunk at build time ([18 §6](1
 ### 3.2 A trait
 1. Choose the `TraitCategory` file; append a `Trait` with `kind`, `cost` (creation: ±2..±10; hidden/quirk/acquired: 0), `phase`, `tags` from `tags.json`, `effect`, `excludes`, `requires`, `flavour`; hidden traits add `point_mass` and `foreshadow` text.
 2. Respect the caps: one `attr_mult` trait per attribute (list exclusions), synergies additive.
-3. Run `pnpm validate`, then `pnpm harness recost --trait <id>` (1,000 paired careers); accept the computed cost or justify a manual override in the PR.
+3. An evolving trait adds `evolves_to` (schemas §9 rule 17), and each stage it names is a trait in the file.
+4. Run `pnpm validate`, then `pnpm recost --traits <id>` (paired careers, [19 §4](19-balance-and-simulation-testing.md)); take a cost the report marks clear, or justify a manual override in the PR.
 
 ### 3.3 A background
 1. Append to `backgrounds.json` with `point_bonus` 0–6, `attr_add`, `attr_points`, `money_start`, `start_crag` whose `phase` ≤ the background's, `gear_start` ids from `gear.json`, `contacts` by archetype, `forced_traits`, `locked_traits`, `tags`, `hook`.
