@@ -26,10 +26,12 @@ export const TACTICS: Record<SessionTactic, Tactic> = {
 
 /**
  * The same tactics on routes (P1b, docs/26): a pitch costs a fifth of a day's energy, so a project gets three goes (a
- * working one first when it is well above the climber, then redpoints) and mileage onsights each route once. **(tune)**
+ * working one first when it is well above the climber, then redpoints) and mileage onsights each route once. A project
+ * day goes for a signature route within reach before the generated project: a session is three to five pitches, and
+ * behind the project slot a signature was never reached (docs/26 §9). **(tune)**
  */
 export const ROUTE_TACTICS: Record<SessionTactic, Tactic> = {
-  project: { order: TACTICS.project.order, above: TACTICS.project.above, tries: (s) => (s.kind === 'warmup' ? 1 : 3) },
+  project: { order: ['known', 'signature', 'project', 'push', 'mid', 'warmup'], above: TACTICS.project.above, tries: (s) => (s.kind === 'warmup' ? 1 : 3) },
   volume: { order: TACTICS.volume.order, above: TACTICS.volume.above, tries: () => 1 },
 };
 
@@ -39,11 +41,11 @@ export const WORK_FIRST_ABOVE = 1.5;
 /** Too tired for another attempt: the session ends (docs/24 §3). **(tune)** */
 export const tired = (run: Pick<RunState, 'res'>): boolean => run.res.energy < 22 || run.res.skin < 12;
 
-/** The session's problems in the order a tactic tries them, the easiest first as a warm-up. */
-export function sessionQueue(run: RunState, tactic: SessionTactic): RouteSlot[] {
+/** The session's problems in the order a tactic tries them, the easiest first as a warm-up; `roped` at a sport crag. */
+export function sessionQueue(run: RunState, tactic: SessionTactic, roped = false): RouteSlot[] {
   const s = run.block?.session;
   if (!s) return [];
-  const want = TACTICS[tactic].order;
+  const want = (roped ? ROUTE_TACTICS : TACTICS)[tactic].order;
   const order = [...s.slots].sort((a, b) => want.indexOf(a.kind) - want.indexOf(b.kind));
   const warm = [...s.slots].sort((a, b) => a.di_target - b.di_target)[0];
   return warm ? [warm, ...order.filter((x) => x !== warm)] : order;
@@ -62,7 +64,7 @@ export function nextSessionAttempt(run: RunState, bundle: DataBundle, tactic: Se
   // A sport crag's slots are all routes (sessionSlots): the table is known before any route is built.
   const roped = !bundle.crags.get(run.crag)!.disciplines.includes('boulder');
   const t = (roped ? ROUTE_TACTICS : TACTICS)[tactic];
-  for (const slot of sessionQueue(run, tactic)) {
+  for (const slot of sessionQueue(run, tactic, roped)) {
     if (slot.di_target > s.E + t.above) continue;
     const done = s.tried[slot.seed];
     if (done && (done.sent || done.n >= t.tries(slot))) continue;
