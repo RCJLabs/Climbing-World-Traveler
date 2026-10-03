@@ -166,7 +166,7 @@ How the playback looks: [25](25-visual-representation.md) compared ten styles on
 
 ## Open questions
 
-1. **Real-world climbs.** The only real problems in the data are Font's three signatures; every other problem is generated with a made-up name. A catalogue of real problems (name, sector, grade, style) needs sourcing before it goes in, and other crags need P2 travel.
+1. **Real-world climbs.** The only real climbs in the data are Font's three signature problems and the Grande Grotta's three signature routes ([26 §8.3](26-p1b-implementation-notes.md)); every other problem is generated with a made-up name. A catalogue of real climbs (name, sector, grade, style) needs sourcing before it goes in, and other crags need P2 travel.
 2. **Tactics from the build.** The climber's tactics are one fixed policy for everyone. Attributes and traits could shape them: risk judgement deciding when to jump off, Projector or Patient raising tries per problem, route reading finding the line on an onsight. Each changes outcomes, so each needs harness runs.
 3. **Trait costs.** Traits whose value sat partly in the input layer (Dyno Monkey's wider catch) may now be over-costed. Re-cost with the harness (03 §1.5).
 4. **The default week** matches the bots over one year (§2.2) on 8 builds. Five years and the harness's 40-build sample are not measured: add a `--policy plan` to `pnpm harness` (19 open questions).

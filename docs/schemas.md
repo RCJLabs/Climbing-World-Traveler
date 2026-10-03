@@ -647,10 +647,10 @@ interface RunSummary {                   // P1a shape (src/sim/types.ts); later 
 5. Every `Route.protection[].reach_from` references holds in the same route; every `start` hold exists.
 6. `Route.di_graded` is produced by the grade engine, never hand-entered, except on `signature: true` routes where a `di_target` is required and the engine result must land within ±1.0.
 7. `Background.start_crag` must have `phase` ≤ the background's phase, and `Background.age_range` must lie within 16..45.
-8. All text fields containing people are fictional; the validator rejects a configurable list of real climbers' names.
+8. All text fields containing people are fictional; the validator rejects a configurable list of real climbers' names (`data/real_names.json`, checked against every string in the content).
 9. `excludes` must be reciprocal between two `creation` traits; a `hidden` trait may exclude one-way (the chosen trait does not need to know about the hidden one).
 10. Hidden traits carry `point_mass`; the pool's positive and negative masses must be equal (03 §1.6).
-11. Every `scope`, `foreshadow`, `requires_age`, `expires` and `TraitEffect.flags` entry must be read by a system named in the trait's row; the validator keeps the flag registry from 03 §1.9.
+11. Every `scope`, `foreshadow`, `requires_age`, `expires` and `TraitEffect.flags` entry must be read by a system named in the trait's row; the validator keeps the flag registry from 03 §1.9. As built, a flag must be one the engine reads or one listed with the phase that will read it, and a live trait's `resource_mult` may name only resources the engine regenerates ([26 §8.1](26-p1b-implementation-notes.md)).
 12. `deprecated` entries are excluded from new-run selection and from the harness, but must still validate.
 13. A `CragStyleProfile` with `protection.kind = 'bolt'` has `protection.spacing_m` and `rest_spacing_m`; a crag whose `disciplines` include `sport` uses bolted profiles in every sector, and any other crag uses none (P1b).
 14. A `CragStyleProfile`'s `di_min`, when set with `di_max`, is below it; a sector's `seep_lag_days` lies in 1..30 (P1b).

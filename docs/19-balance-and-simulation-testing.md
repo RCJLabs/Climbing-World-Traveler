@@ -58,6 +58,8 @@ Run after every change to a formula, a trait or the Reference Climber table.
 4. **Caps check.** Confirm no two traits combine for an additive multiplier above +30% on any single hold type or move class, and that the negative-refund cap (≤ 12) cannot buy more than it should.
 5. **Diff.** The report lists every trait whose cost changed; costs are only committed to `data/traits/*.json` through this procedure, with the report linked in the commit.
 
+A quick look on the wall, not a substitute: `npx tsx scripts/dev/trait-onwall.ts [DI]` gives each live trait's worth in DI on the Font and Kalymnos benchmark lines near one grade, and what +5 on each attribute is worth there, the yardstick of step 1. It cannot see learning, skin, stoke, fear or stakes, so it can point at a cost to check but not set one ([26 §8.2](26-p1b-implementation-notes.md)).
+
 ---
 
 ## 5. Grade calibration tests (Auto-commit)
