@@ -57,6 +57,8 @@ Related: [01 §4](01-pillars-scope-roadmap.md) · [18](18-tech-architecture.md) 
 
 ### M0 Harness at scale
 
+Implemented; as built and measured: [28 §1](28-p2-implementation-notes.md).
+
 | Item | Detail |
 |---|---|
 | Long careers | `--years`; the bot retires by 19 §1's rule (burnout over 85 for 60 days, or age 55) and travels at the end of a crag's season; the report gains run-end shares and money p10/median/p90 by month |

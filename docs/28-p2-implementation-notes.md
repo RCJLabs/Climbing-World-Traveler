@@ -42,6 +42,8 @@ A sport route takes about 100 ms to build: the tracer rebuilds the whole route's
 | Per-wall tables for `sOfY`, `zOfY`, `yOfS`, `angleAt`, and a hold's place kept per wall and height | exact | golden check identical |
 | `revealScan` works out each limb's body points once a scan and skips holds past a limb's reach | exact | identical |
 | `athleteOf` hands back the last athlete while every attribute has its value | exact | identical |
+| `bodyPoints` without arrays (the centroids summed in the same order), `kinematics` kept per body, `freeState` without `delete` (which left every freed state slow to read), the stance helpers without sets | exact | identical; the check's careers 12.9 s → 10.7 s |
+| Harness samples every 13 weeks in careers longer than a year, reusing the week's estimate | harness only | the samples were 12% of a ten-year career |
 | `pnpm harness` and `pnpm recost` run one esbuild bundle (`scripts/bundled.ts`) instead of tsx's per-module transform | exact | 1.3–1.4× |
 | A sector's routes are fixed (§1.3): a worker builds each route once | game rule | routes cost nothing after a worker's first careers |
 | The estimate is worked out weekly (§1.3) | game rule | the benchmark walk runs a seventh as often |
@@ -49,6 +51,8 @@ A sport route takes about 100 ms to build: the tracer rebuilds the whole route's
 The golden check: 13 generated routes, 8 estimates and 4 careers of 50–150 days at both crags, hashed; identical before and after each exact change. With a bundle the check's careers went from 17.6 s to 14.2 s.
 
 Once routes are cached, what is left of a Kalymnos career is the attempts (62% at first; the reveal scan was half of that) and the estimate (27–36%), hence the weekly estimate.
+
+Ten-year careers cost more a year than one-year ones: a stronger climber's estimate walks more benchmark levels, and harder routes take longer to build. A ten-year Kalymnos project career with its routes built took 63 s before the last row of the table and 49 s after it (cold, 138 s and 109 s); 42% of it was estimates, then 34%. The same 24 ten-year careers (both crags, all three policies, 4 workers) took 599 s and then 412 s, and played identically apart from their samples.
 
 ### 1.3 Fixed routes and a weekly estimate (06 §5)
 
@@ -98,3 +102,5 @@ With two crags, a Kalymnos climber winters at Font (December to March) and goes 
 - **The strongest Kalymnos careers.** Their personal bests drop with fixed routes (p90 17.4 against 18.3): fewer distinct hard routes to try. Whether that is the truth of a small crag or the project slot should look further afield (another sector, a step up in grade) is for M6, when there are more crags.
 - **Out of reach.** The rule hides the reach problem rather than fixing it (26 open questions, Reach): a 150 cm climber still finds only 33 of 134 easy Kalymnos routes physically possible.
 - **Phone memory.** The game keeps 400 built routes; at Kalymnos that is about 80 MB, against 18 §7's 150 MB heap. With fixed routes a smaller cache costs little, since a route is rebuilt only when it comes back.
+- **A climber stuck working.** The same 150 cm build on the default week at Kalymnos climbed 163 days in ten years and took 2,518 odd jobs: failed sessions hold its burnout at 70–87, the week's automatic rest turns climbing days into rest, and the money stub keeps it short, so it never meets the 60-day retirement rule either. M3's burnout chain and M4's money model own the parts; the reach problem above is the cause.
+- **The estimate's cost.** A third of a ten-year career is the weekly benchmark walk, which climbs more levels as the climber improves; no exact shortcut was found (a lower level can still cap the estimate). Starting the walk a few DI under last week's estimate would be nearly free and almost always the same number.
