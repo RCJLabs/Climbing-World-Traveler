@@ -397,21 +397,29 @@ With the new costs and the same measured impacts, the greedy builder's favourite
 
 ### 10.6 Evolving traits in careers
 
-`pnpm harness --trait <id>` (every career carries the trait), 365 days:
+`pnpm harness --trait <id>` (every career carries the trait), 365 days; Font measured before the cost changes, Kalymnos after:
 
-| Trait | Font (n 24) |
-|---|---|
-| Afraid of Falling | Falls OK in 17 careers, median day 92 (80–108); Falls Well in 9, day 206 (195–213) |
-| Choker | gone in 24, median day 75 (57–151) |
-| Topout Terror | gone in 24, median day 34 (28–61) |
+| Trait | Font (n 24) | Kalymnos (n 8) |
+|---|---|---|
+| Afraid of Falling | Falls OK in 17 careers, median day 92 (80–108); Falls Well in 9, day 206 (195–213) | Falls OK in 8, day 82 (72–84); Falls Well in 7, day 181 (164–218) |
+| Choker | gone in 24, median day 75 (57–151) | gone in 2, days 122 and 248, both project careers |
+| Topout Terror | gone in 24, median day 34 (28–61) | — (no topouts on routes) |
 
-The seven Font careers that kept Afraid of Falling all year are six project careers and one volume career, all with many working days (135–242 work blocks): the bot practises falling only on a rest day, and a money-short day off is a working day instead. Choker and Topout Terror go once their week clocks allow: any climber who climbs regularly meets five redpoints at the personal best in eight weeks and forty clean topouts in four. 03 §1.7's minimum weeks bind, not the counts.
+The seven Font careers that kept Afraid of Falling all year are six project careers and one volume career, all with many working days (135–242 work blocks): the bot practises falling only on a rest day, and a money-short day off is a working day instead. At Font, Choker and Topout Terror go once their week clocks allow: any climber who climbs regularly meets five redpoints at the personal best in eight weeks and forty clean topouts in four, so 03 §1.7's minimum weeks bind, not the counts. At Kalymnos Choker stays: a Mileage climber never redpoints at its best on a route, and two of the four project careers met the five sends within the year.
 
 With evolution, the 40 sampled Font careers read as the #27 baseline line for line: estimate median 16.5 at twelve months, personal best 17.3 (p90 18.1, against 18.0), project careers 179 ticks (180), volume 964 (962), burnout p90 2.6, stoke 84.7; replay identical. Few sampled builds carry an evolving trait (4, 2 and 1 of 40).
 
 ### 10.7 Versions
 
 `DATA_VERSION` `p1b-5` and `REDUCER_VERSION` 7, for the evolutions (§10.1): a climber's traits can change mid-career, and the run state gained `counters.evolve`. The cost changes ride the same version: costs only gate creation, and no run was saved under `p1b-5` with the old ones.
+
+### 10.8 Measured after the cost changes
+
+`pnpm harness --n 40 --days 365 --seed 7` (Font), before the cost changes in brackets: estimate median at twelve months 16.2 (16.5), p10 15.2 (15.2), p90 17.4 (17.5); personal best 17.3 (17.3), p90 18.0 (18.1); project careers 179 ticks (179), volume 962 (964); burnout peak p90 2.6 (2.6); stoke at the last sample 85.6 (84.7). The starting estimate median is 12.0 (12.2): the sampled builds take fewer of the dearer technique traits.
+
+`pnpm harness --n 20 --days 365 --seed 7 --crag kalymnos`, #27 in brackets: route estimate median 17.2 at twelve months (17.2), p10 15.0 (15.0), p90 17.6 (17.4); personal best 17.0 (17.1), p90 18.3 (18.3); at nine months 16.6 (17.0); project careers 86 ticks (86) with a personal best of 16.9 (17.1); Mileage 393 ticks (391); 34.7% sends (34.4%); burnout peak median 12.0 (12.5), p90 43.3 (43.3); stoke 80.1 (80.1); replay identical. The sampled builds are not #27's, since builds are drawn within the new costs, so the gaps are of the size a different draw makes.
+
+Checks: typecheck, 195 tests (19 new: 11 in `tests/evolve.test.ts`, 8 in `tests/recost.test.ts`), validate, calibrate `--quick` 13/13, build.
 
 ## Open questions
 
@@ -421,7 +429,7 @@ With evolution, the 40 sampled Font careers read as the #27 baseline line for li
 - **Who the costs are for.** The technique traits are worth five to ten times more to the project bot than to the volume bot. The re-costing averages the two; a `--policy plan` (19 open questions) would price for the default week, whose personal best comes from its project days.
 - **Anaerobic capacity.** +5 moves careers by −0.7 score at Font and −1.6 at Kalymnos, and Resistance (+8) is worth nothing at either: the power pool barely binds for the climber's tactics.
 - **Steep, long and hard.** The sport generator's base search stops 8 DI under the grade, so a pitch that is steep all the way cannot be made easy enough off its cruxes for the top grades: Aegialis had to be gentler than the cave's steepest lines. The tufa profile rarely draws such walls (procedural Grande Grotta routes at DI 25–28: length-weighted mean angles 100–117°, steepest segments up to 144°, at most 1 in 8 needing an off-target retry), so it bites only on an authored wall; it also means the Grande Grotta's procedural routes are no steeper than any other tufa sector's. Candidates: a floor set by the profile's easiest holds rather than relative to the grade, more rests on steep ground (kneebars, with Kneebar Finder), or a steeper profile for the caves.
-- **Evolving traits.** Choker and Topout Terror go within about 11 and 5 weeks for any climber who climbs regularly: their minimum weeks bind, not their counts, so their refunds (−6 and −3) buy two or three months of a small penalty. Harder counts (stakes above the personal best, not at it; topouts on problems near the grade) would make them last. Fall practice is not in the default week, so a player who never plans it keeps Afraid of Falling; and the bot works rather than practises on its money-short days off, so 7 of 24 Font careers never reached Falls OK.
+- **Evolving traits.** At Font, Choker and Topout Terror go within about 11 and 5 weeks for any climber who climbs regularly: their minimum weeks bind, not their counts, so their refunds (−6 and −3) buy two or three months of a small penalty. At Kalymnos Choker stays (2 of 8 careers lost it, both projecting), and there it costs about 0.36 DI of personal best. Harder counts (stakes above the personal best, not at it; topouts on problems near the grade) would make them last. Fall practice is not in the default week, so a player who never plans it keeps Afraid of Falling; and the bot works rather than practises on its money-short days off, so 7 of 24 Font careers never reached Falls OK.
 - **The ledge term.** 05b §11's `+0.4` for any ledge in a fall's path makes every ledge a bold route, however short the fall onto it would be. A term that grows with the fall's length below the ledge top would let ledges back into the profile at a natural rate.
 - **Play against grade on a route.** Play sends about six points more than the grade engine on average, and single routes differ by up to about 25 points: a long line is a chain of threshold tactics (shake at pump 35, chalk at 35, the clipping stance) that the expected-value walk follows down one path while play follows many. Candidates: a finer DI grid or logit interpolation for the steep pump-out curves, and fewer hard thresholds in the tactics.
 - **Recovery on the move.** The clearance uses `aerobic_capacity` only; physiologically, critical force is forearm-local, which in this game is closer to `finger_endurance`, already in `fe_mod`. M4 left it alone: Bellows' reserve multiplier reaches the clearance through `√(reserve/100)`, and §8.2's numbers show how much the route game now leans on `aerobic_capacity`.
