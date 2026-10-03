@@ -2,6 +2,7 @@
 // ceilings with the last four weeks' change, traits, resources.
 import { useMemo } from 'preact/hooks';
 import { athleteOf } from '../../sim/attempt';
+import { EVOLVE_TEXT, evolutionProgress, PRACTICE_FALLS_PER_SESSION } from '../../sim/evolve';
 import { onsightGap, estimateDI } from '../../sim/run';
 import type { RunState, WeekPoint } from '../../sim/state';
 import { LIFESTYLE_ATTRS, MENTAL_ATTRS, PHYSICAL_ATTRS, TECHNIQUE_ATTRS, type AttrId } from '../../sim/types';
@@ -66,6 +67,7 @@ export function Character({ run }: { run: RunState }) {
           <Meter label="Burnout" value={run.res.burnout} colour="var(--warn)" />
         </div>
         <div class="row wrap">{run.traits.map((t) => <span key={t} class="chip">{data.traits.get(t)?.name ?? t}</span>)}</div>
+        {run.traits.map((t) => <Evolving key={`ev-${t}`} run={run} id={t} />)}
         {group('Physical', PHYSICAL_ATTRS)}
         <p class="tiny muted">Green and red: the change over the last four weeks. Amber: tendon gains still arriving; finger strength and skin follow the slow clock.</p>
         {group('Technique', TECHNIQUE_ATTRS)}
@@ -116,4 +118,16 @@ function Progress({ points, grade }: { points: WeekPoint[]; grade: (di: number) 
       <span class="tiny muted"><span class="accent">━</span> estimate · <span class="good">┅</span> hardest send</span>
     </div>
   );
+}
+
+/** How far an evolving trait is along (03 §1.7): "Afraid of Falling → Falls OK: 12/30 practice falls, week 3 of 6." */
+function Evolving({ run, id }: { run: RunState; id: string }) {
+  const t = data.traits.get(id);
+  const ev = t?.evolves_to?.[0];
+  if (!t || !ev) return null;
+  const p = evolutionProgress(run, ev);
+  const next = ev.trait ? data.traits.get(ev.trait)?.name ?? ev.trait : null;
+  const counts = p.needs.map((x) => `${Math.min(x.have, x.n)}/${x.n} ${EVOLVE_TEXT[x.counter]}`).join(', ');
+  const hint = ev.needs.some((x) => x.counter === 'practice_falls') ? ` A fall-practice session counts ${PRACTICE_FALLS_PER_SESSION}.` : '';
+  return <p class="tiny muted">{t.name} {next ? `→ ${next}` : 'fades'}: {counts}{ev.min_weeks ? `, week ${Math.min(p.weeks, ev.min_weeks)} of ${ev.min_weeks}` : ''}.{hint}</p>;
 }

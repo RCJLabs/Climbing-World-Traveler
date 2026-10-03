@@ -178,7 +178,7 @@
   "name": "T-Rex Arms",
   "category": "body",
   "kind": "creation",
-  "cost": -4,
+  "cost": -10,
   "phase": "P1a",
   "tags": [
    "reach",
@@ -376,7 +376,7 @@
   "name": "Sloper Whisperer",
   "category": "aptitude",
   "kind": "creation",
-  "cost": 5,
+  "cost": 10,
   "phase": "P1a",
   "tags": [
    "sloper",
@@ -455,7 +455,7 @@
   "name": "Static Master",
   "category": "aptitude",
   "kind": "creation",
-  "cost": 5,
+  "cost": 10,
   "phase": "P1a",
   "tags": [
    "static",
@@ -538,7 +538,7 @@
   "name": "Smear Faith",
   "category": "aptitude",
   "kind": "creation",
-  "cost": 4,
+  "cost": 10,
   "phase": "P1a",
   "tags": [
    "slab",
@@ -563,7 +563,7 @@
   "name": "Quiet Feet",
   "category": "aptitude",
   "kind": "creation",
-  "cost": 5,
+  "cost": 10,
   "phase": "P1a",
   "tags": [
    "footwork",
@@ -588,7 +588,7 @@
   "name": "Clumsy Feet",
   "category": "aptitude",
   "kind": "creation",
-  "cost": -5,
+  "cost": -10,
   "phase": "P1a",
   "tags": [
    "footwork"
@@ -672,6 +672,18 @@
   "excludes": [
    "topout_tidy"
   ],
+  "evolves_to": [
+   {
+    "trait": null,
+    "needs": [
+     {
+      "counter": "clean_mantles",
+      "n": 40
+     }
+    ],
+    "min_weeks": 4
+   }
+  ],
   "flavour": "The hard part is over. Now the terrifying part."
  },
  {
@@ -706,7 +718,7 @@
   "name": "Afraid of Falling",
   "category": "mental",
   "kind": "evolving",
-  "cost": -6,
+  "cost": -2,
   "phase": "P1a",
   "tags": [
    "fear",
@@ -728,6 +740,18 @@
    "ice_in_the_veins",
    "falls_well"
   ],
+  "evolves_to": [
+   {
+    "trait": "falls_ok",
+    "needs": [
+     {
+      "counter": "practice_falls",
+      "n": 30
+     }
+    ],
+    "min_weeks": 6
+   }
+  ],
   "flavour": "The pad is right there. The pad is very far away."
  },
  {
@@ -735,7 +759,7 @@
   "name": "Flow Prone",
   "category": "mental",
   "kind": "creation",
-  "cost": 5,
+  "cost": 2,
   "phase": "P1a",
   "tags": [
    "flow",
@@ -777,6 +801,18 @@
   "excludes": [
    "clutch"
   ],
+  "evolves_to": [
+   {
+    "trait": null,
+    "needs": [
+     {
+      "counter": "stakes_sends",
+      "n": 5
+     }
+    ],
+    "min_weeks": 8
+   }
+  ],
   "flavour": "Flawless in the warm-up. Different person in the final."
  },
  {
@@ -784,7 +820,7 @@
   "name": "Rage Quitter",
   "category": "mental",
   "kind": "creation",
-  "cost": -5,
+  "cost": -2,
   "phase": "P1a",
   "tags": [
    "patience",
@@ -897,7 +933,7 @@
   "name": "Scatterbrain",
   "category": "mental",
   "kind": "creation",
-  "cost": -5,
+  "cost": -2,
   "phase": "P1a",
   "tags": [
    "focus"
@@ -917,7 +953,7 @@
   "name": "Dirtbag",
   "category": "lifestyle",
   "kind": "creation",
-  "cost": 5,
+  "cost": 2,
   "phase": "P1a",
   "tags": [
    "money",
@@ -996,7 +1032,7 @@
   "name": "Dancer",
   "category": "history",
   "kind": "creation",
-  "cost": 5,
+  "cost": 10,
   "phase": "P1a",
   "tags": [
    "footwork",
@@ -1210,6 +1246,22 @@
   ],
   "effect": {},
   "excludes": [],
+  "evolves_to": [
+   {
+    "trait": "falls_well",
+    "needs": [
+     {
+      "counter": "practice_falls",
+      "n": 60
+     },
+     {
+      "counter": "unhurt_falls",
+      "n": 10
+     }
+    ],
+    "min_weeks": 12
+   }
+  ],
   "flavour": "Still not fun. Fine though."
  },
  {
@@ -1350,7 +1402,7 @@
   "name": "Stiff Shoulders",
   "category": "body",
   "kind": "creation",
-  "cost": -4,
+  "cost": -2,
   "phase": "P1b",
   "tags": [
    "flexibility"
@@ -1550,7 +1602,7 @@
   "name": "Resistance",
   "category": "aptitude",
   "kind": "creation",
-  "cost": 5,
+  "cost": 2,
   "phase": "P1b",
   "tags": [
    "endurance",
@@ -1956,7 +2008,7 @@
   "name": "Jittery",
   "category": "mental",
   "kind": "creation",
-  "cost": -5,
+  "cost": -2,
   "phase": "P1b",
   "tags": [
    "fear"

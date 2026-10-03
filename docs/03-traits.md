@@ -62,7 +62,7 @@ M    = attribute-equivalent impact on the 10k-career harness metric
 
 `M` is measured, not guessed: the harness ([19](19-balance-and-simulation-testing.md)) runs 10,000 careers with the trait forced on, against 10,000 tag-matched controls, and finds the number of extra free starting attribute points the controls need (spread across the trait's tagged attributes) to equalise the composite outcome `O = 0.6 × peak_DI_year5 + 0.25 × DI_area_under_career + 0.15 × career_years`. That number of points *is* `M`. A +6 trait therefore equals six attribute points of outcome, by construction.
 
-Until the harness exists, first-pass costs use the hand heuristic below **(tune)**; the catalogue was priced with it.
+Until the harness exists, first-pass costs use the hand heuristic below **(tune)**; the catalogue was priced with it. The first measured pass ([19 §4](19-balance-and-simulation-testing.md) as built) prices at today's level, where a point came out at about 0.75 broad attribute points, and moved 15 costs; the rest are still the heuristic's ([26 §10](26-p1b-implementation-notes.md)).
 
 | Effect field | Attribute-equivalent points |
 |---|---|
@@ -96,16 +96,30 @@ Mixed-sign traits whose first-pass `|M| < 1.5` live in the **Quirk** category at
 
 ### 1.7 Evolving traits
 
-An evolving trait carries `evolves_to` with an exact threshold and a minimum elapsed time, so a player cannot grind it out in a weekend. Counters are stored on the climber and shown on the trait tooltip ("12/30 practice falls, week 3 of 6").
+An evolving trait carries `evolves_to` with an exact threshold and a minimum elapsed time, so a player cannot grind it out in a weekend. Counters are stored on the climber and shown on the trait card ("12/30 practice falls, week 3 of 6").
 
 | Trait | Stage 1 → | Threshold | Stage 2 → | Threshold |
 |---|---|---|---|---|
-| `afraid_of_falling` (−6) | `falls_ok` (0, neutral) | **30 practice falls over ≥ 6 weeks**; max 3 counted per session; a practice fall is a deliberate drop to pads (P1a) or a deliberate lead fall above a bolt (P1b+) | `falls_well` (acquired) | **60 total practice falls** *and* ≥ 10 unplanned falls without injury *and* ≥ 12 weeks since the first counted fall |
-| `choker` (−6) | neutral (trait removed) | 5 high-stakes successes (stakes = comp final, redpoint go on a route at or above personal best, or audience ≥ 3 NPCs) over ≥ 8 weeks | — | — |
+| `afraid_of_falling` (−2) | `falls_ok` (0, neutral) | **30 practice falls over ≥ 6 weeks**; a fall-practice session counts 3 | `falls_well` (acquired) | **60 total practice falls** *and* ≥ 10 falls without injury *and* ≥ 12 weeks since the first counted practice fall |
+| `choker` (−6) | neutral (trait removed) | 5 sends with stakes (stakes = comp final, redpoint go on a route at or above personal best, or audience ≥ 3 NPCs) over ≥ 8 weeks | — | — |
 | `topout_terror` (−3) | neutral (trait removed) | 40 clean `mantle` outcomes over ≥ 4 weeks | — | — |
-| `nervous_flyer` (−3) | neutral (trait removed) | 12 flights taken | — | — |
+| `nervous_flyer` (−3, P2) | neutral (trait removed) | 12 flights taken | — | — |
 
-Points are **not** refunded or charged when a trait evolves; the refund was the price of starting there.
+What the thresholds count (`EvolveCounter`, [schemas §4.4](schemas.md)):
+
+| Counter | One count is |
+|---|---|
+| `practice_falls` | a third of a fall-practice session, the gym training block ([12](12-training-and-adaptation.md)); a deliberate lead fall above a bolt would count too, but a climber's tactics never choose one |
+| `unhurt_falls` | a fall the pads or the rope take without an injury: a boulder attempt that ends in a fall or a pump-out, or a fall the rope holds (no fall injures before P2) |
+| `stakes_sends` | a send on an attempt with stakes; until comps and audiences, the redpoint clause, at or above the personal best − 0.25 ([26 §8.1](26-p1b-implementation-notes.md)) |
+| `clean_mantles` | a topout whose mantle resolves clean |
+
+- Every climber counts from day one, evolving trait or not, and counts never reset, so a second stage counts from the first.
+- The week clock starts at the first count of the evolution's first need.
+- At the end of a day each trait whose evolution is met becomes its next stage, or goes: one stage a day, with a journal line.
+- The new stage's multipliers, fear and flags replace the old stage's at once. Attribute adds are values, not live effects: the old stage's stay where training has taken them, and a gained stage's apply once, on the day it is gained, within the ceilings, which are recomputed then.
+
+Points are **not** refunded or charged when a trait evolves; the refund was the price of starting there. As built: [26 §10](26-p1b-implementation-notes.md).
 
 ### 1.8 Acquired traits
 
@@ -196,7 +210,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | rubber_hips | Rubber Hips | +6 | body | creation | P1a | attr_add: hip_mobility +10; ceiling_add: hip_mobility +10; move_mult: high_step 1.05, heel_hook 1.03, kneebar 1.03 | flexibility, footwork, slab, overhang | tight_hips | — | Feet go where other people put their hands. |
 | tight_hips | Tight Hips | −5 | body | creation | P1a | attr_add: hip_mobility −10; ceiling_add: hip_mobility −10; move_mult: high_step 0.94, heel_hook 0.97 | flexibility, footwork | rubber_hips | — | The high step is a rumour. |
 | monkey_arms | Monkey Arms | +4 | body | creation | P1a | flags: reach_mult=1.03; move_mult: static 1.02; hold_mult: smear 0.98 | reach, overhang, roof, compression | t_rex_arms | — | Stacks on the ape-index slider. Skips the intermediate; wobbles on the slab. |
-| t_rex_arms | T-Rex Arms | −4 | body | creation | P1a | flags: reach_mult=0.97; move_mult: static 0.98; hold_mult: smear 1.02 | reach, slab | monkey_arms | — | Every problem has one more move for you. |
+| t_rex_arms | T-Rex Arms | −10 | body | creation | P1a | flags: reach_mult=0.97; move_mult: static 0.98; hold_mult: smear 1.02 | reach, slab | monkey_arms | — | Every problem has one more move for you. |
 | iron_tendons | Iron Tendons | +8 | body | creation | P2 | flags: tendon_robustness_add=+25; injury_risk_mult: 0.80; adapt_rate_mult: finger_strength 1.10 | tendon, injury, health, crimp | glass_pulleys | — | Pulleys like mooring rope. You will find out slowly. |
 | glass_pulleys | Glass Pulleys | −8 | body | creation | P2 | flags: tendon_robustness_add=−25; injury_risk_mult: 1.25; adapt_rate_mult: finger_strength 0.90 | tendon, injury, crimp, pocket | iron_tendons | — | That pop was not the hold. |
 | light_frame | Light Frame | +5 | body | creation | P1a | attr_add: pull_power +4, finger_strength +3, lockoff +3; ceiling_add: pull_power +3, finger_strength +3, lockoff +3; injury_risk_mult: 1.08; condition_mult: cold 0.96 | weight, power, overhang, roof | heavy_bones | — | Everything is strength-to-weight until you hit the ground. |
@@ -206,7 +220,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | furnace | Furnace | +3 | body | creation | P2 | condition_mult: cold 1.06, heat 0.96; flags: sending_temp_shift=−4 | cold, friction, wind | cold_blooded, cold_hands | — | T-shirt in January. Suffers in Kalymnos in June. |
 | cold_blooded | Cold Blooded | +2 | body | creation | P2 | condition_mult: heat 1.06, cold 0.94; flags: sending_temp_shift=+4 | heat, humid | furnace | — | Thrives when everyone else has gone to the beach. |
 | bendy_shoulders | Bendy Shoulders | +3 | body | creation | P2 | attr_add: shoulder_mobility +8; ceiling_add: shoulder_mobility +10; hold_mult: gaston 1.04, undercling 1.04; flags: injury_site_mult:shoulder=1.15 | flexibility, compression, injury | stiff_shoulders, old_shoulder | — | Hypermobile. Reaches behind its own head; the labrum takes notes. |
-| stiff_shoulders | Stiff Shoulders | −4 | body | creation | P1b | attr_add: shoulder_mobility −8; ceiling_add: shoulder_mobility −10; hold_mult: gaston 0.95, undercling 0.95 | flexibility | bendy_shoulders | — | Gastons feel like a dare. |
+| stiff_shoulders | Stiff Shoulders | −2 | body | creation | P1b | attr_add: shoulder_mobility −8; ceiling_add: shoulder_mobility −10; hold_mult: gaston 0.95, undercling 0.95 | flexibility | bendy_shoulders | — | Gastons feel like a dare. |
 | bellows | Bellows | +4 | body | creation | P1b | attr_add: aerobic_capacity +6; ceiling_add: aerobic_capacity +6; resource_mult: aerobic_reserve 1.10; condition_mult: altitude 1.04 | endurance, sport, altitude, recovery | asthma | — | Big lungs. Recovers on holds you would not call a rest. |
 | crusher_hands | Crusher Hands | +6 | body | creation | P1a | attr_add: finger_strength +6; ceiling_add: finger_strength +6 | crimp, edge, power | soft_fingers | — | Born on a 20 mm edge. |
 | soft_fingers | Soft Fingers | −6 | body | creation | P1a | attr_add: finger_strength −6; ceiling_add: finger_strength −6 | crimp, edge | crusher_hands | — | Good for piano. Not for the 7 mm crimp. |
@@ -221,18 +235,18 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | id | name | cost | category | kind | phase | effect | tags | excludes | requires | flavour |
 |---|---|---:|---|---|---|---|---|---|---|---|
 | crimp_machine | Crimp Machine | +6 | aptitude | creation | P1a | attr_add: tech_crimps +8, finger_strength +2; hold_mult: crimp 1.06, edge 1.04; adapt_rate_mult: tech_crimps 1.15 | crimp, edge, vertical, power | — | — | Smaller is better. Sharper is best. |
-| sloper_whisperer | Sloper Whisperer | +5 | aptitude | creation | P1a | attr_add: tech_slopers +8, contact_strength +2; hold_mult: sloper 1.08; adapt_rate_mult: tech_slopers 1.15 | sloper, friction, compression, boulder | — | — | Holds nothing, stays on anyway. Fontainebleau will adopt you. |
+| sloper_whisperer | Sloper Whisperer | +10 | aptitude | creation | P1a | attr_add: tech_slopers +8, contact_strength +2; hold_mult: sloper 1.08; adapt_rate_mult: tech_slopers 1.15 | sloper, friction, compression, boulder | — | — | Holds nothing, stays on anyway. Fontainebleau will adopt you. |
 | pinch_grip | Pinch Grip | +4 | aptitude | creation | P1a | attr_add: tech_pinches +8; hold_mult: pinch 1.08 | pinch, compression, power | — | — | Thumbs are a hand's second opinion. |
 | pocket_fingers | Pocket Fingers | +4 | aptitude | creation | P1b | attr_add: tech_pockets +8; hold_mult: pocket1 1.06, pocket2 1.06, pocket3 1.04 | pocket, sport | — | — | Two fingers, no complaints. Frankenjura approves. |
 | jam_hands | Jam Hands | +5 | aptitude | creation | P3 | attr_add: tech_cracks +10; hold_mult: crack_finger 1.05, crack_hand 1.08, crack_fist 1.08, crack_offwidth 1.06; move_mult: jam 1.05 | crack, jam, trad, bigwall | — | — | Tape is for people who do it wrong. |
 | dyno_monkey | Dyno Monkey | +5 | aptitude | creation | P1a | attr_add: dynamic_movement +8, commitment +4; move_mult: dyno 1.06, deadpoint 1.04 | dynamic, power, boulder, comp | static_master | — | Why reach when you can fly. |
-| static_master | Static Master | +5 | aptitude | creation | P1a | attr_add: lockoff +6, body_position +4; move_mult: static 1.04, high_step 1.03, dyno 0.96 | static, vertical, slab, trad | dyno_monkey | — | Slow is smooth. Smooth is sent. |
+| static_master | Static Master | +10 | aptitude | creation | P1a | attr_add: lockoff +6, body_position +4; move_mult: static 1.04, high_step 1.03, dyno 0.96 | static, vertical, slab, trad | dyno_monkey | — | Slow is smooth. Smooth is sent. |
 | core_of_steel | Core of Steel | +6 | aptitude | creation | P1a | attr_add: core_tension +10; ceiling_add: core_tension +6; move_mult: toe_hook 1.04; flags: feet_cut_recovery=+15 | core, roof, overhang, compression | — | — | Feet cut. Feet go back on. Nobody mentions it. |
 | heel_hook_savant | Heel Hook Savant | +4 | aptitude | creation | P1a | attr_add: hip_mobility +3; move_mult: heel_hook 1.10 | footwork, flexibility, overhang, boulder | — | — | Sees a heel where others see a rest they cannot use. |
 | kneebar_finder | Kneebar Finder | +4 | aptitude | creation | P1b | attr_add: route_reading +2; move_mult: kneebar 1.10; flags: reveal_kneebars | footwork, endurance, sport, redpoint | — | — | Hands-free on a 45° wall, grinning. Kneepad sold separately. |
-| smear_faith | Smear Faith | +4 | aptitude | creation | P1a | attr_add: tech_slab +6; hold_mult: smear 1.08, foot_chip 1.04 | slab, smear, footwork, friction | — | — | There is no foothold. Stand on it anyway. |
-| quiet_feet | Quiet Feet | +5 | aptitude | creation | P1a | attr_add: footwork +8; adapt_rate_mult: footwork 1.15 | footwork, slab, vertical | clumsy_feet | — | You never hear them climb. |
-| clumsy_feet | Clumsy Feet | −5 | aptitude | creation | P1a | attr_add: footwork −8; adapt_rate_mult: footwork 0.90 | footwork | quiet_feet, dancer | — | Scrape, scrabble, swing. Repeat. |
+| smear_faith | Smear Faith | +10 | aptitude | creation | P1a | attr_add: tech_slab +6; hold_mult: smear 1.08, foot_chip 1.04 | slab, smear, footwork, friction | — | — | There is no foothold. Stand on it anyway. |
+| quiet_feet | Quiet Feet | +10 | aptitude | creation | P1a | attr_add: footwork +8; adapt_rate_mult: footwork 1.15 | footwork, slab, vertical | clumsy_feet | — | You never hear them climb. |
+| clumsy_feet | Clumsy Feet | −10 | aptitude | creation | P1a | attr_add: footwork −8; adapt_rate_mult: footwork 0.90 | footwork | quiet_feet, dancer | — | Scrape, scrabble, swing. Repeat. |
 | proprioceptor | Proprioceptor | +6 | aptitude | creation | P1b | attr_add: body_position +8; adapt_rate_mult: body_position 1.10 | footwork, flow, learning | — | — | Knows where its hips are without looking. Rarer than it sounds. |
 | eagle_eye | Eagle Eye | +5 | aptitude | creation | P1a | attr_add: route_reading +10 | reading, onsight | beta_blind | — | Reads the sequence from the car. |
 | beta_blind | Beta Blind | −4 | aptitude | creation | P1b | attr_add: route_reading −8 | reading | eagle_eye | — | Discovers the foothold on attempt nine. |
@@ -242,7 +256,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | rope_gun | Rope Gun | +4 | aptitude | creation | P1b | attr_add: rope_craft +10 | sport, redpoint, onsight | — | — | Clips in one motion, pumps in none. |
 | gear_whisperer | Gear Whisperer | +5 | aptitude | creation | P3 | attr_add: gear_placement +10; adapt_rate_mult: gear_placement 1.10 | trad, crack, risk | — | — | Every cam goes in bomber the first time. Mostly. |
 | ice_natural | Ice Natural | +4 | aptitude | creation | P4 | attr_add: ice_tools +10 | ice, cold, alpine | — | — | Swings once. Hears the thunk. |
-| resistance | Resistance | +5 | aptitude | creation | P1b | attr_add: anaerobic_capacity +8; ceiling_add: anaerobic_capacity +4 | endurance, power, sport | — | — | Eight hard moves in a row is a warm-up. |
+| resistance | Resistance | +2 | aptitude | creation | P1b | attr_add: anaerobic_capacity +8; ceiling_add: anaerobic_capacity +4 | endurance, power, sport | — | — | Eight hard moves in a row is a warm-up. |
 | bear_hugger | Bear Hugger | +4 | aptitude | creation | P1b | attr_add: core_tension +4, shoulder_mobility +3; hold_mult: pinch 1.04, sloper 1.02 | compression, core, boulder | — | — | Squeezes the boulder until it gives up. |
 | contact_catcher | Contact Catcher | +4 | aptitude | creation | P1b | attr_add: contact_strength +8 | contact, dynamic, power | slow_hands | — | Latches what it touches. |
 | slow_hands | Slow Hands | −4 | aptitude | creation | P1b | attr_add: contact_strength −8 | contact, dynamic | contact_catcher | — | Arrives at the hold a moment after the hold left. |
@@ -256,13 +270,13 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | id | name | cost | category | kind | phase | effect | tags | excludes | requires | flavour |
 |---|---|---:|---|---|---|---|---|---|---|---|
 | ice_in_the_veins | Ice in the Veins | +8 | mental | creation | P1a | attr_add: composure +12; fear_add: −8 | fear, focus, highball, trad, risk | afraid_of_falling, jittery, unflappable | — | Heart rate on the runout: resting. |
-| afraid_of_falling | Afraid of Falling | −6 | mental | evolving | P1a | attr_add: composure −6, commitment −4; fear_add: +10; flags: fear_source_mult:last_fall=1.5; evolves_to: falls_ok (30 practice falls over ≥ 6 weeks) → falls_well (60 practice falls + 10 unplanned falls without injury, ≥ 12 weeks) | fear, boulder, sport, highball | ice_in_the_veins, falls_well | — | The pad is right there. The pad is very far away. |
+| afraid_of_falling | Afraid of Falling | −2 | mental | evolving | P1a | attr_add: composure −6, commitment −4; fear_add: +10; flags: fear_source_mult:last_fall=1.5; evolves_to: falls_ok (30 practice falls over ≥ 6 weeks) → falls_well (60 practice falls + 10 falls without injury, ≥ 12 weeks) | fear, boulder, sport, highball | ice_in_the_veins, falls_well | — | The pad is right there. The pad is very far away. |
 | overthinker | Overthinker | −4 | mental | creation | P1b | attr_add: focus −6, commitment −4, route_reading +3; flags: pre_move_time_mult=1.2 | focus, reading, patience | — | — | Has found four sequences. Is pumped on all of them. |
 | beta_sponge | Beta Sponge | +4 | mental | creation | P2 | attr_add: route_reading +3; flags: beta_mult=1.5 | reading, partner, social, learning | stubborn | — | Hears "heel there" once and never forgets it. |
-| flow_prone | Flow Prone | +5 | mental | creation | P1a | resource_mult: focus_meter 1.10; flags: flow_chance_mult=1.5 | flow, focus, boulder | — | — | Cannot remember the send. Was definitely there. |
-| choker | Choker | −6 | mental | evolving | P1a | attr_add: confidence −4; flags: stakes_mult=0.94; evolves_to: neutral after 5 high-stakes successes over ≥ 8 weeks | competition, focus, redpoint, comp | clutch | — | Flawless in the warm-up. Different person in the final. |
+| flow_prone | Flow Prone | +2 | mental | creation | P1a | resource_mult: focus_meter 1.10; flags: flow_chance_mult=1.5 | flow, focus, boulder | — | — | Cannot remember the send. Was definitely there. |
+| choker | Choker | −6 | mental | evolving | P1a | attr_add: confidence −4; flags: stakes_mult=0.94; evolves_to: neutral after 5 sends with stakes over ≥ 8 weeks | competition, focus, redpoint, comp | clutch | — | Flawless in the warm-up. Different person in the final. |
 | clutch | Clutch | +6 | mental | creation | P1b | flags: stakes_mult=1.05 | competition, focus, redpoint, comp | choker | — | Only shows up when it counts. Annoying to train with. |
-| rage_quitter | Rage Quitter | −5 | mental | creation | P1a | attr_add: resilience −6; flags: quit_after_fails=3, quit_chance=0.3, stoke_hit=8 | patience, flow | zen | — | The shoes came off with some force. |
+| rage_quitter | Rage Quitter | −2 | mental | creation | P1a | attr_add: resilience −6; flags: quit_after_fails=3, quit_chance=0.3, stoke_hit=8 | patience, flow | zen | — | The shoes came off with some force. |
 | zen | Zen | +6 | mental | creation | P1b | attr_add: resilience +8, composure +6; resource_mult: stoke 1.15 | patience, fear, flow, recovery | rage_quitter | — | Falls off, smiles, re-chalks. People find it unsettling. |
 | headpointer | Headpointer | +5 | mental | creation | P3 | attr_add: composure +4; flags: rehearsed_fear_mult=0.5 | fear, trad, redpoint, risk | onsight_purist | — | Top-rope it twelve times, then lead it like a stranger. |
 | onsight_purist | Onsight Purist | +3 | mental | creation | P1b | attr_add: route_reading +6; flags: onsight_rep_mult=1.5, redpoint_stoke_penalty=2 | onsight, reading, ethics | headpointer, projector | — | A second go is an admission of something. |
@@ -273,13 +287,13 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | swagger | Swagger | +4 | mental | creation | P1a | attr_add: confidence +10 | fear, sponsor | imposter | — | Has not sent it yet. Has already told people. |
 | imposter | Imposter | −4 | mental | creation | P1a | attr_add: confidence −10 | fear | swagger | — | Sent it. Assumes it is soft. |
 | laser_focus | Laser Focus | +6 | mental | creation | P1a | attr_add: focus +10 | focus, onsight, comp | scatterbrain | — | The crag could be on fire. |
-| scatterbrain | Scatterbrain | −5 | mental | creation | P1a | attr_add: focus −10 | focus | laser_focus | — | Mid-crux, remembers the parking meter. |
+| scatterbrain | Scatterbrain | −2 | mental | creation | P1a | attr_add: focus −10 | focus | laser_focus | — | Mid-crux, remembers the parking meter. |
 | cool_head | Cool Head | +4 | mental | creation | P1b | attr_add: risk_judgement +12 | risk, highball, trad, alpine | risk_blind, reckless | — | Knows exactly how bad it is. Climbs anyway, or doesn't. |
 | risk_blind | Risk Blind | −4 | mental | creation | P1b | attr_add: risk_judgement −12 | risk | cool_head, cautious | — | "Looks fine" is a full risk assessment. |
 | all_in | All In | +4 | mental | creation | P1b | attr_add: commitment +10 | dynamic, fear | hesitant | — | Does not know how to half-jump. |
 | hesitant | Hesitant | −4 | mental | creation | P1b | attr_add: commitment −10 | dynamic, fear | all_in | — | Three false starts per dyno, then the hands open. |
 | unflappable | Unflappable | +6 | mental | creation | P1b | attr_add: composure +10 | fear, focus | jittery, ice_in_the_veins | — | Belayer is screaming. Climber is chalking up. |
-| jittery | Jittery | −5 | mental | creation | P1b | attr_add: composure −10 | fear | unflappable, ice_in_the_veins | — | Fear takes a long time to leave. It knows where you live. |
+| jittery | Jittery | −2 | mental | creation | P1b | attr_add: composure −10 | fear | unflappable, ice_in_the_veins | — | Fear takes a long time to leave. It knows where you live. |
 | bounce_back | Bounce Back | +5 | mental | creation | P2 | attr_add: resilience +10 | recovery, patience | brittle | — | Injured in March, psyched by April. |
 | brittle | Brittle | −5 | mental | creation | P2 | attr_add: resilience −10 | recovery | bounce_back | — | One bad session, one bad month. |
 | vertigo | Vertigo | −6 | mental | creation | P1b | flags: fear_source_mult:height=1.6 | fear, highball, bigwall, alpine | loves_air | — | The ground has opinions about you. |
@@ -312,7 +326,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 
 | id | name | cost | category | kind | phase | effect | tags | excludes | requires | flavour |
 |---|---|---:|---|---|---|---|---|---|---|---|
-| dirtbag | Dirtbag | +5 | lifestyle | creation | P2 | cost_mult: 0.70; flags: city_stoke=−2, sponsor_appeal_mult=0.9 | money, travel, patience | trust_fund, frugal, shiny_things | — | Rice, beans, a tarp and the best season of your life. |
+| dirtbag | Dirtbag | +2 | lifestyle | creation | P2 | cost_mult: 0.70; flags: city_stoke=−2, sponsor_appeal_mult=0.9 | money, travel, patience | trust_fund, frugal, shiny_things | — | Rice, beans, a tarp and the best season of your life. |
 | trust_fund | Trust Fund | +8 | lifestyle | creation | P2 | rep_mult: 0.95; flags: money_start_add=30000, stipend_monthly=1200, sponsor_appeal_mult=0.8 | money, travel | dirtbag, frugal, remote_worker | — | Flies to Rocklands on a whim. Everyone knows. |
 | remote_worker | Remote Worker | +6 | lifestyle | creation | P2 | flags: income_per_work_block=300 (requires community ≥ medium or gym_tier ≥ 1 at current location) | money, travel | trust_fund | — | Two laptop days a week buys the other five. |
 | van_life | Van Life | +4 | lifestyle | creation | P2 | cost_mult: 0.85; flags: has_vehicle, drive_cost_mult=0.6, accommodation_free_drive | travel, money | — | — | Home is wherever the gearbox stops. |
@@ -345,7 +359,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 |---|---|---:|---|---|---|---|---|---|---|---|
 | gym_kid | Gym Kid | +5 | history | creation | P1a | attr_add: dynamic_movement +6, body_position +4, route_reading +2; flags: plastic_mult=1.05 | gym, comp, dynamic, boulder | late_starter | — | Raised on volumes. Rock is a texture upgrade. |
 | gymnast | Gymnast | +6 | history | creation | P1a | attr_add: core_tension +8, shoulder_mobility +6, body_position +4 | core, flexibility, dynamic, power | desk_jockey | — | Front lever on day one. Finger strength to follow. |
-| dancer | Dancer | +5 | history | creation | P1a | attr_add: footwork +8, hip_mobility +6, body_position +3 | footwork, flexibility, slab, flow | clumsy_feet, desk_jockey | — | Climbs like it is choreographed. It is. |
+| dancer | Dancer | +10 | history | creation | P1a | attr_add: footwork +8, hip_mobility +6, body_position +3 | footwork, flexibility, slab, flow | clumsy_feet, desk_jockey | — | Climbs like it is choreographed. It is. |
 | rower | Rower | +5 | history | creation | P1b | attr_add: pull_power +6, aerobic_capacity +8 | endurance, power, sport | — | — | An engine looking for a wall. |
 | farm_strong | Farm Strong | +5 | history | creation | P1b | attr_add: pull_power +4, core_tension +4, lockoff +4, skin_durability +6, finger_strength +2 | power, skin, jam | desk_jockey | — | Hay bales were the hangboard. |
 | ex_military | Ex-Military | +5 | history | creation | P2 | attr_add: composure +8, logistics +8, resilience +4, hip_mobility −4 | fear, patience, travel | — | — | Packs in nine minutes. Stretching is a work in progress. |
@@ -495,19 +509,17 @@ Three complete creations proving the budget closes. Base attribute values before
 | Step | Trait | Cost | Running total |
 |---|---|---:|---:|
 | start | background bonus | +3 | 3 |
-| 1 | sloper_whisperer | −5 | −2 |
-| 2 | core_of_steel | −6 | −8 |
-| 3 | smear_faith | −4 | −12 |
-| 4 | rage_quitter (mental negative 1) | +5 | −7 |
-| 5 | t_rex_arms (body negative 1) | +4 | −3 |
-| 6 | topout_terror (aptitude negative 1) | +3 | 0 |
-| 7 | heavy_chalker (quirk) | 0 | **0 ✓** |
+| 1 | sloper_whisperer | −10 | −7 |
+| 2 | pinch_grip | −4 | −11 |
+| 3 | t_rex_arms (body negative 1) | +10 | −1 |
+| 4 | rage_quitter (mental negative 1) | +2 | 1 |
+| 5 | heavy_chalker (quirk) | 0 | **1 ✓** (1 point unspent) |
 
-Checks: 7 chosen traits ≤ 12 ✓ · total refund 12 ≤ 12 ✓ · ≤ 2 negatives per category ✓ · no mirror conflicts ✓ · all traits P1a ✓.
+Checks: 5 chosen traits ≤ 12 ✓ · total refund 12 ≤ 12 ✓ · ≤ 2 negatives per category ✓ · no mirror conflicts ✓ · all traits P1a ✓. Before the re-costing ([26 §10.5](26-p1b-implementation-notes.md)) the same budget bought Core of Steel and Smear Faith as well, with Topout Terror as a third refund.
 
 **Allocation (60):** finger_strength +15 · contact_strength +10 · tech_slopers +10 · tech_slab +8 · footwork +8 · body_position +5 · route_reading +4 = 60 ✓.
 
-**Resulting values** (base + background `attr_add` + allocation + trait `attr_add`): finger_strength 20+0+15+0 = **35** · contact_strength 20+0+10+2 = **32** · core_tension 20+6+0+8+10 = **44** (ceiling +6) · tech_slopers 10+0+10+8 = **28** · tech_slab 10+0+8+6 = **24** · footwork 10+0+8 = **18** · body_position 10+2+5+4 = **21** · route_reading 10−4+4 = **10** · hip_mobility 20+4 = **24** · shoulder_mobility 20+4+6 = **30** · resilience 35−6 = **29** · composure/focus/confidence/commitment **35**. Multipliers on the wall: sloper 1.08, smear 1.08, foot_chip 1.04, mantle 0.90, toe_hook 1.04, static 0.98; reach ×0.97; chalk friction +0.02. Display estimate (05c inversion): about DI 15–16 boulder (Font 6B/6B+), stronger on slopers and slabs, weaker on reachy static problems and topouts, which is exactly the story the player chose.
+**Resulting values** (base + background `attr_add` + allocation + trait `attr_add`): finger_strength 20+0+15+0 = **35** · contact_strength 20+0+10+2 = **32** · core_tension 20+6+0+8 = **34** · tech_slopers 10+0+10+8 = **28** · tech_pinches 10+0+0+8 = **18** · tech_slab 10+0+8 = **18** · footwork 10+0+8 = **18** · body_position 10+2+5+4 = **21** · route_reading 10−4+4 = **10** · hip_mobility 20+4 = **24** · shoulder_mobility 20+4+6 = **30** · resilience 35−6 = **29** · composure/focus/confidence/commitment **35**. Multipliers on the wall: sloper 1.08, pinch 1.08, smear 1.02, static 0.98; reach ×0.97; chalk friction +0.02. Display estimate (05c inversion): DI 14.9 boulder (Font 6B; 15.2 for the build before the re-costing), stronger on slopers and pinches, weaker on reachy static problems, which is exactly the story the player chose.
 
 ### 4.2 "Diesel": P1b sport endurance build
 
@@ -518,11 +530,11 @@ Checks: 7 chosen traits ≤ 12 ✓ · total refund 12 ≤ 12 ✓ · ≤ 2 negati
 | start | background bonus | +2 | 2 |
 | 1 | slow_twitch | −3 | −1 |
 | 2 | bellows | −4 | −5 |
-| 3 | resistance | −5 | −10 |
-| 4 | sweaty_hands (body negative 1) | +4 | −6 |
-| 5 | slow_hands (aptitude negative 1) | +4 | −2 |
-| 6 | hesitant (mental negative 1) | +4 | 2 |
-| 7 | small_hands (quirk) | 0 | **2 ✓** (2 points unspent; nothing at +2 fits the build, so they lapse) |
+| 3 | resistance | −2 | −7 |
+| 4 | sweaty_hands (body negative 1) | +4 | −3 |
+| 5 | slow_hands (aptitude negative 1) | +4 | 1 |
+| 6 | hesitant (mental negative 1) | +4 | 5 |
+| 7 | small_hands (quirk) | 0 | **5 ✓** (5 points unspent: Resistance cost 5 before the re-costing) |
 
 Checks: 7 traits ✓ · refund 12 ✓ · category caps ✓ · slow_twitch stacks with fibre_bias −0.5 by design (ceilings, not values) ✓.
 

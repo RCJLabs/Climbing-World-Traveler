@@ -13,6 +13,7 @@
     "validate": "tsx scripts/validate.ts",
     "calibrate": "tsx scripts/calibrate.ts",
     "harness": "tsx scripts/harness.ts",
+    "recost": "tsx scripts/recost.ts",
     "benchmarks": "tsx scripts/build-benchmarks.ts"
   },
   "dependencies": {

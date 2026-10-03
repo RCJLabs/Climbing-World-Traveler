@@ -1,5 +1,7 @@
 // Quick-build presets for P1a (17 §6, 16 §1). One per P1a background plus the unlockable Farm Kid. The first
-// two are the builds named by the P1a exit criterion (01 §4): they must play visibly differently on a 6B+.
+// two are the builds named by the P1a exit criterion (01 §4): they must play visibly differently on a 6B+. The
+// re-costing (docs/26 §10.5) took Quiet Feet and Imposter from the Slab Wizard, Core of Steel from the Compression
+// Monster and Dyno Monkey from the Power Boulderer, the least each needed to stay within budget.
 
 import { deriveMass, refFat } from './character';
 import type { AttrId, Body, NewRunSpec, RunOptions } from './types';
@@ -33,7 +35,7 @@ export const PRESETS: readonly Preset[] = [
         sex: 'f', age_start: 24, height_cm: 163, ape_index: 0.99, finger_length: 0, finger_girth: 0, leg_torso: 1,
         natural_hip_mobility: 80, natural_shoulder_mobility: 50, fibre_bias: -0.3, tendon_robustness: 50, skin_thickness: 'normal', skin_moisture: 'dry',
       }),
-      traits: ['dancer', 'smear_faith', 'quiet_feet', 't_rex_arms', 'imposter'],
+      traits: ['dancer', 'smear_faith', 't_rex_arms'],
       attr_alloc: alloc({ footwork: 15, tech_slab: 15, body_position: 10, hip_mobility: 10, route_reading: 5, tech_slopers: 5 }),
     },
   },
@@ -48,7 +50,7 @@ export const PRESETS: readonly Preset[] = [
         sex: 'm', age_start: 22, height_cm: 178, ape_index: 1.05, finger_length: 1, finger_girth: 0, leg_torso: -1, shift: 4,
         natural_hip_mobility: 40, natural_shoulder_mobility: 70, fibre_bias: 0.4, tendon_robustness: 55, skin_thickness: 'thin', skin_moisture: 'normal',
       }),
-      traits: ['gymnast', 'core_of_steel', 'sloper_whisperer', 'tight_hips', 'scatterbrain'],
+      traits: ['gymnast', 'sloper_whisperer', 'tight_hips', 'scatterbrain'],
       attr_alloc: alloc({ core_tension: 10, contact_strength: 15, tech_slopers: 10, tech_pinches: 10, finger_strength: 10, pull_power: 5 }),
     },
   },
@@ -63,7 +65,7 @@ export const PRESETS: readonly Preset[] = [
         sex: 'm', age_start: 19, height_cm: 175, ape_index: 1.03, finger_length: 0, finger_girth: 0, leg_torso: 0,
         natural_hip_mobility: 55, natural_shoulder_mobility: 55, fibre_bias: 0.6, tendon_robustness: 50, skin_thickness: 'normal', skin_moisture: 'sweaty',
       }),
-      traits: ['gym_kid', 'dyno_monkey', 'crusher_hands', 'rage_quitter', 'sweaty_hands'],
+      traits: ['gym_kid', 'crusher_hands', 'rage_quitter', 'sweaty_hands'],
       attr_alloc: alloc({ finger_strength: 15, contact_strength: 15, pull_power: 10, dynamic_movement: 10, core_tension: 10 }),
     },
   },

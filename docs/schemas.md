@@ -175,6 +175,17 @@ interface Resources {
 type TraitCategory = 'body' | 'aptitude' | 'mental' | 'social' | 'lifestyle' | 'history' | 'health' | 'quirk';
 type TraitKind = 'creation' | 'hidden' | 'acquired' | 'evolving';
 
+// What an evolution counts (03 §1.7), each stored with the day it was first counted (RunState.counters.evolve):
+//   practice_falls  deliberate falls: three counted per fall-practice session (a drop to pads, or a lead fall above a bolt)
+//   unhurt_falls    falls in an attempt that cause no injury: a rope fall, or a boulder attempt ending in a fall or pump-off
+//   stakes_sends    sends on an attempt that carried stakes (03 open question 8)
+//   clean_mantles   topout mantles resolved clean
+type EvolveCounter = 'practice_falls' | 'unhurt_falls' | 'stakes_sends' | 'clean_mantles';
+
+// One evolution of a trait (03 §1.7): once every count is reached and min_weeks have passed since the first of the
+// first listed counter, the trait becomes `trait`, or is removed when `trait` is null.
+interface Evolution { trait: string | null; needs: { counter: EvolveCounter; n: number }[]; min_weeks: number }
+
 interface TraitEffect {
   // all optional; applied additively in the order listed in 02 §C
   attr_add?: Partial<Record<AttrId, number>>;          // flat value shift at creation
@@ -209,7 +220,7 @@ interface Trait {
   excludes: string[];             // trait ids; reciprocal for creation traits, one-way allowed for hidden
   requires?: string[];            // trait ids or background ids
   requires_age?: [number, number];   // inclusive age_start window (Late Starter ≥ 28)
-  evolves_to?: { trait: string; condition: string }[];   // for 'evolving' traits
+  evolves_to?: Evolution[];       // 'evolving' traits and the acquired stages they lead to; the first one met applies
   foreshadow?: string;            // hidden traits: event id that fires before the reveal
   expires?: { days: number } | { condition: string };    // temporary acquired traits (Acclimatised, Comp Yips)
   flavour: string;
@@ -614,6 +625,8 @@ interface WeekPoint { day: number; E: number | null; pb: number; ticks: number; 
 // the tactics. P1b adds pb_route: number (the hardest route sent; pb stays the boulder one), visited: string[] (crag ids
 // in the order first reached), counters.pyramid_route (the route pyramid beside counters.pyramid), DaySummary.travel?:
 // string (the destination on a day on the move) and ProjectState.discipline?: Discipline (set on routes).
+// counters.evolve: Partial<Record<EvolveCounter, { n: number; first_day: number }>> keeps what evolving traits count
+// (03 §1.7); counts are kept for every climber and never reset, so a second stage counts from the first.
 
 interface RunSummary {                   // P1a shape (src/sim/types.ts); later phases make hardest per discipline
   climber: string; background: string; days: number; age_end: number;
@@ -656,6 +669,7 @@ interface RunSummary {                   // P1a shape (src/sim/types.ts); later 
 14. A `CragStyleProfile`'s `di_min`, when set with `di_max`, is below it; a sector's `seep_lag_days` lies in 1..30 (P1b).
 15. The travel graph: hub ids match `^hub_`, hub countries are two letters, edge `days` are whole numbers 0..10; every edge joins known crags or hubs, and every live crag can reach every other live crag (P1b, `travelGraphErrors`).
 16. A live background starts at a live crag, and every live crag ships a benchmark set of at least 12 problems or routes (P1b).
+17. `evolves_to` appears only on `evolving` and `acquired` traits; each evolution names an existing trait or null, at least one need, each need a known `EvolveCounter` with `n ≥ 1`, and `min_weeks ≥ 0`; an evolving trait has at least one evolution.
 
 ## Open questions
 

@@ -39,6 +39,7 @@ Related: [03 Traits](03-traits.md) · [05b Move Resolution](05b-move-resolution-
 | `--policy` | `default` · `reckless` · `sport_only` · … | scripted player |
 | `--phase` | P1a … P5 | restricts content |
 | `--fix-build <file>` | JSON `new_run` payload | same build across seeds, for A/B of a single trait |
+| `--trait <id>` | a live trait id | every sampled build carries the trait (a build that cannot take it is redrawn; the budget is not checked); the report's *Evolving traits* table then says when each stage is reached. Implemented ([26 §10](26-p1b-implementation-notes.md)) |
 
 ---
 
@@ -50,13 +51,14 @@ There is no player input on the wall ([24](24-simulation-game.md)): every attemp
 
 ## 4. Trait re-costing procedure
 
-Run after every change to a formula, a trait or the Reference Climber table.
+Run after every change to a formula, a trait or the Reference Climber table: `pnpm recost --n 24 --days 365 --seed 7 [--crag kalymnos] [--traits a,b] --out reports` writes `recost-<crag>-<seed>.md` and `.json`. As built, with the measured run sizes: [26 §10](26-p1b-implementation-notes.md).
 
-1. **Impact.** For each trait `t`, simulate 1,000 careers with a random build plus `t` and the same 1,000 without it (same seeds, `--fix-build` per pair). `impact_t = mean Δ career score` where score is the Hall of Fame formula ([16 §6](16-meta-progression-and-runs.md)) without the difficulty multiplier, normalised so one point equals the gain from +5 to a single mid-value physical attribute.
-2. **Cost.** `cost_t = round(impact_t)` clamped to `[2, 10]` for positives and `[−10, −2]` for negatives; a positive trait with `impact < 1.5` or a negative with `impact > −1.5` is flagged *no-op* and either strengthened or removed (no ±1 traits).
-3. **Pick-rate.** A value-maximising builder with a budget drawn from the background distribution selects traits greedily by `impact / cost`. Traits with pick-rate **> 60%** (under-priced or dominant) or **< 5%** (over-priced or unfun) are flagged.
-4. **Caps check.** Confirm no two traits combine for an additive multiplier above +30% on any single hold type or move class, and that the negative-refund cap (≤ 12) cannot buy more than it should.
-5. **Diff.** The report lists every trait whose cost changed; costs are only committed to `data/traits/*.json` through this procedure, with the report linked in the commit.
+1. **Impact.** For each live creation or evolving trait `t`, each of *n* sampled base builds plays one career as sampled and one with `t` added, or taken away when the base carries it (the difference then counts with its sign flipped), from the same seed; a base that cannot take `t` is left out of its pairs. `Δ_t` = mean Δ career score over the pairs, where score is the run summary's ([16 §6](16-meta-progression-and-runs.md); P1b's form in [22 §4](22-p1a-implementation-notes.md)), about ten points per DI of personal best. The scale is today's price level: `slope = Σ cost × Δ / Σ cost²` over the priced traits with at least four pairs, and `impact_t = Δ_t / slope` with its standard error, so costs move against each other and the economy's level stays where [03](03-traits.md) set it. Each base also plays +5 on each physical attribute, the yardstick this step first named; it is reported beside the slope, not divided by, because it reads too small and too noisy ([26 §10.3](26-p1b-implementation-notes.md)).
+2. **Cost.** `cost_t = round(impact_t)` within `[2, 10]` for positives and `[−10, −2]` for negatives, on the trait's own side. A trait clearly worth under 1.5 points on its side (`impact + 2 se < 1.5`, signed by its side) is flagged *no-op*, one clearly working against its side (`< 0`) *sign*; both go to design, to strengthen, redesign or remove (no ±1 traits, and no trait changes sides by measurement alone).
+3. **Pick-rate.** One value-maximising build per live background buys positives by `impact / cost` and, when it can afford none, takes the negatives that cost least impact per refunded point for the best one, if that one is worth more, within creation's caps. Traits with pick-rate **> 60%** (under-priced or dominant) or **< 5%** (over-priced or unfun) are flagged.
+4. **Caps check.** No compatible set of live traits adds up to more than +30% on any single hold type or move class. Whether the negative-refund cap (≤ 12) can buy more than it should is not automated.
+5. **Diff.** A cost changes only where the measurement is clear of today's cost: `|impact − cost| > max(1, 2 se)`, at least four pairs, no flag, and the check agrees: each variant measured again against the median of the careers on its base that diverged from the base career (a variant that replays the base exactly counts 0) must propose a move the same way, so that one lucky or unlucky base career cannot move every trait on it. The report lists those; costs are only committed to `data/traits.json` through this procedure, with the report's numbers in the commit.
+6. **More than one crag.** A trait is priced for the player who gets the most from it. A cost that rises, or a refund that shrinks, needs one crag's clear verdict. A cost that falls, or a refund that grows, moves to the proposal of the crag where the trait is the better deal (where a positive is worth most, or a negative hurts least), and only when that proposal agrees with the clear crag's.
 
 A quick look on the wall, not a substitute: `npx tsx scripts/dev/trait-onwall.ts [DI]` gives each live trait's worth in DI on the Font and Kalymnos benchmark lines near one grade, and what +5 on each attribute is worth there, the yardstick of step 1. It cannot see learning, skin, stoke, fear or stakes, so it can point at a cost to check but not set one ([26 §8.2](26-p1b-implementation-notes.md)).
 

@@ -21,9 +21,13 @@ export interface BotPolicy {
 export const PROJECT_POLICY: BotPolicy = { style: 'project', workBelowDays: 60, climbDaysInARow: 3, wetDayTraining: ['limit_boulders', 'max_hangs', 'weights'] };
 export const VOLUME_POLICY: BotPolicy = { style: 'volume', workBelowDays: 60, climbDaysInARow: 3, wetDayTraining: ['arc', 'skill_drills', 'repeaters'] };
 
+/** A climber whose trait evolves by practice falls (03 §1.7) spends one rest day a week falling on purpose instead. */
+export const FALL_PRACTICE_EVERY_DAYS = 7;
+
 export class BotDriver {
   readonly log: Action[] = [];
   private streak = 0;
+  private lastFallPractice = -Infinity;
   constructor(public run: RunState, private bundle: DataBundle, private policy: BotPolicy) {}
 
   dispatch(a: Action): void {
@@ -59,7 +63,13 @@ export class BotDriver {
       if (canStartBlock(run, 'train', act, this.bundle).ok) this.dispatch({ t: 'block_start', kind: 'train', target: act });
       this.streak = 0;
     } else {
-      this.dispatch({ t: 'block_start', kind: 'rest' });
+      const practise = run.day - this.lastFallPractice >= FALL_PRACTICE_EVERY_DAYS && run.res.burnout <= 60
+        && run.traits.some((id) => this.bundle.traits.get(id)?.evolves_to?.some((e) => e.needs.some((x) => x.counter === 'practice_falls')))
+        && canStartBlock(run, 'train', 'fall_practice', this.bundle).ok;
+      if (practise) {
+        this.dispatch({ t: 'block_start', kind: 'train', target: 'fall_practice' });
+        this.lastFallPractice = run.day;
+      } else this.dispatch({ t: 'block_start', kind: 'rest' });
       this.streak = 0;
     }
     this.dispatch({ t: 'end_day' });

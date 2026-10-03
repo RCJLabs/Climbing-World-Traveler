@@ -1,7 +1,7 @@
 // Zod schemas mirroring docs/schemas.md for the content the P1a build ships. The validator (scripts/validate.ts)
 // and the bundle loader both use these, so content and code cannot drift apart silently.
 import { z } from 'zod';
-import { ALL_ATTRS, HOLD_TYPES } from '../sim/types';
+import { ALL_ATTRS, EVOLVE_COUNTERS, HOLD_TYPES } from '../sim/types';
 
 const attrId = z.enum(ALL_ATTRS as unknown as [string, ...string[]]);
 const holdType = z.enum(HOLD_TYPES as unknown as [string, ...string[]]);
@@ -38,6 +38,11 @@ export const TraitSchema = z.object({
   effect: TraitEffectSchema,
   excludes: z.array(z.string()),
   requires_age: z.tuple([z.number(), z.number()]).optional(),
+  evolves_to: z.array(z.object({
+    trait: z.string().nullable(),
+    needs: z.array(z.object({ counter: z.enum(EVOLVE_COUNTERS), n: z.number().int().min(1) }).strict()).min(1),
+    min_weeks: z.number().int().min(0),
+  }).strict()).min(1).optional(),
   flavour: z.string(),
 }).strict().superRefine((t, ctx) => {
   const creation = t.kind === 'creation' || t.kind === 'evolving';
@@ -46,6 +51,9 @@ export const TraitSchema = z.object({
     ctx.addIssue({ code: 'custom', message: `${t.id}: creation trait cost must be ±2..±10 (schemas §9 rule 2)` });
   }
   if (!ok) ctx.addIssue({ code: 'custom', message: `${t.id}: quirk, hidden and acquired traits cost 0` });
+  // Schemas §9 rule 17: evolutions belong to evolving traits and the acquired stages they lead to.
+  if (t.evolves_to && t.kind !== 'evolving' && t.kind !== 'acquired') ctx.addIssue({ code: 'custom', message: `${t.id}: only evolving and acquired traits evolve` });
+  if (t.kind === 'evolving' && !t.evolves_to) ctx.addIssue({ code: 'custom', message: `${t.id}: an evolving trait needs an evolution` });
 });
 
 export const BackgroundSchema = z.object({

@@ -1,14 +1,17 @@
 // Headless career simulator (docs/19 §1–§2) over forked worker processes.
 //   pnpm harness --n 40 --days 365 --seed 7 --policy both --crag fontainebleau --out reports
 // `--crag` keeps to the backgrounds that start there: fontainebleau (P1a boulders, the default) or kalymnos (routes).
+// `--trait <id>` gives every career that trait: each sampled build that cannot take it is redrawn (docs/19 §2).
 // Writes <out>/harness-<seed>.md and .json and prints the report.
 import { fork } from 'node:child_process';
 import { cpus } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadBundle } from '../src/data/bundle';
 import { runCareer, type CareerConfig, type CareerResult } from '../src/harness/career';
+import { toggled } from '../src/harness/recost';
 import { sampleBuild } from '../src/harness/sampler';
 import { mean, quantile } from '../src/harness/sim';
+import { phaseLive } from '../src/sim/character';
 import { fontGrade, frenchGrade } from '../src/sim/grades';
 import { DEFAULT_OPTIONS } from '../src/sim/presets';
 import { stream } from '../src/sim/rng';
@@ -36,13 +39,23 @@ async function main(): Promise<void> {
   const out = opt('out', '');
   const crag = opt('crag', 'fontainebleau');
   const bundle = loadBundle();
+  const force = opt('trait', '');
+  const forced = force ? bundle.traits.get(force) : undefined;
+  if (force && !forced) throw new Error(`unknown trait ${force}`);
 
   const jobs: Job[] = [];
   for (let i = 0; i < n; i++) {
     const rng = stream('harness-build', seed, i);
-    const spec = sampleBuild(rng, bundle, DEFAULT_OPTIONS, `H${i}`, crag);
+    let spec = sampleBuild(rng, bundle, DEFAULT_OPTIONS, `H${i}`, crag);
+    // A forced trait goes onto the build as the re-costing adds it (budget unchecked); a build that cannot take it is redrawn.
+    for (let k = 0; forced && !spec.traits.includes(forced.id); k++) {
+      const v = toggled(spec, bundle.backgrounds.get(spec.background)!, forced, bundle);
+      if (v) spec = v.spec;
+      else if (k < 50) spec = sampleBuild(rng, bundle, DEFAULT_OPTIONS, `H${i}`, crag);
+      else throw new Error(`no build at ${crag} can take ${forced.id}`);
+    }
     const policy = policyArg === 'both' ? (i % 2 ? 'volume' : 'project') : (policyArg as 'project' | 'volume');
-    jobs.push({ index: i, cfg: { seed: `h${seed}-${i}`, spec, days, policy, checkReplay: i < 2 } });
+    jobs.push({ index: i, cfg: { seed: `h${seed}-${i}`, spec, days, policy, checkReplay: i < 2 && !forced, unchecked: !!forced } });
   }
   const t0 = performance.now();
   const results: CareerResult[] = new Array(n);
@@ -59,25 +72,26 @@ async function main(): Promise<void> {
     child.send({ jobs: mine });
   })));
   process.stderr.write('\n');
-  const report = buildReport(results, { n, days, seed, policy: policyArg, secs: (performance.now() - t0) / 1000, workers, crag });
+  const evolving = [...bundle.traits.values()].filter((t) => t.kind === 'evolving' && phaseLive(t.phase)).map((t) => t.id);
+  const report = buildReport(results, { n, days, seed, policy: policyArg, secs: (performance.now() - t0) / 1000, workers, crag, force, evolving });
   console.log(report);
   if (out) {
     const { mkdirSync, writeFileSync } = await import('node:fs');
     mkdirSync(out, { recursive: true });
-    const tag = crag === 'fontainebleau' ? seed : `${crag}-${seed}`;
+    const tag = `${crag === 'fontainebleau' ? '' : `${crag}-`}${force ? `${force}-` : ''}${seed}`;
     writeFileSync(`${out}/harness-${tag}.md`, report + '\n');
     writeFileSync(`${out}/harness-${tag}.json`, JSON.stringify(results, null, 1) + '\n');
   }
 }
 
-function buildReport(rs: CareerResult[], meta: { n: number; days: number; seed: string; policy: string; secs: number; workers: number; crag: string }): string {
+function buildReport(rs: CareerResult[], meta: { n: number; days: number; seed: string; policy: string; secs: number; workers: number; crag: string; force: string; evolving: string[] }): string {
   const L: string[] = [];
   const f = (x: number) => x.toFixed(1);
   const sport = rs.some((r) => r.sport);
   const g = (di: number) => (di > 0 ? (sport ? frenchGrade(di) : fontGrade(di)) : '—');
   L.push(`# Harness report · seed ${meta.seed} · ${meta.crag} (${sport ? 'routes, French grades' : 'boulders, Font grades'})`);
   L.push('');
-  L.push(`${meta.n} careers × ${meta.days} days · policy ${meta.policy} · ${meta.secs.toFixed(0)} s on ${meta.workers} workers · ${Math.round(mean(rs.map((r) => r.actions)))} actions per career`);
+  L.push(`${meta.n} careers × ${meta.days} days · policy ${meta.policy}${meta.force ? ` · every build with ${meta.force}` : ''} · ${meta.secs.toFixed(0)} s on ${meta.workers} workers · ${Math.round(mean(rs.map((r) => r.actions)))} actions per career`);
   L.push('');
   L.push('## Grade estimate and personal best by month');
   L.push('');
@@ -135,6 +149,28 @@ function buildReport(rs: CareerResult[], meta: { n: number; days: number; seed: 
     return { t, n: yes.length, dpb: mean(yes.map((r) => r.hardest)) - mean(no.map((r) => r.hardest)), dg: mean(yes.map(gain)) - mean(no.map(gain)), dt: mean(yes.map((r) => r.summary.ticks)) - mean(no.map((r) => r.summary.ticks)) };
   }).filter((x) => x.n >= 3).sort((a, b) => b.dpb - a.dpb);
   for (const x of rows) L.push(`| ${x.t} | ${x.n} | ${x.dpb >= 0 ? '+' : ''}${f(x.dpb)} | ${x.dg >= 0 ? '+' : ''}${f(x.dg)} | ${x.dt >= 0 ? '+' : ''}${Math.round(x.dt)} |`);
+  L.push('');
+  // Each carrier's chain of stages from the trait it was built with: how many reached each stage, and on what day.
+  L.push('## Evolving traits (03 §1.7)');
+  L.push('');
+  L.push('| Trait | carriers | stages reached: careers, median day (p10–p90) |');
+  L.push('|---|---|---|');
+  for (const e of meta.evolving) {
+    const carriers = rs.filter((r) => r.traits.includes(e));
+    if (!carriers.length) continue;
+    const reached = new Map<string, number[]>();
+    for (const r of carriers) {
+      let cur: string | null = e;
+      for (const x of r.evolved) {
+        if (x.from !== cur) continue;
+        const stage = x.to ?? 'gone';
+        reached.set(stage, [...(reached.get(stage) ?? []), x.day]);
+        cur = x.to;
+      }
+    }
+    const cells = [...reached].map(([s, d]) => `${s} ${d.length}, day ${Math.round(quantile(d, 0.5))} (${Math.round(quantile(d, 0.1))}–${Math.round(quantile(d, 0.9))})`);
+    L.push(`| ${e} | ${carriers.length} | ${cells.join('; ') || 'none'} |`);
+  }
   L.push('');
   const checks = rs.filter((r) => r.replay_ok !== null);
   L.push(`## Determinism`);
