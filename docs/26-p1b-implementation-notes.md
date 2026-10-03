@@ -298,7 +298,52 @@ Measured on the same six probe careers (365 days at Kalymnos, `sampleBuild`, the
 | Sides | the proposal stays on the trait's side: a measured positive worth less than nothing is a *sign* flag, not a refund | [19 §4 step 2](19-balance-and-simulation-testing.md) |
 | Pick rates | one build per live background, so a trait's pick rate moves in steps of one build in seven | [19 §4 step 3](19-balance-and-simulation-testing.md) |
 | Run size | 19 §4 asks for 1,000 pairs per trait. A 365-day career costs about 1.1–1.7 s at Font and about 30 s at Kalymnos, where generating routes is 44% of the time and the estimate 18% (a base's variants share its routes through a 3,000-route cache), so the runs are n 24 at Font and n 8 at Kalymnos, for the 23 traits routes touch most | [19 §4](19-balance-and-simulation-testing.md) |
-| Resume | careers stream to `recost-<crag>-<seed>.jsonl`, keyed by base and career length: a stopped run resumes, a finished one re-reads in seconds, and a larger n reuses the smaller run's careers | — |
+| Resume | careers stream to `recost-<crag>-<seed>.jsonl`, keyed by base and career length, each with a hash of its configuration: a stopped run resumes, a finished one re-reads in seconds, a larger n reuses the smaller run's careers, and a career whose base the sampler now draws differently (bases are drawn within the trait budget, so a cost change can move them) is played again | — |
+
+### 10.3 Measured at Font
+
+`pnpm recost --n 24 --days 365 --seed 7`: the 92 live creation and evolving traits, 2,387 careers, 42 minutes on 4 workers.
+
+| Measure | Result |
+|---|---|
+| Price level | 0.23 score points per trait point, over the 83 priced traits with at least four pairs. Without the 11 traits that changed no career it is 0.26, over P1a's traits alone 0.30; the clear set below is the same at all three |
+| 19 §4's yardstick | +5 on one physical attribute: 0.66 ± 0.62 score points, its standard error as large as its mean (core_tension 1.7, finger_strength 1.6, lockoff 1.4, hip_mobility 1.3, shoulder_mobility 1.2, contact_strength 0.8, pull_power 0.5, leg_power 0.4, aerobic_capacity 0.0, skin_durability 0.0, finger_endurance −0.3, anaerobic_capacity −0.7) |
+| What a point is | at the price level a trait point is about 0.75 points of a broad attribute (+1 on finger_strength, core_tension or lockoff is 0.28–0.34 score), near 03 §1.4's definition, where a point is one broad attribute point. 19 §4's yardstick makes a point +5: five times 03 §1.4's. Divided by it, the traits that moved up below would stay where they are, and the cheap negatives below would be flagged as no-ops rather than re-costed |
+| Policy | the technique traits pay in the project careers: Δ score project / volume for Dancer +11.6 / +1.3, Quiet Feet +10.2 / +1.0, Smear Faith +9.0 / +1.1, Static Master +7.4 / +1.9, Sloper Whisperer +6.4 / +1.7, Clumsy Feet −10.4 / −7.1. A project career's personal best is a project that went after many goes, and a little more margin sends more of them; a volume career's is a flash. The default week has two project days and two mileage days (24 §2.2), and its personal best comes from the project days |
+
+Clear at Font (19 §4 step 5), with the personal best each moves in a year:
+
+| Trait | cost | impact ± se | Δ PB (DI) | proposal |
+|---|---|---|---|---|
+| Dancer | +5 | +30.8 ± 9.5 | +0.69 | +10 |
+| Quiet Feet | +5 | +24.9 ± 8.3 | +0.55 | +10 |
+| Smear Faith | +4 | +22.4 ± 7.2 | +0.49 | +10 |
+| Static Master | +5 | +20.7 ± 5.2 | +0.46 | +10 |
+| Sloper Whisperer | +5 | +17.9 ± 4.9 | +0.38 | +10 |
+| Clumsy Feet | −5 | −38.8 ± 7.7 | −0.88 | −10 |
+| Scatterbrain | −5 | +7.0 ± 4.6 | +0.15 | −2 |
+| Stiff Shoulders | −4 | +3.9 ± 3.1 | +0.09 | −2 |
+| Afraid of Falling | −6 | +1.8 ± 3.3 | +0.04 | −2 |
+| Rage Quitter | −5 | +1.7 ± 1.8 | +0.04 | −2 |
+| Jittery | −5 | +1.7 ± 2.3 | +0.04 | −2 |
+| Resistance | +5 | −3.6 ± 3.4 | −0.08 | +2 |
+| Flow Prone | +5 | +0.8 ± 0.8 | +0.02 | +2 |
+| Dirtbag | +5 | 0.0 ± 1.6 | 0.00 | +2 |
+
+Flags (19 §4 step 2):
+
+| Trait | cost | impact ± se | Why |
+|---|---|---|---|
+| Onsight Purist | +3 | −64.3 ± 8.2 (*sign*) | its stoke penalty for each go from the fourth lands on every project and on boulder sessions, where a fourth go is ordinary: −18.3 score in the project careers and −10.7 in the volume ones, −1.42 DI of personal best. Its route-reading add does nothing measurable (below) |
+| Lucky, Unlucky | ±5 | 0.0 (*no-op*) | nothing they carry is read: `reroll_bad_outcome` and `reroll_good_outcome` are parsed and never used, and injuries and events are P2 |
+| Eagle Eye, Beta Blind | +5, −4 | 0.0 (*no-op*) | `route_reading` only reveals hidden holds, and changed no Font career |
+| Cool Head, Risk Blind | +4, −4 | 0.0 (*no-op*) | `risk_judgement` moves ceilings with age and nothing on the wall |
+| Gecko Skin | +5 | 0.0 (*no-op*) | the bot never runs out of skin at Font |
+| Unflappable | +6 | −1.0 ± 0.7 (*no-op*) | composure barely moves a Font career (Jittery, its mirror, is in the clear set) |
+| Vertigo, Bellows, Rope Gun, Guides' Apprentice | −6, +4, +4, +5 | 0.0 (*no-op*) | route traits: measured at Kalymnos (§10.4) |
+| Late Starter | −3 | one pair | forced by its background and excluded by most others |
+
+Not clear at n 24, each measured well above its cost but inside the rule's noise: Farm Strong (+5: 16.4 ± 6.1), Proprioceptor (+6: 17.0 ± 6.2), Gym Kid (+5: 15.5 ± 7.6), Clutch (+6: 14.7 ± 5.5), Bear Hugger (+4: 12.5 ± 5.8), Climber Parents (+6: 14.3 ± 9.1), Core of Steel (+6: 14.1 ± 5.7), Monkey Arms (+4: 11.7 ± 5.4), Gymnast (+6: 12.6 ± 5.9), Kinesthetic Learner (+6: 11.6 ± 3.6), Feral Childhood (+4: 9.6 ± 6.1), Crusher Hands (+6: 9.9 ± 5.4); and T-Rex Arms (−4: −11.2 ± 6.0), Slow Learner (−5: −9.1 ± 4.9) and Sweaty Hands (−4: −8.4 ± 6.5) cost well above their refund. Pick rates under the greedy builder, valuing traits at their measured impact: Unlucky and Beta Blind 100% (free points), Smear Faith 100%, Quiet Feet 86%, Dancer 71%. The caps check finds no compatible set over +30%.
 
 ## Open questions
 
