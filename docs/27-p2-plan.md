@@ -229,3 +229,4 @@ The remaining trait rows; a full re-costing at every crag with enough bases to d
 - Whether the three mixed crags (Grampians, Red Rocks, Chattanooga) wait for M6c or one of them is M1's test crag.
 - How an event interrupts a simulated week: pause on every event, only on those with trait-gated options, or resolve by a policy the player sets (24 is silent; 15 §4 expects about 2.5 choices a week).
 - Whether `risk_judgement` gets a role on the wall in P2 (the climber's tactics avoiding bold falls, or the injury roll), which Cool Head and Risk Blind need to come back.
+- Whether P2's score (16 §6, which M2 changes anyway with its injury term) should weigh the grade pyramid as well as the hardest send: the hardest send is a maximum, so traits that add dice pay today (Scatterbrain helps a Font career, [26 §11.1](26-p1b-implementation-notes.md)), and the re-costing prices whatever the score rewards.
