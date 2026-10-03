@@ -132,6 +132,20 @@ export interface Mods {
   reroll_good: number;
   quit: { after: number; chance: number; stoke: number } | null;
   project_stoke_immunity: boolean;
+  /** EffectiveStat multiplier on an attempt with stakes (03 §2 flags, 05b): additive like the other multipliers. */
+  stakes_mult: number;
+  /** Time each move takes (Overthinker), familiarity a free pre-attempt look adds (Visualiser). */
+  pre_move_time_mult: number;
+  visualise_action: number;
+  /** Stoke taken off each go at a route from the fourth (Onsight Purist) and added on a send with a sketchy move (Perfectionist). */
+  redpoint_stoke_penalty: number;
+  sketchy_send_stoke: number;
+  /** Body mass added at creation (kg, Weightlifter). */
+  mass_shift: number;
+  /** Skin wear on cold days (Dry Hands' splits, docs/26 §8). */
+  split_risk_cold: number;
+  /** Familiarity from other climbers' beta (Stubborn): on signature problems until partners come (docs/26 §8). */
+  beta_mult: number;
 }
 
 export const NEUTRAL_MODS: Mods = {
@@ -139,7 +153,55 @@ export const NEUTRAL_MODS: Mods = {
   fear_add: 0, injury_risk_mult: 1, cost_mult: 1, reach_mult: 1, feet_cut_recovery: 0,
   familiarity_k_mult: 1, fear_source_mult: {}, sending_temp_shift: 0, chalk_friction_base: 0, overchalk_penalty_mult: 1,
   flow_chance_mult: 1, reroll_bad: 0, reroll_good: 0, quit: null, project_stoke_immunity: false,
+  stakes_mult: 1, pre_move_time_mult: 1, visualise_action: 0, redpoint_stoke_penalty: 0, sketchy_send_stoke: 0, mass_shift: 0, split_risk_cold: 1,
+  beta_mult: 1,
 };
+
+/** A trait's multiplier on a resource's regeneration or gain (03 §2: `resource_mult` semantics), 1 without one. */
+export const resourceMult = (mods: Mods, key: string): number => mods.resource_mult[key] ?? 1;
+
+/** Trait flags the engine reads (03 §2's flag table). `fear_source_mult:` takes a source after the colon. */
+export const LIVE_FLAGS: ReadonlySet<string> = new Set([
+  'reach_mult', 'feet_cut_recovery', 'familiarity_k_mult', 'fear_source_mult', 'sending_temp_shift', 'chalk_friction_base',
+  'overchalk_penalty_mult', 'flow_chance_mult', 'reroll_bad_outcome', 'reroll_good_outcome', 'quit_after_fails', 'quit_chance',
+  'stoke_hit', 'project_stoke_immunity', 'stakes_mult', 'pre_move_time_mult', 'visualise_action', 'redpoint_stoke_penalty',
+  'sketchy_send_stoke', 'mass_shift', 'split_risk_cold', 'beta_mult',
+]);
+
+/**
+ * Flags of systems that are not live yet, and the phase that brings each: carried on a trait but inert. A live trait may
+ * carry one only as a side clause that is not its downside (docs/26 §8); the validator rejects any flag in neither list.
+ */
+export const INERT_FLAGS: Readonly<Record<string, Phase>> = {
+  city_stoke: 'P2', sponsor_appeal_mult: 'P2', good_event_mult: 'P2', bad_event_mult: 'P2', onsight_rep_mult: 'P2',
+  plastic_mult: 'P3', swim_skill: 'P3',
+};
+
+/** The resources a trait's `resource_mult` can name (03 §1.9 semantics: regeneration or gain, never the ceiling). */
+export const RESOURCE_KEYS: ReadonlySet<string> = new Set(['skin', 'energy', 'stoke', 'burnout', 'health', 'chalk', 'focus_meter', 'aerobic_reserve', 'power']);
+
+/**
+ * Resources whose regeneration no system runs yet, and the phase that brings it: energy refills to its cap every morning,
+ * health waits for the injuries. A live trait may not use them, or the effect would be silently inert (docs/26 §8).
+ */
+export const INERT_RESOURCES: Readonly<Record<string, Phase>> = { energy: 'P2', health: 'P2' };
+
+/**
+ * Content errors in a trait's effect (schemas §9 rule 11, docs/26 §8): flags the engine does not know, resources it does
+ * not have, and, on a live trait, resources no system regenerates yet.
+ */
+export function traitEffectErrors(t: Pick<Trait, 'id' | 'effect'> & { phase?: Phase }): string[] {
+  const out: string[] = [];
+  for (const f of t.effect.flags ?? []) {
+    const name = parseFlag(f)[0].split(':')[0]!;
+    if (!LIVE_FLAGS.has(name) && !(name in INERT_FLAGS)) out.push(`trait ${t.id}: unknown flag ${name}`);
+  }
+  for (const k of Object.keys(t.effect.resource_mult ?? {})) {
+    if (!RESOURCE_KEYS.has(k)) out.push(`trait ${t.id}: unknown resource ${k}`);
+    else if (t.phase && phaseLive(t.phase) && k in INERT_RESOURCES) out.push(`trait ${t.id}: resource ${k} waits for ${INERT_RESOURCES[k]}`);
+  }
+  return out;
+}
 
 /** Additive combination of multipliers: 1 + Σ(m − 1) (03 §1.2). */
 function addMult<K extends string>(into: Partial<Record<K, number>>, from: Partial<Record<K, number>> | undefined): void {
@@ -184,7 +246,15 @@ export function aggregateMods(traitIds: readonly string[], traits: ReadonlyMap<s
       else if (name === 'quit_chance' && m.quit) m.quit.chance = num(value);
       else if (name === 'stoke_hit' && m.quit) m.quit.stoke = num(value);
       else if (name === 'project_stoke_immunity') m.project_stoke_immunity = true;
-      // Other flags belong to systems that are not live in P1a; they are carried but inert.
+      else if (name === 'stakes_mult') m.stakes_mult += num(value) - 1;
+      else if (name === 'pre_move_time_mult') m.pre_move_time_mult *= num(value);
+      else if (name === 'visualise_action') m.visualise_action += num(value);
+      else if (name === 'redpoint_stoke_penalty') m.redpoint_stoke_penalty += num(value);
+      else if (name === 'sketchy_send_stoke') m.sketchy_send_stoke += num(value);
+      else if (name === 'mass_shift') m.mass_shift += num(value);
+      else if (name === 'split_risk_cold') m.split_risk_cold *= num(value);
+      else if (name === 'beta_mult') m.beta_mult *= num(value);
+      // Other flags belong to systems that are not live yet (INERT_FLAGS); they are carried but inert.
     }
   }
   return m;

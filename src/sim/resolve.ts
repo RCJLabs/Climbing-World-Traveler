@@ -1,6 +1,6 @@
 // Move resolution (docs/05b §4–§9). One MoveDifficulty and one EffectiveStat, shared by play and grading.
 
-import { refFat, refMass, type Athlete } from './character';
+import { refFat, refMass, resourceMult, type Athlete } from './character';
 import {
   CLASS_C, FS, H_FOOT, H_HAND, isDynamic, matrixCell, MOVE_TIME, FOOT_STATIC_TIME, PC, POSTURE_PUMP, SIZE_DI, SIZE_PUMP, SK,
   featureTerm,
@@ -59,6 +59,8 @@ export interface MoveState {
   skin: number;
   /** Route familiarity 0..1 (05b §12.2). */
   fam: number;
+  /** The attempt has stakes (a redpoint go at or above the personal best, 03 open question 8): `stakes_mult` applies. */
+  stakes?: boolean | undefined;
 }
 
 /** Conditions that shape friction for one attempt (05a §2.3, docs/10). */
@@ -197,7 +199,7 @@ export function evaluate(ath: Athlete, m: MoveSpec, st: MoveState, cond: Conditi
   }
   const condMult = (k: 'humid' | 'heat' | 'cold') => (cond[k] ? (ath.mods.condition_mult[k] ?? 1) - 1 : 0);
   const M_trait = 1 + ((ath.mods.hold_mult[m.type] ?? 1) - 1) + ((ath.mods.move_mult[m.cls] ?? 1) - 1)
-    + condMult('humid') + condMult('heat') + condMult('cold');
+    + condMult('humid') + condMult('heat') + condMult('cold') + (st.stakes ? ath.mods.stakes_mult - 1 : 0);
   const tags = terrainTagsFor(m.angle, m.posture, m.feature);
   const M_body = bodyMods(ath, m.type, m.cls, tags, m.r >= 0.85);
   const stretch = Math.min(1, Math.max(0, (m.r - 0.85) / 0.15));
@@ -265,7 +267,8 @@ export function recoveryChance(ath: Athlete, kind: LimbKind, otherAnchors: numbe
  * starved of power, which made those grades jump under small geometry changes (05c §4 C5). **(tune)**
  */
 export const POWER_BASE = 15;
-export const powerPool = (ath: Athlete): number => POWER_BASE + ath.a.anaerobic_capacity;
+/** The power pool for dynamic moves (02 §D); a trait's `resource_mult: power` scales it (03 §2). */
+export const powerPool = (ath: Athlete): number => (POWER_BASE + ath.a.anaerobic_capacity) * resourceMult(ath.mods, 'power');
 
 export function powerCost(cls: MoveClass, r: number): number {
   if (cls === 'deadpoint') return 8;
@@ -314,7 +317,7 @@ export interface RestInput { restValue: number; type: HoldType; angle: number; p
  * 02 §D started it at `aerobic_capacity` itself, which counted the attribute twice in `R10` and left a 7a climber's reserve
  * empty six minutes up a 30 m route; this keeps the 05b §6 worked example's magnitude (P1b, docs/26). **(tune)**
  */
-export const reserveStart = (ath: Athlete): number => 50 + 0.5 * ath.a.aerobic_capacity;
+export const reserveStart = (ath: Athlete): number => (50 + 0.5 * ath.a.aerobic_capacity) * resourceMult(ath.mods, 'aerobic_reserve');
 
 /**
  * Recovery on the move (P1b, docs/26): on a route the aerobic system clears pump while the climber moves, at a rate set

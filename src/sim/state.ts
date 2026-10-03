@@ -9,7 +9,7 @@ import type {
 } from './types';
 
 /** Reducer version (18 §5). Bump when replaying an old log through the new reducer would change outcomes. */
-export const REDUCER_VERSION = 5;
+export const REDUCER_VERSION = 6;
 
 export interface Resources {
   energy: number;
@@ -105,6 +105,10 @@ export interface AttemptState {
   rope?: RopeState;
   /** Form on the day (resolve.ts PUMP_FORM): every pump gain this attempt is multiplied by it. Absent means 1. */
   pump_form?: number;
+  /** A redpoint go at or above the personal best (03 open question 8): stakes traits apply. Absent means none. */
+  stakes?: boolean;
+  /** A move went sketchy this attempt (Perfectionist reads it on a send). */
+  sketchy?: boolean;
 }
 
 /** The rope during an attempt (05a §3, 05b §11, 07 §2). */
