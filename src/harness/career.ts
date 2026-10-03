@@ -1,7 +1,10 @@
 // One headless career (docs/19 §1): a sampled or fixed build played by the bot for N days, with monthly
-// samples of estimate, personal best, money and stress, and an optional replay-identity check.
+// samples of estimate, personal best, money and stress, and an optional replay-identity check. A career with `life`
+// (P2 M0) also retires by 19 §1's rule and travels with the seasons, so it can run for years.
 
-import { BotDriver, PROJECT_POLICY, VOLUME_POLICY } from '../sim/bot';
+import { athleteOf } from '../sim/attempt';
+import { BotDriver, PLAN_POLICY, PROJECT_POLICY, VOLUME_POLICY, type BotPolicy } from '../sim/bot';
+import { estimateBoulderDI } from '../sim/estimate';
 import { cyrb53 } from '../sim/rng';
 import { applyAction, createRun, estimateDI, replay } from '../sim/run';
 import type { Action, DataBundle, NewRunSpec, RunSummary } from '../sim/types';
@@ -13,19 +16,44 @@ import type { Action, DataBundle, NewRunSpec, RunSummary } from '../sim/types';
  */
 export const HARNESS_ROUTE_CACHE = 8000;
 
+/** The bot policies a career can play (docs/19 §1): its own rules for projects or mileage, or the game's default week. */
+export type CareerPolicy = 'project' | 'volume' | 'plan';
+const POLICIES: Record<CareerPolicy, BotPolicy> = { project: PROJECT_POLICY, volume: VOLUME_POLICY, plan: PLAN_POLICY };
+
+/** Where each discipline's estimate is read in a sample: the benchmark sets of the crags that define it today. */
+export const ESTIMATE_CRAGS = { boulder: 'fontainebleau', route: 'kalymnos' } as const;
+
 export interface CareerConfig {
   seed: string;
   spec: NewRunSpec;
   days: number;
-  policy: 'project' | 'volume';
+  policy: CareerPolicy;
+  /** Retire by 19 §1's rule and travel with the seasons (P2 M0). Off, the career stays where it starts for `days`. */
+  life?: boolean;
   checkReplay?: boolean;
   /** Skip the creation rules: the re-costing's paired builds (docs/19 §4) may exceed the trait budget. */
   unchecked?: boolean;
 }
 
+export interface CareerSample {
+  day: number;
+  crag: string;
+  /** The estimate at the crag the climber is at, and in each discipline (ESTIMATE_CRAGS) wherever the climber is. */
+  E: number;
+  Eb: number;
+  Er: number;
+  /** The personal best of the crag's discipline, and of each. */
+  pb: number;
+  pb_boulder: number;
+  pb_route: number;
+  money: number;
+  stoke: number;
+  burnout: number;
+}
+
 export interface CareerResult {
   seed: string;
-  /** Where the career was played; routes at a sport crag (P1b). */
+  /** Where the career started; routes at a sport crag (P1b). */
   crag: string;
   sport: boolean;
   background: string;
@@ -36,12 +64,19 @@ export interface CareerResult {
   height: number;
   policy: string;
   E0: number;
-  /** Monthly samples; `pb` is the career's discipline: boulders at a bouldering crag, routes at a sport crag. */
-  months: { day: number; E: number; pb: number; money: number; stoke: number; burnout: number }[];
-  /** The career's hardest first send in its discipline, and its hardest first go: the onsight on routes, the flash (onsight or flash) on boulders, as the P1a report had it. */
+  /** A sample every 30 days of the run. */
+  months: CareerSample[];
+  /** The career's hardest first send in its start discipline, and its hardest first go: the onsight on routes, the flash (onsight or flash) on boulders, as the P1a report had it. */
   hardest: number;
   hardest_onsight: number;
   summary: RunSummary;
+  /** The run reached the day limit and the harness retired it; otherwise it ended by its own rules. */
+  limit: boolean;
+  /** How the career ended: the day limit, the bot's retirement rule (19 §1: age or burnout), or the run's own end. */
+  ended_by: 'limit' | 'retired_age' | 'retired_burnout' | RunSummary['end_reason'];
+  /** Trips taken, and days spent at each crag (a trip's days count at the destination). */
+  trips: number;
+  days_at: Record<string, number>;
   climb_days: number;
   attempts: number;
   sends: number;
@@ -57,37 +92,59 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
   const t0 = performance.now();
   const spec = cfg.spec;
   const run = createRun(cfg.seed, spec, bundle, { unchecked: cfg.unchecked ?? false });
-  const bot = new BotDriver(run, bundle, cfg.policy === 'project' ? PROJECT_POLICY : VOLUME_POLICY);
+  const bot = new BotDriver(run, bundle, POLICIES[cfg.policy], { retire: !!cfg.life, travel: !!cfg.life });
   const E0 = estimateDI(run, bundle);
-  const sport = !bundle.crags.get(run.crag)!.disciplines.includes('boulder');
-  const months: CareerResult['months'] = [];
+  const startCrag = run.crag;
+  const sport = !bundle.crags.get(startCrag)!.disciplines.includes('boulder');
+  const months: CareerSample[] = [];
   const traits = [...run.traits];
   const evolved: CareerResult['evolved'] = [];
+  const daysAt: Record<string, number> = {};
+  let trips = 0;
   let burnoutMax = 0;
-  for (let d = 0; d < cfg.days && !run.ended; d++) {
+  let nextSample = 30;
+  while (run.day < cfg.days && !run.ended) {
     const before = run.traits;
+    const day = run.day;
+    const crag = run.crag;
     bot.day();
+    if (run.crag !== crag) trips++;
+    daysAt[run.crag] = (daysAt[run.crag] ?? 0) + (run.day - day);
     // Only an evolution replaces the trait list (evolve.ts); a stage goes to the trait its evolution names, or nowhere.
     if (run.traits !== before) {
       for (const from of before.filter((t) => !run.traits.includes(t))) {
         const next = new Set(bundle.traits.get(from)?.evolves_to?.map((e) => e.trait));
-        evolved.push({ day: d, from, to: run.traits.find((t) => !before.includes(t) && next.has(t)) ?? null });
+        evolved.push({ day, from, to: run.traits.find((t) => !before.includes(t) && next.has(t)) ?? null });
       }
     }
     burnoutMax = Math.max(burnoutMax, run.res.burnout);
-    if ((d + 1) % 30 === 0 && !run.ended) {
-      months.push({ day: run.day, E: estimateDI(run, bundle), pb: sport ? run.pb_route : run.pb, money: run.res.money, stoke: run.res.stoke, burnout: run.res.burnout });
+    if (run.day >= nextSample && !run.ended) {
+      nextSample += 30;
+      const ath = athleteOf(run, bundle);
+      const atSport = !bundle.crags.get(run.crag)!.disciplines.includes('boulder');
+      const Eb = estimateBoulderDI(ath, ESTIMATE_CRAGS.boulder, bundle);
+      const Er = estimateBoulderDI(ath, ESTIMATE_CRAGS.route, bundle);
+      // The estimate here is one of the two when the climber is at either crag (estimateDI reads the crag's benchmarks).
+      const E = run.crag === ESTIMATE_CRAGS.boulder ? Eb : run.crag === ESTIMATE_CRAGS.route ? Er : estimateDI(run, bundle);
+      months.push({
+        day: run.day, crag: run.crag, E, Eb, Er,
+        pb: atSport ? run.pb_route : run.pb, pb_boulder: run.pb, pb_route: run.pb_route,
+        money: run.res.money, stoke: run.res.stoke, burnout: run.res.burnout,
+      });
     }
   }
-  if (!run.ended) { applyAction(run, { t: 'retire' }, bundle); bot.log.push({ t: 'retire' }); }
+  const limit = !run.ended;
+  if (limit) { applyAction(run, { t: 'retire' }, bundle); bot.log.push({ t: 'retire' }); }
   let replayOk: boolean | null = null;
   if (cfg.checkReplay) {
     const log: Action[] = [{ t: 'new_run', seed: cfg.seed, spec }, ...bot.log];
     replayOk = cyrb53(JSON.stringify(replay(log, bundle))) === cyrb53(JSON.stringify(run));
   }
   return {
-    seed: cfg.seed, crag: run.crag, sport, background: spec.background, traits, evolved, age: spec.body.age_start, height: spec.body.height_cm,
-    policy: cfg.policy, E0, months, summary: run.ended!, climb_days: run.counters.climb_days,
+    seed: cfg.seed, crag: startCrag, sport, background: spec.background, traits, evolved, age: spec.body.age_start,
+    height: spec.body.height_cm, policy: cfg.policy, E0, months, summary: run.ended!, limit, trips, days_at: daysAt,
+    ended_by: limit ? 'limit' : bot.retired === 'age' ? 'retired_age' : bot.retired === 'burnout' ? 'retired_burnout' : run.ended!.end_reason,
+    climb_days: run.counters.climb_days,
     hardest: sport ? run.ended!.hardest_route : run.ended!.hardest,
     hardest_onsight: sport ? run.ended!.hardest_route_onsight : run.ended!.hardest_flash,
     attempts: run.counters.attempts, sends: run.counters.sends, train_blocks: run.counters.train_blocks, work_blocks: run.counters.work_blocks,
