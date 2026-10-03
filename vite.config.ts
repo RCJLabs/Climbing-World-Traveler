@@ -36,9 +36,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // Generated route data changes with every generator change and is most of the app's size; its own chunk keeps
-        // the code chunk under Vite's 500 kB warning and lets either be re-cached without the other.
-        manualChunks: (id) => (id.includes('/data/routes/') ? 'routes' : undefined),
+        // Generated route data changes with every generator change and is most of the app's size; its own chunks keep
+        // the code chunk under Vite's 500 kB warning and let each be re-cached without the others. One chunk per crag:
+        // Workbox precaches no file over 2 MiB, and both crags in one chunk came within 0.17 MB of it (docs/26 §8).
+        manualChunks: (id) => {
+          const crag = /\/data\/routes\/([a-z_]+?)_(?:benchmarks|signatures)\.json/.exec(id)?.[1];
+          return crag ? `routes-${crag}` : undefined;
+        },
       },
     },
   },

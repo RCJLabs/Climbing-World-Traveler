@@ -26,7 +26,7 @@ const W = Number(q.get('w') ?? 300), H = Number(q.get('h') ?? 420);
 const bundle = loadBundle(false);
 const sheet = document.getElementById('sheet')!;
 
-/** The problems to look at: the three signatures and generated ones of each shape; with crag=kalymnos, routes. */
+/** The problems to look at: the crag's signatures and generated ones of each shape; with crag=kalymnos, routes. */
 function problems(): Route[] {
   if (q.get('crag') === 'kalymnos') {
     const routes = bundle.benchmarks.get('kalymnos') ?? [];
@@ -41,9 +41,9 @@ function problems(): Route[] {
       pick((r) => r.length_m > 30),
     ].filter((r): r is Route => !!r);
     for (const r of shaped) registerRoute(r);
-    return shaped;
+    return [...[...bundle.signatures.values()].filter((r) => r.crag === 'kalymnos'), ...shaped];
   }
-  const sigs = [...bundle.signatures.values()];
+  const sigs = [...bundle.signatures.values()].filter((r) => r.crag === 'fontainebleau');
   const bench = bundle.benchmarks.get('fontainebleau') ?? [];
   const maxA = (r: Route) => Math.max(...r.wall.map((s) => s.angle));
   const used = new Set<string>();

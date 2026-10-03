@@ -172,6 +172,9 @@ export const TravelSchema = z.object({
   }).strict()),
 }).strict();
 
+/** Real climbers' names the content may not contain (schemas §9 rule 8): whole names, first and last. */
+export const RealNamesSchema = z.array(z.string().regex(/\S+\s+\S+/)).min(1);
+
 export const NamesSchema = z.record(z.string(), z.object({
   lang: z.enum(['fr', 'en']).optional(),
   masc: z.array(z.string()).min(5), fem: z.array(z.string()).min(5), adj_masc: z.array(z.string()).min(5),

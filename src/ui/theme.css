@@ -99,8 +99,10 @@ button.card:hover { border-color: #55558a; }
 
 .slider { display: flex; flex-direction: column; gap: 4px; }
 .slider input[type='range'] { width: 100%; accent-color: var(--accent); height: 28px; }
-.seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.seg button { flex: 1; background: none; border: none; padding: 8px 4px; font-size: 13px; }
+/* Never squeezed by a long list below it; scrolls sideways when its options do not fit (eight trait categories at 360 px). */
+.seg { display: flex; flex-shrink: 0; border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.seg::-webkit-scrollbar { display: none; }
+.seg button { flex: 1 0 auto; white-space: nowrap; background: none; border: none; padding: 8px 3px; font-size: 13px; }
 .seg button[aria-pressed='true'] { background: var(--raised); color: var(--accent); }
 .stepper { display: flex; align-items: center; gap: 6px; }
 .stepper button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; }

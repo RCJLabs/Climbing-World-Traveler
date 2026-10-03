@@ -1,7 +1,7 @@
 // The run reducer (docs/11, 12, 14, 16, 18 §5). A run is its `new_run` action plus every later action; the
 // state is a cache. `applyAction` mutates a draft in place (replay, harness); `reduce` clones first (UI).
 
-import { ageMoneyBonus, buildAttributes, ceilingFor, clamp, phaseLive, validateCreation, type Athlete } from './character';
+import { ageMoneyBonus, aggregateMods, buildAttributes, ceilingFor, clamp, phaseLive, resourceMult, validateCreation, type Athlete } from './character';
 import { ageOf, athleteOf, doWallAction, InvalidAction, modsOf, routeEntry, sectorOf, simulateAttempt } from './attempt';
 import { estimateBoulderDI } from './estimate';
 import { cyrb53, stream } from './rng';
@@ -113,9 +113,12 @@ export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle): R
   if (!crag) throw new InvalidAction('no start crag');
   const traits = [...new Set([...bg.forced_traits, ...spec.traits])];
   const attrs = buildAttributes({ ...spec, traits }, ctx);
+  // A trait can add mass at creation (Weightlifter, 03 §2 flags), after the body has passed its bands.
+  const massShift = aggregateMods(traits, bundle.traits).mass_shift;
+  const body = massShift ? { ...spec.body, mass_kg: Math.round((spec.body.mass_kg + massShift) * 10) / 10 } : spec.body;
   const money = (bg.money_start + ageMoneyBonus(spec.body.age_start)) * START_MONEY_MULT[spec.options.difficulty];
   const run: RunState = {
-    v: REDUCER_VERSION, data_version: bundle.version, seed, name: spec.name, background: bg.id, body: spec.body, traits,
+    v: REDUCER_VERSION, data_version: bundle.version, seed, name: spec.name, background: bg.id, body, traits,
     options: { ...spec.options }, attrs, rock_knowledge: {}, move_counts: {}, crag: crag.id,
     start_month: START_MONTH, start_dom: START_DOM, day: 0,
     weather: firstWeather(seed, crag, START_MONTH, spec.options.difficulty), last_rain: null,
@@ -303,7 +306,7 @@ function startBlock(run: RunState, kind: BlockKind, target: string | undefined, 
     }
     case 'rest': {
       run.res.energy = Math.min(energyCap(run), run.res.energy + 15);
-      run.res.skin = Math.min(100, run.res.skin + 5);
+      run.res.skin = Math.min(100, run.res.skin + 5 * resourceMult(modsOf(run, bundle), 'skin'));
       run.today.notes.push('Rested.');
       return;
     }
@@ -351,7 +354,8 @@ function endDay(run: RunState, bundle: DataBundle): void {
 
   // Stoke (02 §D, 02 §B.3): rest days recover via resilience; a closed crag on a day you did not climb costs a little.
   const resilience = run.attrs.resilience.value;
-  if (restDay) run.res.stoke = clamp(run.res.stoke + 0.1 * resilience * (run.res.burnout > 50 ? 0.5 : 1), 0, 100);
+  const mods = modsOf(run, bundle);
+  if (restDay) run.res.stoke = clamp(run.res.stoke + 0.1 * resilience * (run.res.burnout > 50 ? 0.5 : 1) * resourceMult(mods, 'stoke'), 0, 100);
   run.res.stoke += 0.03 * (60 - run.res.stoke); // drifts back toward a neutral 60
   const anyOpen = crag.sectors.some((s) => sectorStatus(crag, s, run.weather, run.last_rain).open);
   if (!anyOpen && !climbed && !travelling) run.res.stoke = clamp(run.res.stoke - 1, 0, 100);
@@ -367,7 +371,8 @@ function endDay(run: RunState, bundle: DataBundle): void {
   const novelty = c.new_sectors_today > 0 ? 1 : 0;
   const dB = (0.15 * c.monotony_weeks + 0.1 * (climbed ? c.failure_streak : 0) + 0.05 * Math.max(0, (ratio ?? 1) - 1.3) * 10 - 0.6 * (restDay ? 1 : 0) - 0.4 * novelty)
     * (1 - resilience / 200);
-  run.res.burnout = clamp(run.res.burnout + dB, 0, 100);
+  // A trait's burnout multiplier scales accrual, not recovery (03 §2 `resource_mult`).
+  run.res.burnout = clamp(run.res.burnout + (dB > 0 ? dB * resourceMult(mods, 'burnout') : dB), 0, 100);
   c.new_sectors_today = 0;
 
   // Week boundary: monotony counts weeks that visited no sector outside last week's set.
@@ -384,7 +389,7 @@ function endDay(run: RunState, bundle: DataBundle): void {
 
   // Overnight regeneration (02 §D).
   const sleep = sleepMult(run.attrs.sleep_hygiene.value);
-  run.res.skin = Math.min(100, run.res.skin + (20 + 0.3 * run.attrs.skin_durability.value) * sleep);
+  run.res.skin = Math.min(100, run.res.skin + (20 + 0.3 * run.attrs.skin_durability.value) * sleep * resourceMult(mods, 'skin'));
 
   // Advance the calendar and the weather.
   run.yesterday = run.today;

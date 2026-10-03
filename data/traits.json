@@ -1284,5 +1284,1081 @@
   },
   "excludes": [],
   "flavour": "An engine looking for a wall."
+ },
+ {
+  "id": "dry_hands",
+  "name": "Dry Hands",
+  "category": "body",
+  "kind": "creation",
+  "cost": 3,
+  "phase": "P1b",
+  "tags": [
+   "skin",
+   "friction",
+   "cold"
+  ],
+  "effect": {
+   "condition_mult": {
+    "humid": 1.03,
+    "heat": 1.02
+   },
+   "resource_mult": {
+    "chalk": 1.3
+   },
+   "flags": [
+    "sending_temp_shift=+1",
+    "split_risk_cold=1.3"
+   ]
+  },
+  "excludes": [
+   "sweaty_hands"
+  ],
+  "flavour": "Chalk is a ritual, not a requirement. Winter splits are the tax."
+ },
+ {
+  "id": "slow_twitch",
+  "name": "Slow Twitch",
+  "category": "body",
+  "kind": "creation",
+  "cost": 3,
+  "phase": "P1b",
+  "tags": [
+   "endurance",
+   "sport",
+   "static"
+  ],
+  "effect": {
+   "ceiling_add": {
+    "aerobic_capacity": 8,
+    "finger_endurance": 8,
+    "anaerobic_capacity": 4,
+    "contact_strength": -6,
+    "leg_power": -6
+   },
+   "adapt_rate_mult": {
+    "finger_endurance": 1.15,
+    "contact_strength": 0.9
+   }
+  },
+  "excludes": [
+   "fast_twitch"
+  ],
+  "flavour": "Never fast, never pumped, never done."
+ },
+ {
+  "id": "stiff_shoulders",
+  "name": "Stiff Shoulders",
+  "category": "body",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P1b",
+  "tags": [
+   "flexibility"
+  ],
+  "effect": {
+   "attr_add": {
+    "shoulder_mobility": -8
+   },
+   "ceiling_add": {
+    "shoulder_mobility": -10
+   },
+   "hold_mult": {
+    "gaston": 0.95,
+    "undercling": 0.95
+   }
+  },
+  "excludes": [
+   "bendy_shoulders"
+  ],
+  "flavour": "Gastons feel like a dare."
+ },
+ {
+  "id": "bellows",
+  "name": "Bellows",
+  "category": "body",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "endurance",
+   "sport",
+   "altitude",
+   "recovery"
+  ],
+  "effect": {
+   "attr_add": {
+    "aerobic_capacity": 6
+   },
+   "ceiling_add": {
+    "aerobic_capacity": 6
+   },
+   "resource_mult": {
+    "aerobic_reserve": 1.1
+   },
+   "condition_mult": {
+    "altitude": 1.04
+   }
+  },
+  "excludes": [
+   "asthma"
+  ],
+  "flavour": "Big lungs. Recovers on holds you would not call a rest."
+ },
+ {
+  "id": "springs",
+  "name": "Springs",
+  "category": "body",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "dynamic",
+   "power",
+   "boulder"
+  ],
+  "effect": {
+   "attr_add": {
+    "leg_power": 8
+   },
+   "ceiling_add": {
+    "leg_power": 6
+   },
+   "move_mult": {
+    "dyno": 1.03
+   }
+  },
+  "excludes": [
+   "noodle_legs"
+  ],
+  "flavour": "Legs that think they are on a trampoline."
+ },
+ {
+  "id": "noodle_legs",
+  "name": "Noodle Legs",
+  "category": "body",
+  "kind": "creation",
+  "cost": -3,
+  "phase": "P1b",
+  "tags": [
+   "dynamic"
+  ],
+  "effect": {
+   "attr_add": {
+    "leg_power": -8
+   },
+   "ceiling_add": {
+    "leg_power": -6
+   },
+   "move_mult": {
+    "dyno": 0.97
+   }
+  },
+  "excludes": [
+   "springs"
+  ],
+  "flavour": "Launching is a hope, not a plan."
+ },
+ {
+  "id": "pocket_fingers",
+  "name": "Pocket Fingers",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "pocket",
+   "sport"
+  ],
+  "effect": {
+   "attr_add": {
+    "tech_pockets": 8
+   },
+   "hold_mult": {
+    "pocket1": 1.06,
+    "pocket2": 1.06,
+    "pocket3": 1.04
+   }
+  },
+  "excludes": [],
+  "flavour": "Two fingers, no complaints. Frankenjura approves."
+ },
+ {
+  "id": "proprioceptor",
+  "name": "Proprioceptor",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1b",
+  "tags": [
+   "footwork",
+   "flow",
+   "learning"
+  ],
+  "effect": {
+   "attr_add": {
+    "body_position": 8
+   },
+   "adapt_rate_mult": {
+    "body_position": 1.1
+   }
+  },
+  "excludes": [],
+  "flavour": "Knows where its hips are without looking. Rarer than it sounds."
+ },
+ {
+  "id": "beta_blind",
+  "name": "Beta Blind",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P1b",
+  "tags": [
+   "reading"
+  ],
+  "effect": {
+   "attr_add": {
+    "route_reading": -8
+   }
+  },
+  "excludes": [
+   "eagle_eye"
+  ],
+  "flavour": "Discovers the foothold on attempt nine."
+ },
+ {
+  "id": "rope_gun",
+  "name": "Rope Gun",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "sport",
+   "redpoint",
+   "onsight"
+  ],
+  "effect": {
+   "attr_add": {
+    "rope_craft": 10
+   }
+  },
+  "excludes": [],
+  "flavour": "Clips in one motion, pumps in none."
+ },
+ {
+  "id": "resistance",
+  "name": "Resistance",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1b",
+  "tags": [
+   "endurance",
+   "power",
+   "sport"
+  ],
+  "effect": {
+   "attr_add": {
+    "anaerobic_capacity": 8
+   },
+   "ceiling_add": {
+    "anaerobic_capacity": 4
+   }
+  },
+  "excludes": [],
+  "flavour": "Eight hard moves in a row is a warm-up."
+ },
+ {
+  "id": "bear_hugger",
+  "name": "Bear Hugger",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "compression",
+   "core",
+   "boulder"
+  ],
+  "effect": {
+   "attr_add": {
+    "core_tension": 4,
+    "shoulder_mobility": 3
+   },
+   "hold_mult": {
+    "pinch": 1.04,
+    "sloper": 1.02
+   }
+  },
+  "excludes": [],
+  "flavour": "Squeezes the boulder until it gives up."
+ },
+ {
+  "id": "contact_catcher",
+  "name": "Contact Catcher",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "contact",
+   "dynamic",
+   "power"
+  ],
+  "effect": {
+   "attr_add": {
+    "contact_strength": 8
+   }
+  },
+  "excludes": [
+   "slow_hands"
+  ],
+  "flavour": "Latches what it touches."
+ },
+ {
+  "id": "slow_hands",
+  "name": "Slow Hands",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P1b",
+  "tags": [
+   "contact",
+   "dynamic"
+  ],
+  "effect": {
+   "attr_add": {
+    "contact_strength": -8
+   }
+  },
+  "excludes": [
+   "contact_catcher"
+  ],
+  "flavour": "Arrives at the hold a moment after the hold left."
+ },
+ {
+  "id": "jug_hauler",
+  "name": "Jug Hauler",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 3,
+  "phase": "P1b",
+  "tags": [
+   "jug",
+   "overhang",
+   "sport"
+  ],
+  "effect": {
+   "attr_add": {
+    "pull_power": 3
+   },
+   "hold_mult": {
+    "jug": 1.06,
+    "crimp": 0.98
+   }
+  },
+  "excludes": [],
+  "flavour": "Big holds, big moves, big forearms."
+ },
+ {
+  "id": "one_arm_wonder",
+  "name": "One-Arm Wonder",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1b",
+  "tags": [
+   "power",
+   "static",
+   "overhang"
+  ],
+  "effect": {
+   "attr_add": {
+    "lockoff": 8,
+    "pull_power": 6
+   },
+   "ceiling_add": {
+    "lockoff": 6
+   }
+  },
+  "excludes": [],
+  "flavour": "Holds the lock-off long enough to think about it."
+ },
+ {
+  "id": "kinesthetic_learner",
+  "name": "Kinesthetic Learner",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1b",
+  "tags": [
+   "learning"
+  ],
+  "effect": {
+   "adapt_rate_mult": {
+    "footwork": 1.15,
+    "body_position": 1.15,
+    "dynamic_movement": 1.15,
+    "tech_crimps": 1.15,
+    "tech_slopers": 1.15,
+    "tech_pinches": 1.15,
+    "tech_pockets": 1.15,
+    "tech_cracks": 1.15,
+    "tech_slab": 1.15
+   }
+  },
+  "excludes": [
+   "slow_learner"
+  ],
+  "flavour": "Shown once, owned forever."
+ },
+ {
+  "id": "slow_learner",
+  "name": "Slow Learner",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": -5,
+  "phase": "P1b",
+  "tags": [
+   "learning"
+  ],
+  "effect": {
+   "adapt_rate_mult": {
+    "footwork": 0.85,
+    "body_position": 0.85,
+    "dynamic_movement": 0.85,
+    "tech_crimps": 0.85,
+    "tech_slopers": 0.85,
+    "tech_pinches": 0.85,
+    "tech_pockets": 0.85,
+    "tech_cracks": 0.85,
+    "tech_slab": 0.85
+   }
+  },
+  "excludes": [
+   "kinesthetic_learner"
+  ],
+  "flavour": "Gets there. Eventually. Via everywhere else."
+ },
+ {
+  "id": "overthinker",
+  "name": "Overthinker",
+  "category": "mental",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P1b",
+  "tags": [
+   "focus",
+   "reading",
+   "patience"
+  ],
+  "effect": {
+   "attr_add": {
+    "focus": -6,
+    "commitment": -4,
+    "route_reading": 3
+   },
+   "flags": [
+    "pre_move_time_mult=1.2"
+   ]
+  },
+  "excludes": [],
+  "flavour": "Has found four sequences. Is pumped on all of them."
+ },
+ {
+  "id": "clutch",
+  "name": "Clutch",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1b",
+  "tags": [
+   "competition",
+   "focus",
+   "redpoint",
+   "comp"
+  ],
+  "effect": {
+   "flags": [
+    "stakes_mult=1.05"
+   ]
+  },
+  "excludes": [
+   "choker"
+  ],
+  "flavour": "Only shows up when it counts. Annoying to train with."
+ },
+ {
+  "id": "zen",
+  "name": "Zen",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1b",
+  "tags": [
+   "patience",
+   "fear",
+   "flow",
+   "recovery"
+  ],
+  "effect": {
+   "attr_add": {
+    "resilience": 8,
+    "composure": 6
+   },
+   "resource_mult": {
+    "stoke": 1.15
+   }
+  },
+  "excludes": [
+   "rage_quitter"
+  ],
+  "flavour": "Falls off, smiles, re-chalks. People find it unsettling."
+ },
+ {
+  "id": "onsight_purist",
+  "name": "Onsight Purist",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 3,
+  "phase": "P1b",
+  "tags": [
+   "onsight",
+   "reading",
+   "ethics"
+  ],
+  "effect": {
+   "attr_add": {
+    "route_reading": 6
+   },
+   "flags": [
+    "onsight_rep_mult=1.5",
+    "redpoint_stoke_penalty=2"
+   ]
+  },
+  "excludes": [
+   "headpointer",
+   "projector"
+  ],
+  "flavour": "A second go is an admission of something."
+ },
+ {
+  "id": "cool_head",
+  "name": "Cool Head",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "risk",
+   "highball",
+   "trad",
+   "alpine"
+  ],
+  "effect": {
+   "attr_add": {
+    "risk_judgement": 12
+   }
+  },
+  "excludes": [
+   "risk_blind",
+   "reckless"
+  ],
+  "flavour": "Knows exactly how bad it is. Climbs anyway, or doesn't."
+ },
+ {
+  "id": "risk_blind",
+  "name": "Risk Blind",
+  "category": "mental",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P1b",
+  "tags": [
+   "risk"
+  ],
+  "effect": {
+   "attr_add": {
+    "risk_judgement": -12
+   }
+  },
+  "excludes": [
+   "cool_head",
+   "cautious"
+  ],
+  "flavour": "\"Looks fine\" is a full risk assessment."
+ },
+ {
+  "id": "all_in",
+  "name": "All In",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "dynamic",
+   "fear"
+  ],
+  "effect": {
+   "attr_add": {
+    "commitment": 10
+   }
+  },
+  "excludes": [
+   "hesitant"
+  ],
+  "flavour": "Does not know how to half-jump."
+ },
+ {
+  "id": "hesitant",
+  "name": "Hesitant",
+  "category": "mental",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P1b",
+  "tags": [
+   "dynamic",
+   "fear"
+  ],
+  "effect": {
+   "attr_add": {
+    "commitment": -10
+   }
+  },
+  "excludes": [
+   "all_in"
+  ],
+  "flavour": "Three false starts per dyno, then the hands open."
+ },
+ {
+  "id": "unflappable",
+  "name": "Unflappable",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1b",
+  "tags": [
+   "fear",
+   "focus"
+  ],
+  "effect": {
+   "attr_add": {
+    "composure": 10
+   }
+  },
+  "excludes": [
+   "jittery",
+   "ice_in_the_veins"
+  ],
+  "flavour": "Belayer is screaming. Climber is chalking up."
+ },
+ {
+  "id": "jittery",
+  "name": "Jittery",
+  "category": "mental",
+  "kind": "creation",
+  "cost": -5,
+  "phase": "P1b",
+  "tags": [
+   "fear"
+  ],
+  "effect": {
+   "attr_add": {
+    "composure": -10
+   }
+  },
+  "excludes": [
+   "unflappable",
+   "ice_in_the_veins"
+  ],
+  "flavour": "Fear takes a long time to leave. It knows where you live."
+ },
+ {
+  "id": "vertigo",
+  "name": "Vertigo",
+  "category": "mental",
+  "kind": "creation",
+  "cost": -6,
+  "phase": "P1b",
+  "tags": [
+   "fear",
+   "highball",
+   "bigwall",
+   "alpine"
+  ],
+  "effect": {
+   "flags": [
+    "fear_source_mult:height=1.6"
+   ]
+  },
+  "excludes": [
+   "loves_air"
+  ],
+  "flavour": "The ground has opinions about you."
+ },
+ {
+  "id": "loves_air",
+  "name": "Loves Air",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "fear",
+   "highball",
+   "bigwall",
+   "alpine"
+  ],
+  "effect": {
+   "flags": [
+    "fear_source_mult:height=0.6"
+   ],
+   "resource_mult": {
+    "stoke": 1.05
+   }
+  },
+  "excludes": [
+   "vertigo"
+  ],
+  "flavour": "Happiest four hundred metres up a rope."
+ },
+ {
+  "id": "visualiser",
+  "name": "Visualiser",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "reading",
+   "focus",
+   "redpoint"
+  ],
+  "effect": {
+   "attr_add": {
+    "route_reading": 3
+   },
+   "flags": [
+    "visualise_action=+0.10"
+   ]
+  },
+  "excludes": [],
+  "flavour": "Climbs it twice. Once with the eyes shut."
+ },
+ {
+  "id": "skin_care_routine",
+  "name": "Skin Care Routine",
+  "category": "lifestyle",
+  "kind": "creation",
+  "cost": 3,
+  "phase": "P1b",
+  "tags": [
+   "skin",
+   "recovery"
+  ],
+  "effect": {
+   "resource_mult": {
+    "skin": 1.1
+   },
+   "cost_mult": 1.02
+  },
+  "excludes": [],
+  "flavour": "Sands, files, balms. Climbs a day longer than you."
+ },
+ {
+  "id": "climber_parents",
+  "name": "Climber Parents",
+  "category": "history",
+  "kind": "creation",
+  "cost": 6,
+  "phase": "P1b",
+  "tags": [
+   "learning",
+   "trad",
+   "partner",
+   "reading"
+  ],
+  "effect": {
+   "attr_add": {
+    "route_reading": 6,
+    "rope_craft": 6,
+    "gear_placement": 4,
+    "tech_slab": 3,
+    "confidence": 2
+   }
+  },
+  "excludes": [
+   "late_starter"
+  ],
+  "flavour": "Learned to belay before long division."
+ },
+ {
+  "id": "guides_apprentice",
+  "name": "Guide's Apprentice",
+  "category": "history",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1b",
+  "tags": [
+   "trad",
+   "alpine",
+   "sport",
+   "risk"
+  ],
+  "effect": {
+   "attr_add": {
+    "rope_craft": 8,
+    "logistics": 5,
+    "weather_sense": 5,
+    "risk_judgement": 4
+   }
+  },
+  "excludes": [],
+  "flavour": "Coiled a thousand ropes. Clients still fall off."
+ },
+ {
+  "id": "martial_artist",
+  "name": "Martial Artist",
+  "category": "history",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "flexibility",
+   "fear",
+   "dynamic"
+  ],
+  "effect": {
+   "attr_add": {
+    "hip_mobility": 6,
+    "composure": 4,
+    "leg_power": 4
+   }
+  },
+  "excludes": [],
+  "flavour": "Breathes through the crux. High-steps like a kick."
+ },
+ {
+  "id": "swimmer",
+  "name": "Swimmer",
+  "category": "history",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "endurance",
+   "flexibility",
+   "dws"
+  ],
+  "effect": {
+   "attr_add": {
+    "shoulder_mobility": 8,
+    "aerobic_capacity": 6,
+    "finger_strength": -2
+   },
+   "flags": [
+    "swim_skill"
+   ]
+  },
+  "excludes": [],
+  "flavour": "Shoulders for days. Fingers for later."
+ },
+ {
+  "id": "runner",
+  "name": "Runner",
+  "category": "history",
+  "kind": "creation",
+  "cost": 3,
+  "phase": "P1b",
+  "tags": [
+   "endurance",
+   "weight"
+  ],
+  "effect": {
+   "attr_add": {
+    "aerobic_capacity": 10,
+    "pull_power": -2,
+    "leg_power": -2
+   }
+  },
+  "excludes": [],
+  "flavour": "Light, tireless, has never pulled on anything."
+ },
+ {
+  "id": "weightlifter",
+  "name": "Weightlifter",
+  "category": "history",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "power",
+   "weight"
+  ],
+  "effect": {
+   "attr_add": {
+    "pull_power": 6,
+    "leg_power": 6,
+    "core_tension": 4,
+    "hip_mobility": -4
+   },
+   "flags": [
+    "mass_shift=+3"
+   ]
+  },
+  "excludes": [],
+  "flavour": "Strong everywhere. Slightly too much of everywhere."
+ },
+ {
+  "id": "feral_childhood",
+  "name": "Feral Childhood",
+  "category": "history",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P1b",
+  "tags": [
+   "reading",
+   "boulder",
+   "fear"
+  ],
+  "effect": {
+   "attr_add": {
+    "route_reading": 3,
+    "confidence": 4,
+    "body_position": 3,
+    "skin_durability": 3
+   }
+  },
+  "excludes": [
+   "desk_jockey"
+  ],
+  "flavour": "Climbed trees, walls, parents."
+ },
+ {
+  "id": "stubborn",
+  "name": "Stubborn",
+  "category": "quirk",
+  "kind": "creation",
+  "cost": 0,
+  "phase": "P1b",
+  "tags": [
+   "patience",
+   "redpoint"
+  ],
+  "effect": {
+   "resource_mult": {
+    "burnout": 1.1
+   },
+   "flags": [
+    "familiarity_k_mult=1.2",
+    "beta_mult=0.5"
+   ]
+  },
+  "excludes": [
+   "beta_sponge"
+  ],
+  "flavour": "Will do it their way. Eventually, that works."
+ },
+ {
+  "id": "cautious",
+  "name": "Cautious",
+  "category": "quirk",
+  "kind": "creation",
+  "cost": 0,
+  "phase": "P1b",
+  "tags": [
+   "risk",
+   "fear"
+  ],
+  "effect": {
+   "attr_add": {
+    "risk_judgement": 6,
+    "commitment": -4
+   },
+   "fear_add": 4,
+   "injury_risk_mult": 0.9
+  },
+  "excludes": [
+   "reckless",
+   "risk_blind"
+  ],
+  "flavour": "Checks the knot three times. Still alive."
+ },
+ {
+  "id": "big_hands",
+  "name": "Big Hands",
+  "category": "quirk",
+  "kind": "creation",
+  "cost": 0,
+  "phase": "P1b",
+  "tags": [
+   "crack",
+   "pinch",
+   "pocket"
+  ],
+  "effect": {
+   "hold_mult": {
+    "crack_hand": 1.05,
+    "crack_fist": 1.05,
+    "pinch": 1.04,
+    "sloper": 1.02,
+    "pocket1": 0.95,
+    "pocket2": 0.96
+   }
+  },
+  "excludes": [
+   "small_hands"
+  ],
+  "flavour": "Hand jams are hand jams. Mono pockets are decoration."
+ },
+ {
+  "id": "small_hands",
+  "name": "Small Hands",
+  "category": "quirk",
+  "kind": "creation",
+  "cost": 0,
+  "phase": "P1b",
+  "tags": [
+   "pocket",
+   "crack",
+   "pinch"
+  ],
+  "effect": {
+   "hold_mult": {
+    "pocket1": 1.06,
+    "pocket2": 1.04,
+    "crack_finger": 1.05,
+    "crack_hand": 0.95,
+    "crack_fist": 0.96,
+    "pinch": 0.97
+   }
+  },
+  "excludes": [
+   "big_hands"
+  ],
+  "flavour": "Fits the mono. Rattles in the hand crack."
+ },
+ {
+  "id": "perfectionist",
+  "name": "Perfectionist",
+  "category": "quirk",
+  "kind": "creation",
+  "cost": 0,
+  "phase": "P1b",
+  "tags": [
+   "learning",
+   "flow",
+   "patience"
+  ],
+  "effect": {
+   "adapt_rate_mult": {
+    "body_position": 1.1,
+    "footwork": 1.1
+   },
+   "flags": [
+    "sketchy_send_stoke=-3"
+   ]
+  },
+  "excludes": [],
+  "flavour": "Sent it. Re-doing it because the heel was ugly."
  }
 ]

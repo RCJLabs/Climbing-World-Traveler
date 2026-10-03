@@ -484,7 +484,7 @@ P1b brings a second crag and the first trip between two. Kalymnos is the sport c
 | **Spartacus** | tufa, grey | sunny | 0.5 d | 4c | Orange overhangs and tufa pinches above the coast road |
 | **Panorama** | grey, tufa | sunny | 0.5 d | 4c | Red and grey walls high above Masouri, with the best view on the island |
 
-"Routes from" is the sector's floor ([06 §1](06-procedural-routes.md)): the caves hold only their tufas. The crag's own floor is DI 7, so session slots start at DI 8 (4c): the real island's easiest routes are mostly 5s, and the game lowers its floor one step so that a beginner's session has a warm-up below its level **(tune)**. Sector names are real places; their routes are procedural until M4's signature routes.
+"Routes from" is the sector's floor ([06 §1](06-procedural-routes.md)): the caves hold only their tufas. The crag's own floor is DI 7, so session slots start at DI 8 (4c): the real island's easiest routes are mostly 5s, and the game lowers its floor one step so that a beginner's session has a warm-up below its level **(tune)**. Sector names are real places; their routes are procedural, apart from the Grande Grotta's three signatures (§7b.4).
 
 ### 7b.2 Style profiles
 
@@ -506,6 +506,18 @@ The P1b graph is the subset of §8 that joins the two live crags, in `data/trave
 | `hub_athens` ↔ `kalymnos` | fly (§8.3, via Kos) | 75 | 1 |
 
 Font to Kalymnos is $280 and two days each way. A trip pays the fare up front, the days pass with living costs and no blocks, and the climber wakes up at the destination under its own weather ([26 §5](26-p1b-implementation-notes.md)). Visas, seasons and luggage fees join with P2's travel model.
+
+### 7b.4 Signature routes
+
+The three named in §6's row for Kalymnos, all in the Grande Grotta and offered in every session there. Each is an authored wall run through the sport generator and tuned to its canonical grade ([26 §8.3](26-p1b-implementation-notes.md)); the shapes approximate the real lines and are not traced from the rock.
+
+| Route | Grade (`di_target`) | Graded | Length | Wall | Bolts |
+|---|---|---|---|---|---|
+| Priapos | 7a (17) | 16.96 | 28 m | 100° start, tufas from 4 m, steepest 122° at 12–16 m, easing to 98° | 9 + anchor |
+| DNA | 7c (21) | 21.26 | 29 m | 105° start, tufas from 4 m, 128–132° from 8 to 20 m | 10 + anchor |
+| Aegialis | 8c (27) | 27.03 | 29 m | 112° start, tufas from 4 m, 117–122° from 4 to 24 m | 10 + anchor |
+
+Aegialis is gentler than the cave's steepest lines: the generator cannot make a pitch that is steep all the way easy enough off its cruxes for 8c ([26](26-p1b-implementation-notes.md) Open questions).
 
 ---
 

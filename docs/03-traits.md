@@ -43,11 +43,13 @@ P1a ships a curated set of **~40 traits** chosen for Fontainebleau bouldering re
 
 | Phase | System that must be live | Traits gated to it |
 |---|---|---|
-| P1b | rope, clipping, sport attempt modes, kneebars as rests, pockets as a common hold family, power-endurance | Dry Hands, Slow Twitch, Bendy/Stiff Shoulders, Bellows, Springs, Noodle Legs, Pocket Fingers, Kneebar Finder, Proprioceptor, Beta Blind, Rope Gun, Resistance, Bear Hugger, Contact Catcher, Slow Hands, Jug Hauler, One-Arm Wonder, Kinesthetic Learner, Slow Learner, Overthinker, Clutch, Zen, Onsight Purist, Cool Head, Risk Blind, All In, Hesitant, Unflappable, Jittery, Vertigo, Loves Air, Visualiser, Skin Care Routine, Rower, Farm Strong, Climber Parents, Guide's Apprentice, Martial Artist, Swimmer, Runner, Weightlifter, Feral Childhood, Pain Tolerant, and quirks Stubborn, Cautious, Big Hands, Small Hands, Perfectionist, Downclimber |
-| P2 | weather and temperature, injuries, training clocks, economy, travel, NPCs, events, reputation, stoke/burnout | Iron Tendons, Glass Pulleys, Furnace, Cold Blooded, Cold Hands, Gaston Goblin, Beta Sponge, Patient, Impatient, Competitor, Bounce Back, Brittle, every Social trait, every Lifestyle trait except Skin Care Routine, Ex-Military, Academic, Content Creator, Mountain Born, Coastal Fisher, every Health trait except Lucky/Unlucky and Pain Tolerant, quirks Purist, Rival Magnet, Superstitious, Grade Sceptic, the whole hidden pool, acquired Pulley Veteran, Sandbagged, Crag Mayor, Grit Hardened, Tufa Whisperer, Injury Wise, Jaded |
+| P1b | rope, clipping, sport attempt modes, kneebars as rests, pockets as a common hold family, power-endurance | Dry Hands, Slow Twitch, Stiff Shoulders, Bellows, Springs, Noodle Legs, Pocket Fingers, Kneebar Finder, Proprioceptor, Beta Blind, Rope Gun, Resistance, Bear Hugger, Contact Catcher, Slow Hands, Jug Hauler, One-Arm Wonder, Kinesthetic Learner, Slow Learner, Overthinker, Clutch, Zen, Onsight Purist, Cool Head, Risk Blind, All In, Hesitant, Unflappable, Jittery, Vertigo, Loves Air, Visualiser, Skin Care Routine, Rower, Farm Strong, Climber Parents, Guide's Apprentice, Martial Artist, Swimmer, Runner, Weightlifter, Feral Childhood, and quirks Stubborn, Cautious, Big Hands, Small Hands, Perfectionist, Downclimber |
+| P2 | weather and temperature, injuries, training clocks, economy, travel, NPCs, events, reputation, stoke/burnout | Bendy Shoulders, Iron Tendons, Glass Pulleys, Furnace, Cold Blooded, Cold Hands, Gaston Goblin, Beta Sponge, Patient, Impatient, Competitor, Bounce Back, Brittle, every Social trait, every Lifestyle trait except Skin Care Routine, Ex-Military, Academic, Content Creator, Mountain Born, Coastal Fisher, every Health trait except Lucky/Unlucky, quirks Purist, Rival Magnet, Superstitious, Grade Sceptic, the whole hidden pool, acquired Pulley Veteran, Sandbagged, Crag Mayor, Grit Hardened, Tufa Whisperer, Injury Wise, Jaded |
 | P3 | trad gear, competitions, DWS | Jam Hands, Gear Whisperer, Headpointer, Podium Kid, acquired Comp Yips |
 | P4 | altitude, ice, objective hazard | Altitude Native, Thin Blood, Ice Natural, Summit Fever, acquired Acclimatised, Survivor |
 | P5 | legacy | acquired Legend |
+
+Bendy Shoulders (its downside is a shoulder-injury multiplier) and Pain Tolerant (all of it is injury and pain) moved from P1b to P2 when P1b's traits shipped. As built, P1b has no kneebars and no downclimbing, so Kneebar Finder and Downclimber wait for them although their systems are listed here for P1b ([26 §8.1](26-p1b-implementation-notes.md)).
 
 The plan's named examples **Nervous Flyer, Motion Sick, Chalk Allergy, Monoglot and Summit Fever** are hidden until travel (P2), travel (P2), health/illness (P2), languages and regional reputation (P2) and alpine retreat decisions (P4) respectively ship.
 
@@ -115,7 +117,7 @@ Columns: **id** (snake_case, final) · **name** · **cost** (creation traits ±2
 
 Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_strength = 6`; `hold_mult: crimp 1.06` is `effect.hold_mult.crimp = 1.06`; `resource_mult: skin 1.25` and so on. Flags are written `flags: name=value`.
 
-**`resource_mult` semantics used here (proposal, see Open questions):** the multiplier applies to the resource's *regeneration or gain*, not its ceiling: `skin` overnight heal, `energy` overnight regen, `stoke` positive deltas, `burnout` accrual, `health` regen, `chalk` amount restored per chalk-up, `focus_meter` positive deltas, `aerobic_reserve` and `power` starting pool.
+**`resource_mult` semantics used here (implemented in P1b except `energy` and `health`, which wait for systems that regenerate them; [26 §8.1](26-p1b-implementation-notes.md)):** the multiplier applies to the resource's *regeneration or gain*, not its ceiling: `skin` overnight heal, `energy` overnight regen, `stoke` positive deltas, `burnout` accrual, `health` regen, `chalk` amount restored per chalk-up, `focus_meter` positive deltas, `aerobic_reserve` and `power` starting pool.
 
 **Flags used in this catalogue.** Each flag is read by exactly one system; the table is the contract.
 
@@ -124,7 +126,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | `reach_mult=x` | 05a reach envelope | multiplies free-limb reach radius after Body terms |
 | `tendon_robustness_add=±n` | 02 A.1 | shifts the hidden `tendon_robustness` slider |
 | `sending_temp_shift=±n` | 02 C.6 / 10 | shifts the sending-temperature window centre in °C |
-| `split_risk_cold=x` | 13 skin | split-tip probability multiplier in `cold` |
+| `split_risk_cold=x` | 13 skin | split-tip probability multiplier in `cold` (P1b, until split tips exist: skin wear ×x on a cold day) |
 | `injury_site_mult:<site>=x` | 13 | injury probability multiplier for one `InjuryDef.site` |
 | `commit_window_width=x` | retired with the commit window ([24](24-simulation-game.md) §6) | — |
 | `feet_cut_recovery=+n` | 05b | percentage points added to the feet-cut recovery roll |
@@ -136,10 +138,11 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | `project_stoke_immunity` | stoke | repeated failure on the same route does not lower stoke |
 | `onsight_rep_mult=x`, `redpoint_stoke_penalty=n` | 15 / stoke | onsight ticks give ×x reputation; attempt 4+ on a route costs n stoke |
 | `rehearsed_fear_mult=x` | 05b §7 | all fear sources ×x when `fam > 0.8` |
-| `beta_mult=x` | 05b §9 | familiarity gained from partner beta ×x |
+| `beta_mult=x` | 05b §9 | familiarity gained from partner beta ×x (P1b: the beta on signature problems) |
 | `flow_chance_mult=x` | 05b focus | probability of entering flow state ×x |
 | `pre_move_time_mult=x` | 05b time | time per move ×x (drains aerobic reserve) |
 | `visualise_action=+f` | attempt loop | a free pre-attempt action adds f familiarity |
+| `sketchy_send_stoke=±n` | stoke | a send with a sketchy outcome in it changes stoke by n |
 | `plastic_mult=x` | 05b | EffectiveStat ×x on `RockType = plastic` |
 | `monotony_mult=x`, `abandon_project_after=n` | burnout | monotony accrual ×x; project auto-abandons after n sessions |
 | `rival_present_mult=x`, `rivalry_gain_mult=x`, `rival_spawn_mult=x` | 15 | EffectiveStat with a rival present; rivalry accrual; rival generation |
@@ -175,7 +178,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | `rock_scope=<RockType>` | 05b | restricts the row's hold_mult/attr_add to that rock type |
 | `warmup_required` | session loop | first attempt of a session without a warm-up block: finger injury ×2 |
 | `stoke_swing_mult=x` | stoke | all stoke deltas ×x |
-| `mass_shift=+n` | 02 A.2 | adds n kg to `mass_kg` (and +0.5 ceiling per kg) |
+| `mass_shift=+n` | 02 A.2 | adds n kg to `mass_kg` (and +0.5 ceiling per kg, not yet implemented for this flag or the creation slider) |
 | `requires_age_min=n` | creation | selectable only if `age_start ≥ n` (see Open questions) |
 
 ---
@@ -202,7 +205,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | slow_twitch | Slow Twitch | +3 | body | creation | P1b | ceiling_add: aerobic_capacity +8, finger_endurance +8, anaerobic_capacity +4, contact_strength −6, leg_power −6; adapt_rate_mult: finger_endurance 1.15, contact_strength 0.90 | endurance, sport, static | fast_twitch | — | Never fast, never pumped, never done. |
 | furnace | Furnace | +3 | body | creation | P2 | condition_mult: cold 1.06, heat 0.96; flags: sending_temp_shift=−4 | cold, friction, wind | cold_blooded, cold_hands | — | T-shirt in January. Suffers in Kalymnos in June. |
 | cold_blooded | Cold Blooded | +2 | body | creation | P2 | condition_mult: heat 1.06, cold 0.94; flags: sending_temp_shift=+4 | heat, humid | furnace | — | Thrives when everyone else has gone to the beach. |
-| bendy_shoulders | Bendy Shoulders | +3 | body | creation | P1b | attr_add: shoulder_mobility +8; ceiling_add: shoulder_mobility +10; hold_mult: gaston 1.04, undercling 1.04; flags: injury_site_mult:shoulder=1.15 | flexibility, compression, injury | stiff_shoulders, old_shoulder | — | Hypermobile. Reaches behind its own head; the labrum takes notes. |
+| bendy_shoulders | Bendy Shoulders | +3 | body | creation | P2 | attr_add: shoulder_mobility +8; ceiling_add: shoulder_mobility +10; hold_mult: gaston 1.04, undercling 1.04; flags: injury_site_mult:shoulder=1.15 | flexibility, compression, injury | stiff_shoulders, old_shoulder | — | Hypermobile. Reaches behind its own head; the labrum takes notes. |
 | stiff_shoulders | Stiff Shoulders | −4 | body | creation | P1b | attr_add: shoulder_mobility −8; ceiling_add: shoulder_mobility −10; hold_mult: gaston 0.95, undercling 0.95 | flexibility | bendy_shoulders | — | Gastons feel like a dare. |
 | bellows | Bellows | +4 | body | creation | P1b | attr_add: aerobic_capacity +6; ceiling_add: aerobic_capacity +6; resource_mult: aerobic_reserve 1.10; condition_mult: altitude 1.04 | endurance, sport, altitude, recovery | asthma | — | Big lungs. Recovers on holds you would not call a rest. |
 | crusher_hands | Crusher Hands | +6 | body | creation | P1a | attr_add: finger_strength +6; ceiling_add: finger_strength +6 | crimp, edge, power | soft_fingers | — | Born on a 20 mm edge. |
@@ -375,7 +378,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | addictive_personality | Addictive Personality | −4 | health | creation | P2 | event_weights: vice_chain 2.0; flags: stoke_swing_mult=1.5, familiarity_k_mult=1.1 | health, patience, money | — | — | Obsesses beautifully. Not always about climbing. |
 | never_sick | Never Sick | +4 | health | creation | P2 | resource_mult: health 1.20; flags: illness_mult=0.5 | health, travel | sickly | — | Shared a tent with the flu. Unbothered. |
 | sickly | Sickly | −4 | health | creation | P2 | resource_mult: health 0.85; flags: illness_mult=1.8 | health | never_sick | — | Catches whatever the crag has. |
-| pain_tolerant | Pain Tolerant | +3 | health | creation | P1b | injury_risk_mult: 1.05; flags: skin_low_penalty_mult=0.5, injury_detect_delay | skin, injury, health | — | — | Climbs through the flapper. Notices the pulley a week late. |
+| pain_tolerant | Pain Tolerant | +3 | health | creation | P2 | injury_risk_mult: 1.05; flags: skin_low_penalty_mult=0.5, injury_detect_delay | skin, injury, health | — | — | Climbs through the flapper. Notices the pulley a week late. |
 | tweaky_elbows | Tweaky Elbows | −4 | health | creation | P2 | flags: injury_site_mult:elbow=1.8 | injury, tendon | — | — | Golfer's elbow on the left, tennis on the right. Plays neither. |
 | bad_back | Bad Back | −4 | health | creation | P2 | attr_add: core_tension −4; flags: injury_site_mult:back=1.5, pad_carry_energy=+10 | injury, core | — | — | The pad is the real project. |
 | weak_ankles | Weak Ankles | −3 | health | creation | P2 | flags: injury_site_mult:ankle=1.6 | injury, boulder, highball | cat_feet | — | Rolls it on the walk-in. |
@@ -593,11 +596,11 @@ The body-trait numbers above are deliberately conservative versions of effect si
 1. **`point_mass` field.** [schemas §9.2](schemas.md) says hidden traits "carry a `point_mass`" but the `Trait` interface has no such field. Proposed: `point_mass?: number` on `Trait`, required when `kind === 'hidden'`.
 2. **Site-specific injury multipliers.** Seven traits need per-site injury risk (knee, shoulder, elbow, back, ankle, finger). They use the documented flag `injury_site_mult:<site>=x`; proposed to promote it to `TraitEffect.injury_site_mult?: Partial<Record<InjuryDef['site'], number>>` when [13](13-injury-and-health.md) lands.
 3. **Age requirements.** Late Starter needs `age_start ≥ 28` and backgrounds need age windows ([04](04-backgrounds.md)). Proposed: `requires_age?: [min, max]` on `Trait` and `age_range: [min, max]` on `Background`; until then the flag `requires_age_min` carries it.
-4. **`resource_mult` semantics.** This doc assumes the multiplier applies to regeneration/gain (skin heal, energy regen, stoke deltas, burnout accrual, chalk restored per chalk-up, starting pools for `aerobic_reserve` and `power`). [02 §B.5](02-character-model.md) should state this explicitly or the field should be split.
+4. **`resource_mult` semantics.** This doc assumes the multiplier applies to regeneration/gain (skin heal, energy regen, stoke deltas, burnout accrual, chalk restored per chalk-up, starting pools for `aerobic_reserve` and `power`). [02 §B.5](02-character-model.md) should state this explicitly or the field should be split. P1b implements these meanings ([26 §8.1](26-p1b-implementation-notes.md)); energy refills to its cap each morning, so `energy` has nothing to multiply until regeneration is partial.
 5. **Scoped effects.** Sandbagged, Crag Mayor, Grit Hardened and Tufa Whisperer restrict their effect to one rock type or region via `flags: rock_scope`. Proposed: `TraitEffect.scope?: { rock?: RockType; region?: string; discipline?: Discipline }`.
 6. **Temporary acquired traits.** Acclimatised expires 21 days after descent and Comp Yips is removed after two clean finals. Proposed: `expires?: { days?: number; condition?: string }` on `Trait`.
 7. **Event ids** referenced in `event_weights` (`mentor_offer`, `falling_out`, `vice_chain`, `lucky_socks`) must be defined in [15](15-social-reputation-events.md); treat them as reservations.
-8. **`stakes` attempt context.** Choker, Clutch, Stage Fright and Comp Yips rely on a boolean attempt-context flag `stakes` (comp final, redpoint go at or above personal best, audience ≥ 3 NPCs). [05b](05b-move-resolution-and-attempt-loop.md) should own the definition.
+8. **`stakes` attempt context.** Choker, Clutch, Stage Fright and Comp Yips rely on a boolean attempt-context flag `stakes` (comp final, redpoint go at or above personal best, audience ≥ 3 NPCs). [05b](05b-move-resolution-and-attempt-loop.md) should own the definition. P1b implements the redpoint clause, with "at" meaning within 0.25 DI of the discipline's personal best ([26 §8.1](26-p1b-implementation-notes.md)); comp finals and audiences wait for P2–P3.
 9. **Hidden-side exclusions.** Hidden-pool rows list exclusions against creation traits one-way (checked at roll time from the hidden side). The validator should accept one-way `excludes` for `kind: 'hidden'` only.
 10. **`attr_mult` reservation.** No creation trait in this catalogue uses `attr_mult`; it is reserved for acquired traits and P5 content so the one-per-attribute rule is satisfied by construction. If a future creation trait needs it, the pairwise-exclusion validator rule applies.
 11. **Hidden roll size.** "2 for +2" is the only offered roll (tune). If the harness shows players never opt in, consider "2 for +3".

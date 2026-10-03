@@ -75,6 +75,8 @@ Each `world/crags/<id>/` folder becomes one lazy chunk at build time ([18 §6](1
 2. Author holds in metres from the ground with the hold editor (`pnpm holds <file>` opens a local browser tool) or by hand; keep ≤ `hold_density_max` and the legibility rule from [06](06-procedural-routes.md).
 3. Run `pnpm grade <file>`; the engine must land within ±1.0 of `di_target`. Adjust hold quality or size, never `di_graded`.
 
+As built (P1a–P1b), the signatures come from scripts that also check the grade: `scripts/build-signatures.ts` places Font's holds by hand, and `scripts/build-sport-signatures.ts` runs an authored wall (segment heights, angles, tufas) through the sport generator, which sets a pitch's two hundred-odd holds and its bolts ([26 §8.3](26-p1b-implementation-notes.md)). For a new sport signature, add a spec there (sector, profile, `di_target`, wall, a fictional `fa_note`) and add the id to its sector's `signature_routes`.
+
 ### 3.6 A style profile
 1. Create `styles/<id>.json`: `rock`, `hold_weights` summing to 1, `angle_dist`, `length_m`, `hold_density_max`, `protection`, `polish`, `sharpness`, `friction_base`, `seep_susceptibility`, `crux_position`, `move_grammar`, `tags`.
 2. Run `pnpm harness calibrate --style <id>`: 1,000 routes across the DI range; accuracy ≥ 90% within ±1.0 and a line must exist for every generated route.
@@ -95,7 +97,7 @@ Runs `scripts/validate.ts` over all of `data/` and fails on the first class of e
 | `Protection.reach_from` and `start_holds` reference holds in the same route | §9.5 |
 | `di_graded` absent from hand-authored files; signature routes carry `di_target` and grade within ±1.0 (run by `pnpm grade` in CI) | §9.6 |
 | `Background.start_crag` phase ≤ background phase | §9.7 |
-| Real-name blocklist against all prose fields | §9.8 |
+| Real-name blocklist against every string in the content, ids and the benchmark sets included: the names in `data/real_names.json`, as whole words, ignoring case, accents and punctuation | §9.8 |
 | Zod parse of every file against its schema; unknown keys rejected | structural |
 | All cross-references resolve: trait ids, gear ids, crag ids, hub ids, style ids, archetype ids, injury ids, event predicate names | structural |
 | Ids unique per collection and match filename where one-per-file | structural |

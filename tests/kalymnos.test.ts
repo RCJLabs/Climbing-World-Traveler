@@ -1,11 +1,16 @@
 // Kalymnos in the game (P1b, docs/26 §5): travel between crags, limestone and its seeping caves, the sport styles and
-// the route estimate, sport sessions, and what a run at a sport crag records.
+// the route estimate, sport sessions, what a run at a sport crag records, and the Grande Grotta's signature routes
+// (docs/26 §8) with the real-name rule that keeps their notes free of people.
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
 import cragsJson from '../data/crags.json';
-import { CragSchema, ProfileSchema, TravelSchema } from '../src/data/schema';
+import realNamesJson from '../data/real_names.json';
+import { contentOf, realNameHits } from '../src/data/realnames';
+import { CragSchema, ProfileSchema, RealNamesSchema, TravelSchema } from '../src/data/schema';
+import { atRoute, syntheticRun } from '../src/harness/sim';
 import { sampleBuild } from '../src/harness/sampler';
-import { routeEntry, ROUTE_ENERGY } from '../src/sim/attempt';
+import { routeEntry, ROUTE_ENERGY, simulateAttempt } from '../src/sim/attempt';
+import { frenchGrade } from '../src/sim/grades';
 import { estimateBoulderDI } from '../src/sim/estimate';
 import { gradeRoute, referenceAthlete } from '../src/sim/grade';
 import { DEFAULT_OPTIONS, presetSpec } from '../src/sim/presets';
@@ -262,6 +267,55 @@ describe('the rower (04 §2.6)', () => {
     expect(run.crag).toBe('kalymnos');
     expect(run.visited).toEqual(['kalymnos']);
     expect(run.journal[0]!.text).toMatch(/rope/);
+  });
+});
+
+describe('the Grande Grotta signatures (09 §7b, docs/26 §8)', () => {
+  const sigs = ['sig_priapos', 'sig_dna', 'sig_aegialis'].map((id) => bundle.signatures.get(id)!);
+
+  it('are the sector\'s three, at their canonical grades, offered in every session there', () => {
+    expect(sectorById('grande_grotta').signature_routes).toEqual(sigs.map((r) => r.id));
+    expect(sigs.map((r) => `${r.name} ${frenchGrade(r.di_target)}`)).toEqual(['Priapos 7a', 'DNA 7c', 'Aegialis 8c']);
+    const slots = sessionSlots(atKalymnos('sigs'), 'grande_grotta', 16, bundle);
+    expect(slots.filter((s) => s.kind === 'signature').map((s) => s.seed)).toEqual(sigs.map((r) => r.seed));
+  });
+
+  it('are bolted pitches graded on the geometry they ship with, every bolt clipped from the line, the anchor from the top', () => {
+    for (const r of sigs) {
+      expect(r).toMatchObject({ crag: 'kalymnos', area: 'grande_grotta', discipline: 'sport', rock: 'limestone', signature: true });
+      expect(Math.abs(gradeRoute(r).di! - r.di_graded), r.name).toBeLessThanOrEqual(0.006);
+      expect(Math.abs(r.di_graded - r.di_target), r.name).toBeLessThanOrEqual(0.3);
+      const line = new Set(r.beta_line.map((s) => s.hold));
+      const bolts = r.protection.filter((p) => p.kind === 'bolt');
+      expect(bolts.length, r.name).toBeGreaterThanOrEqual(8);
+      for (const b of bolts) expect(b.reach_from!.some((h) => line.has(h)), `${r.name} ${b.id}`).toBe(true);
+      expect(r.protection.at(-1)).toMatchObject({ kind: 'anchor', reach_from: [r.finish_hold] });
+    }
+  });
+
+  it('get a flash on the first look, as the Font signatures do, and play out the same twice', () => {
+    const go = () => {
+      const run = syntheticRun(referenceAthlete(19), 'sig-flash', bundle);
+      atRoute(run, sigs[0]!);
+      delete run.projects[sigs[0]!.id];
+      let mode: string | undefined;
+      simulateAttempt(run, sigs[0]!.seed!, 'flash', bundle, (r) => { mode ??= r.attempt?.mode; });
+      return { mode, result: run.last_attempt! };
+    };
+    const a = go();
+    expect(a.mode).toBe('flash');
+    expect(go()).toEqual(a);
+  });
+
+  it('credit no one, and the real-name rule finds a name however it is written', () => {
+    const names = RealNamesSchema.parse(realNamesJson);
+    for (const r of sigs) expect(r.fa_note, r.name).toMatch(/no first ascensionist/);
+    expect(realNameHits(contentOf(bundle), names)).toEqual([]);
+    const list = ['Ana Example', 'Jo Müller'];
+    expect(realNameHits({ fa_note: 'First climbed by ANA EXAMPLE in a storm.' }, list)).toEqual(['data.fa_note: names Ana Example']);
+    expect(realNameHits({ id: 'sig_jo_muller' }, list)).toEqual(['data.id: names Jo Müller']);
+    expect(realNameHits({ fa_note: 'Banana examples, Jo Müllers and Joan Muller.' }, list)).toEqual([]);
+    expect(RealNamesSchema.safeParse(['Madonna']).success).toBe(false);
   });
 });
 

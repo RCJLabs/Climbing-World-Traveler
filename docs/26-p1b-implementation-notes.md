@@ -16,10 +16,10 @@ P1b ships in four milestones, each its own pull request:
 |---|---|---|
 | M1 Sport engine | rope, bolts, clipping, falls on the rope, working a route, the sport generator, the grade engine on routes, French grades, calibration and the exit test, all headless | merged (#22) |
 | M2 Kalymnos in the game | sessions at Kalymnos, travel between the two crags, sport session tactics, the `rower_swimmer` background, limestone wet rules, French grades on the screens, a grey-wall profile for the low grades | merged (#23, the reach fix #24) |
-| M3 Watching a pitch | the cartoon wall with the cliff, the rope, quickdraws, the belayer, clipping, catches and lowering ([25 §10.8](25-visual-representation.md)) | this update (§7) |
-| M4 Content | the P1b traits and Kalymnos signature routes | — |
+| M3 Watching a pitch | the cartoon wall with the cliff, the rope, quickdraws, the belayer, clipping, catches and lowering ([25 §10.8](25-visual-representation.md)) | merged (#25) |
+| M4 Content | the P1b traits and Kalymnos signature routes | this update (§8) |
 
-After M2, a run can start at Kalymnos (Rower/Swimmer) or travel there from Font and climb its routes by the same week plan. After M3, any rope attempt can be watched on the cartoon wall: the cliff, the bolts and quickdraws, the rope and the belayer, every clip, fall, take and lower.
+After M2, a run can start at Kalymnos (Rower/Swimmer) or travel there from Font and climb its routes by the same week plan. After M3, any rope attempt can be watched on the cartoon wall: the cliff, the bolts and quickdraws, the rope and the belayer, every clip, fall, take and lower. After M4, creation offers the P1b traits, every trait effect in the data is read by the engine or known to wait for a later phase, and the Grande Grotta has its three signature routes.
 
 ## 1. Design conflicts and how they are resolved
 
@@ -188,16 +188,87 @@ The wall as built is [25 §10.8](25-visual-representation.md). Neither the engin
 
 Measured (25 §10.8): a send plays in 41–79 s at 1× on the benchmarks (median about a minute; 1.5–5 minutes at the boulder pace), everything median 70 s and p90 112 s; a pitch's frame costs about 1.7 times a boulder's (3.9 against 2.3 ms in headless desktop Chromium at 1× pixel ratio, 7.8 against 4.4 at 2×). Checks: typecheck, 154 tests (15 new in `tests/pitch-wall.test.ts`), validate, calibrate `--quick` 13/13, build.
 
+## 8. P1b traits and signature routes (M4)
+
+### 8.1 Traits
+
+| Topic | Implemented | Amends |
+|---|---|---|
+| The set | the 44 P1b creation traits and quirks of 03 §2 that M2's Rower did not bring: 45 P1b creation traits in all, 89 live at creation with P1a's | [03 §1.3](03-traits.md) |
+| Gated | Bendy Shoulders (its downside is a shoulder-injury multiplier) and Pain Tolerant (all of it is injury and pain) wait for P2's injuries; Kneebar Finder and Downclimber wait for kneebars and downclimbing, which 03 §1.3 lists for P1b but the engine does not have. By 03 §1.3 a trait whose downside or whole value has no live system is not selectable, so none of the four is in `data/traits.json` | [03 §1.3](03-traits.md) |
+| Inert side clauses | a live trait may carry a flag of a system that is not live yet (`INERT_FLAGS`: `onsight_rep_mult`, `swim_skill`, `city_stoke`, `sponsor_appeal_mult`, the event weights, `plastic_mult`) only when the flag is not the trait's downside. Onsight Purist's reputation bonus and Swimmer's swim-out are part of their price and missing from what they give until P2–P3 | [03 §1.3](03-traits.md) |
+| `resource_mult` | read for the first time, with 03 §1.9's meanings: skin overnight and on a rest block, stoke on a send and on a rest day, burnout accrual, chalk per chalk-up, focus gains, and the aerobic reserve and power an attempt starts with. `energy` (it refills to its cap every morning) and `health` (no regeneration before P2's injuries) are refused on a live trait (`INERT_RESOURCES`) | [03 §1.9](03-traits.md), [22 §4](22-p1a-implementation-notes.md) |
+| Stakes | an attempt has stakes when it is a redpoint go on a route at or above the discipline's personal best − 0.25: the redpoint clause of 03 open question 8; comp finals and an audience come with P2–P3. `stakes_mult` adds to `M_trait` like the other multipliers (03 §1.2): Clutch `+0.05`, Choker `−0.06` | [03 open question 8](03-traits.md), [05b §4](05b-move-resolution-and-attempt-loop.md) |
+| New flags | `pre_move_time_mult` (each move's time, and with it the aerobic drain), `visualise_action` (familiarity at the start of every attempt: the free look is always taken), `redpoint_stoke_penalty` (each go at a route from the fourth), `sketchy_send_stoke` (a send with a sketchy move in it; the 03 §1.9 table does not list the flag), `mass_shift` (kg at creation) | [03 §1.9](03-traits.md) |
+| `beta_mult` | other climbers' beta exists only on signature problems until partners come (22 §1), so the flag scales that: Stubborn's first look at a signature starts at familiarity `0.075` instead of `0.15` | [03 §1.9](03-traits.md) |
+| `split_risk_cold` | there is no split-tip event before P2's skin injuries, so Dry Hands' winter tax is skin wear `× 1.3` on a cold day | [03 §1.9](03-traits.md), [13](13-injury-and-health.md) |
+| `mass_shift` ceiling | 03 adds `+0.5` strength ceiling per kg, as 02 §A.2 does for the creation slider; neither is implemented, so the shift is mass only | [02 §A.2](02-character-model.md) |
+| Validator | every flag is one the engine reads (`LIVE_FLAGS`) or one known to wait for a phase (`INERT_FLAGS`), and every `resource_mult` key is a resource the engine has and, on a live trait, one it regenerates (schemas §9 rule 11, `traitEffectErrors`) | [schemas §9](schemas.md) |
+| Create screen | effect text for the new flags and resources, and a "Life" category for Skin Care Routine | [17 §6](17-ui-ux.md) |
+
+The new reads reach six P1a traits whose resource multipliers or stakes were carried and never read: Gecko Skin, Paper Skin, Sweaty Hands, Heavy Chalker, Flow Prone and Choker ([22 §4](22-p1a-implementation-notes.md)).
+
+### 8.2 What the traits are worth on the wall
+
+`scripts/dev/trait-onwall.ts` walks the Reference Climber at one grade with and without each live trait over the benchmark lines near that grade (Font ±1.5 DI, Kalymnos ±2.5) and divides the change in mean `P_send` by what one DI changes it by ([19 §4](19-balance-and-simulation-testing.md)). It sees attributes, multipliers and mass; not learning rates, ceilings, skin, stoke, fear (the walk is fearless) or stakes, so the mental and off-wall traits read 0. The samples are small: 24 Font problems, 6–8 Kalymnos routes.
+
+| Trait (cost) | Font at DI 17 | Kalymnos at DI 17 | Font at DI 13 | Kalymnos at DI 13 |
+|---|---|---|---|---|
+| Bellows (+4) | 0.00 | 0.55 | 0.00 | 0.45 |
+| Runner (+3) | −0.02 | 0.53 | −0.06 | 0.34 |
+| Rower (+5) | 0.03 | 0.50 | 0.15 | 0.99 |
+| Swimmer (+4) | 0.02 | 0.41 | −0.03 | 0.26 |
+| Gymnast (+6) | 0.35 | 0.16 | 0.49 | 0.32 |
+| Static Master (+5) | 0.26 | 0.14 | 0.48 | 0.31 |
+| Sloper Whisperer (+5) | 0.49 | 0.05 | 0.21 | 0.08 |
+| Crimp Machine (+6) | 0.08 | 0.10 | 0.27 | 0.00 |
+| Slow Hands (−4) | −0.27 | −0.20 | −0.19 | −0.43 |
+| +5 `aerobic_capacity` | 0.00 | 0.39 | 0.00 | 0.14 |
+| +5 `finger_strength` | 0.07 | 0.19 | 0.19 | 0.00 |
+
+At Kalymnos the endurance traits are worth as much on the wall as Font's best aptitudes are at Font, for one to three points less; Crimp Machine is worth little at DI 17 at either crag. The costs stay as 03 has them: 19 §4 re-costs from whole careers (pick rate against outcome), and the on-wall worth is one input to that (Open questions).
+
+### 8.3 The signature routes
+
+| Topic | Implemented | Amends |
+|---|---|---|
+| The routes | the Grande Grotta's Priapos 7a (`di_target` 17, graded 16.96), DNA 7c (21, 21.26) and Aegialis 8c (27, 27.03) | [09 §7b.4](09-world-atlas.md) |
+| How they are made | an authored wall (segment heights, angles and tufas) run through the sport generator (`GenRequest.wall`), which traces the line, sets the holds, rests and bolts and grades it, re-seeded until the grade is within 0.3 DI of the canon (up to 24 seeds; each landed on the first), then rounded as shipped and regraded (`scripts/build-sport-signatures.ts`). 06 §4 asks for hand-written holds and beta, as Font's problems have; the three pitches have 222–245 holds and 216–260 steps each, so what is authored is the wall's shape | [06 §4](06-procedural-routes.md), [20 §3.5](20-content-pipeline.md) |
+| Off-route holds | kept, unlike the benchmarks', which only the grade walk reads: a signature is climbed and watched | — |
+| Aegialis | a 29 m pitch peaking at 122°, gentler than the cave's steepest lines. On a 32 m pitch peaking at 128° the base search reaches its floor (off-crux moves 8 DI under the grade) and the route still grades 28.1: the pump of a wall that is steep all the way, not its holds, sets the grade. Swept over three seeds each: 27 m pitches peaking at 120° grade 27.1–27.2, at 125° 26.8–27.1, at 130° 27.4–27.5; 29 m 27.1–27.2, 27.4–27.5, 27.8–27.9; 31 m 26.9–27.5, 27.5–27.8, 27.9–28.1 | [06 §2.4](06-procedural-routes.md) |
+| In a session | listed in every Grande Grotta session as `signature` slots; the first look is a flash with beta, as on Font's signatures | [22 §1](22-p1a-implementation-notes.md) |
+| First-ascent notes | fictional; each says the game records no first ascensionist | [06 §4](06-procedural-routes.md) |
+| Real names | schemas §9 rule 8 had no check behind it. The validator now looks for every name in `data/real_names.json` (real climbers, first and last name) in every string of the content (ids, names, prose, the benchmark sets), as whole words, ignoring case, accents and punctuation (`realNameHits`) | [schemas §9](schemas.md), [20 §4](20-content-pipeline.md) |
+| Size | `kalymnos_signatures.json` is 184 kB raw, 25 kB gzipped. With it the single `routes` chunk reached 1.93 MB, within 0.17 MB of the 2 MiB over which Workbox silently leaves a file out of the offline cache, so route data is now one chunk per crag: `routes-fontainebleau` 0.55 MB (63 kB gzipped), `routes-kalymnos` 1.39 MB (177 kB); both still load at startup | [18 §7](18-tech-architecture.md) |
+
+### 8.4 Versions
+
+`DATA_VERSION` `p1b-4` and `REDUCER_VERSION` 6: the resource multipliers, stakes and the new flags change how the same actions play out, at Font too. Runs saved under `p1b-3` stay listed and cannot continue ([22 §4](22-p1a-implementation-notes.md)).
+
+### 8.5 Measured
+
+`pnpm calibrate --quick`: 13/13; C7 reads La Marie-Rose 12.88, Le Toit du Cul de Chien 19.06, Rainbow Rocket 24.99, Priapos 16.96, DNA 21.26, Aegialis 27.03. The benchmarks, rebuilt after the generator gained `GenRequest.wall`, are unchanged.
+
+`pnpm harness --n 40 --days 365 --seed 7` (Font careers), main in brackets: estimate median 16.5 at twelve months (16.5), p10 15.2 (15.0), p90 17.5 (17.5); personal best 17.3 (17.3), p90 18.0 (18.2); project careers 180 ticks (178), volume 962 (958); burnout peak p90 2.6 (2.2); stoke at the last sample 84.7 (88.2); replay identical. The sampled builds now draw from 89 live traits instead of 45, so the two runs climb different populations: the gaps are of the size a different draw of builds makes, and with 3–11 carriers per trait the carrier table cannot isolate one trait's effect.
+
+`pnpm harness --n 20 --days 365 --seed 7 --crag kalymnos` (Rower/Swimmer careers, signatures in the Grande Grotta's sessions), main in brackets: route estimate median 17.2 at twelve months (17.2), p10 15.0 (15.3), p90 17.4 (17.4); personal best 17.1 (17.0), p90 18.3 (18.1); project careers 85 ticks (90), Mileage 391 (386); 34.4% sends (34.2%); burnout peak median 12.5 (7.7) with the same p90 43.3; stoke at the last sample 80.1 (83.9); replay identical. The same caveat on the sampled builds holds.
+
+Checks: typecheck, 175 tests (21 new: 14 in `tests/traits.test.ts`, 4 on the signatures in `tests/kalymnos.test.ts`, C7 for each new signature), validate, calibrate `--quick` 13/13, build. Screens checked at 360 and 390 px: the creation trait list in every category, the Grande Grotta session with its signatures, and a watched attempt on Priapos.
+
 ## Open questions
 
+- **Trait costs.** The 03 costs are the design's proposals; 19 §4's re-costing has never run. §8.2 says the Kalymnos endurance traits (Bellows, Runner, Rower, Swimmer) are cheap for what they give on routes and Crimp Machine dear for what it gives at DI 17, and several traits are missing part of what they cost (Onsight Purist, Swimmer, Dirtbag). Re-cost from careers before P1b closes; the harness's carrier table (n 20–40, random builds) is too noisy to do it.
+- **Steep, long and hard.** The sport generator's base search stops 8 DI under the grade, so a pitch that is steep all the way cannot be made easy enough off its cruxes for the top grades: Aegialis had to be gentler than the cave's steepest lines. The tufa profile rarely draws such walls (procedural Grande Grotta routes at DI 25–28: length-weighted mean angles 100–117°, steepest segments up to 144°, at most 1 in 8 needing an off-target retry), so it bites only on an authored wall; it also means the Grande Grotta's procedural routes are no steeper than any other tufa sector's. Candidates: a floor set by the profile's easiest holds rather than relative to the grade, more rests on steep ground (kneebars, with Kneebar Finder), or a steeper profile for the caves.
+- **Signatures in the plan.** The tactics reach a signature only after the known projects, the project slot and the two push slots (24 §3.2), and on routes a session is three to five pitches, so the project slot's three goes use it up. Probed over 365-day Kalymnos careers (`sampleBuild`, the default plan's bots): three Project careers tried 11–17 Grande Grotta routes each and no signature, one reaching a route personal best of 17.9 with Priapos (17) beside it every session; three Mileage careers, which take a signature once it is within 1 DI of the estimate, tried 48–95 there and two flashed Priapos on their only go (the third, route personal best 15.6, never came within reach); none tried DNA or Aegialis. A player can pick one from the session list. Candidates: a signature within reach as a project day's project, or a project slot that prefers a named route over a generated one.
+- **Evolving traits.** 03 §1.7's evolutions do not run: Afraid of Falling, Choker and Topout Terror keep their first stage all career. Stakes now exist, so Choker's five high-stakes successes can be counted; the counters and the tooltip need building.
 - **The ledge term.** 05b §11's `+0.4` for any ledge in a fall's path makes every ledge a bold route, however short the fall onto it would be. A term that grows with the fall's length below the ledge top would let ledges back into the profile at a natural rate.
 - **Play against grade on a route.** Play sends about six points more than the grade engine on average, and single routes differ by up to about 25 points: a long line is a chain of threshold tactics (shake at pump 35, chalk at 35, the clipping stance) that the expected-value walk follows down one path while play follows many. Candidates: a finer DI grid or logit interpolation for the steep pump-out curves, and fewer hard thresholds in the tactics.
-- **Recovery on the move.** The clearance uses `aerobic_capacity` only; physiologically, critical force is forearm-local, which in this game is closer to `finger_endurance`, already in `fe_mod`. Revisit with the P1b traits (M4).
+- **Recovery on the move.** The clearance uses `aerobic_capacity` only; physiologically, critical force is forearm-local, which in this game is closer to `finger_endurance`, already in `fe_mod`. M4 left it alone: Bellows' reserve multiplier reaches the clearance through `√(reserve/100)`, and §8.2's numbers show how much the route game now leans on `aerobic_capacity`.
 - **Chalk by rock.** Chalk adds 21.6% friction on every rock; 10 §2 gives 18.7% on limestone. Kalymnos should use the limestone figure, which moves the reference conditions, so it waits for a regrade pass.
 - **Steep, easy, long.** The steepness cap is a rule of thumb on the generator, not a property of rock. M2's floors keep the caves at 6b+ and up, so the cap now mostly shapes the mixed sectors' tufa routes at 6b+–6c+; whether it should go once the content team has a real grade spread per sector is open.
 - **Reach.** M2 found that lines hugged the Reference Climber's static reach, whose lock-off and shoulder mobility are pinned above every preset's: the 163 cm Slab Wizard could not make 93% of the static moves on easy Kalymnos routes, and the 168 cm Late Starter was stranded on footholds out of reach on one route in four. Lines are now traced at 88% of that reach ([22 §2](22-p1a-implementation-notes.md), `p1b-3`): 1–2% and 0% of static moves out of reach, no stranded lines, and the two presets' route estimates rise from 9.1 and 8.7 to 11.2 and 11.3. What remains is smooth: the Slab Wizard trails a 178 cm version of itself (same build and BMI) by 1.2 DI at Font and 1.9 at Kalymnos, the Late Starter by 0.4 and 0.0. The research behind 02 §A puts height's net effect nearer 0.4 DI per 10 cm, because smaller climbers are stronger for their weight, which the game does not model, and the reach term (05b §4.1: 3 DI from 70% to full reach) is steep. Candidates: a softer reach term (Rainbow Rocket moves with it: 24.1 at a maximum of 2.0, 23.7 at 1.5, where C7 wants 24–26) or a strength-to-weight term for smaller bodies.
 - **Skin on boulders.** `skinForce` eases skin wear on easy moves everywhere, which is right for a Font warm-up too; it moved Font careers by one tick in 20. If the P1a skin economy was tuned around full wear on easy problems, retune it with the harness.
 - **Sector choice.** With `SECTOR_REACH = 0` the plan never sends a 6b climber into a cave to try its easiest tufas. A project day could aim one sector higher.
 - **Travel costs.** The fare is the only cost of a trip: no visa, no luggage or crash-pad fee, no jet lag. P2's travel model brings them.
-- **Bundle size.** Both benchmark sets ship in one `routes` chunk, 1.75 MB since lines got denser at `p1b-3` (1.56 MB before); Workbox precaches no file over 2 MiB by default, so a third crag's set would silently drop the chunk from the offline cache. Before P2: a chunk per crag loaded on arrival, a raised `maximumFileSizeToCacheInBytes`, or a leaner route format (holds as tuples).
+- **Bundle size.** Route data ships in one chunk per crag since M4 (§8.3), each under Workbox's 2 MiB precache limit, but every chunk still loads at startup and Kalymnos's is 1.39 MB. Before P2's crags: chunks loaded on arrival at a crag, a leaner route format (holds as tuples), or a build check that fails when a precached file nears the limit.
 - **Watching a long route.** A send plays in about a minute at 1× and a worked route with several falls in up to two (25 §10.8); whether routes default to 2×, or the playback skips to the crux and the falls, is for playtesting.

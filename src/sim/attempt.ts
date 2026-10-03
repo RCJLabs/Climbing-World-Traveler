@@ -3,7 +3,7 @@
 // draft RunState; run.ts owns the reducer around it. Rolls come from stream(run_seed, route_id, attempt, move), so
 // the same attempt from the same state always plays out the same way and replay is exact.
 
-import { aggregateMods, athleteFrom, clamp, type Athlete, type Mods } from './character';
+import { aggregateMods, athleteFrom, clamp, resourceMult, type Athlete, type Mods } from './character';
 import { applyMove, canMantle, CHALK_RULE, chalkNow, prepareMove, shakeNow, stanceHoldCost, stanceRest, type Prepared } from './engine';
 import { boulderKappa, startState } from './grade';
 import {
@@ -99,7 +99,7 @@ export function moveStateOf(run: RunState, at: AttemptState, geom: RouteGeom, at
   const fx = fearEffects(fear, ath.a.composure);
   return {
     pump: at.pump, power: at.power, focus_meter: at.focus_meter, overgrip: fx.overgrip, under: fx.under,
-    energy: run.res.energy, skin: run.res.skin, fam: at.fam,
+    energy: run.res.energy, skin: run.res.skin, fam: at.fam, stakes: at.stakes,
   };
 }
 
@@ -177,7 +177,8 @@ export function newProject(route: Route, day: number): ProjectState {
  * It builds more slowly on a route than on a boulder (k 0.25 vs 0.35).
  */
 export function familiarity(route: Route, project: Pick<ProjectState, 'attempt_eq'> | undefined, ath: Athlete): number {
-  const famBeta = route.signature ? 0.15 : 0;
+  // Other climbers are always on a signature problem, so their beta is there to watch (22 §1), as much as the climber takes in.
+  const famBeta = route.signature ? Math.min(1, 0.15 * ath.mods.beta_mult) : 0;
   const k = (isRoped(route) ? 0.25 : 0.35) * ath.mods.familiarity_k_mult;
   return 1 - (1 - famBeta) * Math.exp(-k * (project?.attempt_eq ?? 0));
 }
@@ -201,7 +202,10 @@ export function startAttempt(run: RunState, seed: string, asked: AttemptMode, bu
   const project = run.projects[route.id] ?? (run.projects[route.id] = newProject(route, run.day));
   if (project.last_day !== run.day) { project.sessions++; project.last_day = run.day; }
   const mode = effectiveMode(project, route, asked);
-  const fam = familiarity(route, project, ath);
+  // An onsight purist minds every go at a route from the fourth (03 §1.9 flags: `redpoint_stoke_penalty`).
+  if (project.attempts >= 3 && ath.mods.redpoint_stoke_penalty) run.res.stoke = clamp(run.res.stoke - ath.mods.redpoint_stoke_penalty, 0, 100);
+  // A free look before the attempt (Visualiser, 03 §2 flags) adds familiarity.
+  const fam = Math.min(1, familiarity(route, project, ath) + ath.mods.visualise_action);
   const pool = powerPool(ath);
   const at: AttemptState = {
     route_seed: seed, route_id: route.id, mode, attempt_index: project.attempts, move_index: 0,
@@ -212,6 +216,9 @@ export function startAttempt(run: RunState, seed: string, asked: AttemptMode, bu
     beta_ptr: 0, moves: 0, hand_moves: 0, fear_log: [], log: [],
   };
   at.pump_form = pumpForm(stream(run.seed, route.id, project.attempts, 'form').normal());
+  // Stakes (03 open question 8): a redpoint go at or above the personal best for the discipline. Comp finals and an
+  // audience come with P2-P3.
+  if (mode === 'redpoint' && route.di_graded >= (isRoped(route) ? run.pb_route : run.pb) - 0.25) at.stakes = true;
   // fear0 = 40 − 0.3 × confidence + context sources (05b §9.1)
   at.fear_base = clamp(40 - 0.3 * ath.a.confidence + ath.mods.fear_add, 0, 100);
   if (mode === 'onsight') addFear(at, ath, 'onsight', 3);
@@ -298,18 +305,21 @@ function resolveMove(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athl
   // Costs (05b §5), paid whatever the outcome.
   const rough = outcome === 'clean' ? 1 : 1.5;
   const pump = e.pump_cost * pumpMult * rough;
-  const skin = e.skin_cost * (outcome === 'sketchy' ? 1.5 : 1);
+  // Cold days split dry skin (Dry Hands, 03 §2 flags; docs/26 §8).
+  const skin = e.skin_cost * (outcome === 'sketchy' ? 1.5 : 1) * (cond.cold ? ath.mods.split_risk_cold : 1);
+  // An overthinker takes longer over each move (03 §2 flags): more time on the route, the reserve drains further.
+  const time = e.time * ath.mods.pre_move_time_mult;
   // On a route the aerobic system clears pump while the climber moves (resolve.ts `climbClear`).
-  const clear = at.rope && hand ? climbClear(ath, e.time, at.aerobic_reserve) : 0;
+  const clear = at.rope && hand ? climbClear(ath, time, at.aerobic_reserve) : 0;
   addPump(at, pump - clear);
   run.res.skin = Math.max(0, run.res.skin - skin);
   at.power = Math.max(0, at.power - e.power_cost);
   if (hand) at.chalk = Math.max(0, at.chalk - CHALK_RULE.wear);
-  at.time_s += e.time;
-  at.aerobic_reserve = Math.max(0, at.aerobic_reserve - e.time / 10);
+  at.time_s += time;
+  at.aerobic_reserve = Math.max(0, at.aerobic_reserve - time / 10);
   at.moves++;
   if (hand) { at.hand_moves++; session.hand_moves++; session.pump_total += pump; }
-  session.time_s += e.time;
+  session.time_s += time;
 
   // Stimulus and technique XP (12 §3, 02 §B.2).
   const cell = matrixCell(spec.kind, prep.cls, spec.type) ?? {};
@@ -352,9 +362,10 @@ function resolveMove(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athl
   }
 
   if (outcome === 'clean') {
-    if (margin < 0.5 * e.T) at.focus_meter = Math.min(100, at.focus_meter + 2);
+    if (margin < 0.5 * e.T) at.focus_meter = Math.min(100, at.focus_meter + 2 * resourceMult(ath.mods, 'focus_meter'));
     calmDown(at, ath);
   } else {
+    at.sketchy = true;
     at.focus_meter = Math.max(0, at.focus_meter - 3);
     addFear(at, ath, 'sketchy move', 4);
     at.pq_penalty = 0.03;
@@ -600,7 +611,7 @@ export function doWallAction(run: RunState, kind: WallActionKind, bundle: DataBu
   }
   // chalk (05b §1): CHALK_RULE's time and chalk back, for a share of the stance's hold cost
   const hc = CHALK_RULE.pumpShare * stanceHoldCost(geom, at.climb);
-  at.chalk = Math.min(100, at.chalk + CHALK_RULE.gain);
+  at.chalk = Math.min(100, at.chalk + CHALK_RULE.gain * resourceMult(ath.mods, 'chalk'));
   addPump(at, hc);
   at.time_s += CHALK_RULE.time;
   session.time_s += CHALK_RULE.time;
@@ -663,8 +674,10 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
       const pyramid = roped ? run.counters.pyramid_route : run.counters.pyramid;
       pyramid[step] = (pyramid[step] ?? 0) + 1;
       if (atPb) nudge(run.attrs, 'confidence', 1);
-      run.res.stoke = clamp(run.res.stoke + (atPb ? 5 : 1), 0, 100);
+      run.res.stoke = clamp(run.res.stoke + (atPb ? 5 : 1) * resourceMult(ath.mods, 'stoke'), 0, 100);
     }
+    // A perfectionist minds a send with a sketchy move in it (03 §2.8, a flag the 03 §1.9 table does not list).
+    if (at.sketchy && ath.mods.sketchy_send_stoke) run.res.stoke = clamp(run.res.stoke + ath.mods.sketchy_send_stoke, 0, 100);
     if (route.di_graded > pb) {
       run.journal.push({ day: run.day, text: `New hardest ${roped ? 'route' : 'send'}: ${route.name}, ${gradeFor(route.di_graded, route.discipline)} (${style}).`, tone: 'good' });
       if (roped) run.pb_route = route.di_graded; else run.pb = route.di_graded;
