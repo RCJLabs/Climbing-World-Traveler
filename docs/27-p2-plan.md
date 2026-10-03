@@ -33,14 +33,19 @@ Related: [01 §4](01-pillars-scope-roadmap.md) · [18](18-tech-architecture.md) 
 | **Content in batches**, through the pipeline ([20](20-content-pipeline.md)), validator rules first | about 30 crags, 32–34 style profiles, 90 signatures and 400 event outcomes are the bulk of P2's work |
 | **One milestone, one or more pull requests, one implementation-notes section** | as P1b ran M1–M4 |
 
-Recommendation: split P2 into **P2a**, the systems at Font and Kalymnos (M0–M5), and **P2b**, the world (M6–M9). P2a ends with a release worth playing for years at two crags; P2b with the exit criterion. See the open questions.
+**Decided:** P2 is cut in two parts, each with its own release and exit ([01 §4](01-pillars-scope-roadmap.md)):
+
+| Part | Milestones | Ends with |
+|---|---|---|
+| **P2a — Systems** | M0–M5, at Font and Kalymnos | a release worth playing for years at two crags. Exit: M2–M5's exit tests hold together on one exit run (§5), and a run saved at M2 continues in the P2a release |
+| **P2b — World** | M6–M9 | 32 live crags, people, events and sponsors. Exit: the P2 exit criterion (§5) |
 
 ## 2. Milestones
 
 | # | Milestone | Implements | Makes live | Exit test |
 |---|---|---|---|---|
 | M0 | Harness at scale | 19 §1–2's missing modes | — | 1,000 ten-year careers at both crags in under 2 hours on 4 workers, with run-end shares and money curves in the report |
-| M1 | Groundwork for a bigger world | 18 §5, 18 §7, 20 §2, schemas §6 | the 10 P2 traits whose systems are already live | Font and Kalymnos load on arrival; a test crag with boulders and routes plays both; a build gate holds every chunk under budget |
+| M1 | Groundwork for a bigger world | 18 §5, 18 §7, 20 §2, schemas §6 | the 10 P2 traits whose systems are already live | Font and Kalymnos load on arrival from their folders; a test crag added as a folder, with no code change, has boulders and routes, plays both and passes its gates; a run saved before the test crag was added continues; a build gate holds every chunk under budget |
 | M2 | Injuries and health | 13; 11 §4's forced retirement; 12 §5's load and injury link | about 20 injury and illness traits, the injury clauses of 4 live traits, 2 acquired | injury rates and the site mix within 13 §1's anchors over 1,000 careers |
 | M3 | Training, aging and run ends | 11, 12 | 6 traits (aging, stoke and burnout, the day planner), acquired Jaded | ten-year careers: median length and run-end shares within the agreed targets (§6) |
 | M4 | Money and gear | 14 §1–4, 14 §8–9 | 5 economy traits | money p10/median/p90 by month and the bankruptcy share within 19 §1's targets |
@@ -66,10 +71,11 @@ Recommendation: split P2 into **P2a**, the systems at Font and Kalymnos (M0–M5
 |---|---|
 | Crag fields | schemas §6's missing fields: `lat`, `lon`, `hub`, `access`, `community_size`, `language`, `gym_tier`, `connectivity`, `climate_class`, `npc_archetypes`, `look` ([25](25-visual-representation.md)) |
 | Mixed crags | discipline by sector and route, not by crag; one grade estimate per discipline (the estimate merges every profile at a crag today); grades shown in the crag's own system ([08](08-grades.md)) |
+| Crags as data | adding a crag is data only, so P2 ships 32 and later releases add more without code (decided, §6). A folder per crag (`data/crags/<id>/`: the crag, sectors, profiles, signatures, name bank, benchmarks), found by a manifest the build makes from the folders; the validator, `pnpm benchmarks` and calibration (C1–C4, C7) run per crag over the manifest, and a crag that fails its own gates does not ship; no crag id in code (the five places that decide a discipline by crag today, §0, read it from the data) |
 | Data on arrival | a crag's routes load when the climber is there. A run never advances at a crag whose data is not loaded: the fallback that generates a missing benchmark set today (`estimate.ts`) would replay differently online and offline |
-| Replay safety | a travel action stores its path, not just its destination; ties between legs break by id, not by file order |
+| Replay safety | a travel action stores its path, not just its destination; ties between legs break by id, not by file order; draws about the world are keyed by crag id (weather, and later NPCs and events per crag), so a crag added by an update shifts no draw at the crags a run already knows |
 | Size | a build check on every chunk (the 2 MiB precache limit, 18 §7's per-crag budget, which 22 leaves open between raw and gzipped); a leaner route format if the Kalymnos chunk (1.39 MB raw) is the measure |
-| Saves | decide P2's policy (§6) and build what it needs before careers grow long |
+| Saves | the adapters (§4), in place before M2, whose runs are the first to survive later releases |
 | Traits | the P2 traits that need nothing new once their flags are registered: Furnace, Cold Blooded, Gaston Goblin, Bounce Back, Brittle, Hibernator, Frugal, Shiny Things, Fuelled, Junk Food |
 | Screens | the title still reads "P1a · Fontainebleau"; a Journal and tick list screen ([17 §5](17-ui-ux.md)) |
 
@@ -164,7 +170,7 @@ The remaining trait rows; a full re-costing at every crag with enough bases to d
 | Topic | Plan |
 |---|---|
 | Determinism | new named streams for injuries, illness, events, NPCs and forecasts, isolated from the move and weather streams (19 §6's isolation test); stored state for anything a reroll must not change: injury windows, event cooldowns, a visit index, candidate order |
-| Saves | every P1b milestone orphaned the runs before it ("listed, not continuable", 22 §4). Careers in P2 last years, so losing them hurts more; §6 asks whether to build 18 §5's adapters |
+| Saves | every P1b milestone orphaned the runs before it ("listed, not continuable", 22 §4). Careers in P2 last years, so from M2 on a release carries runs forward instead (decided, §6; [18 §5](18-tech-architecture.md)). A run records its reducer version and a content hash for each crag whose data it has loaded. A new crag changes no hash a run holds, so the run continues untouched. When the reducer or a used crag's data changes, the newest snapshot goes through one state adapter per version step (new fields at their defaults; a project on a regenerated route keeps its attempts and loses its move familiarity, with a journal line), and the adapted snapshot becomes the run's base: the log continues from it, and the actions before it are kept for export but not replayed. Replaying a whole log through a newer reducer, as 18 §5 first planned, can make a logged action invalid (a climber the new rules injure cannot climb the next day), so no log is replayed across a version step. Each adapter ships with a test that loads an archived save from the version before (19 §6's migration test) |
 | Performance | the reducer on a Web Worker (18 open questions); a measured phone budget for a simulated week (24 open questions); initial JS is about 369 kB gzipped against 18 §7's 250 kB |
 | Validator | about 66 flags in the P2 trait rows are in neither `LIVE_FLAGS` nor `INERT_FLAGS`; each is implemented or registered before its row goes in |
 | Re-costing | after each milestone that makes traits live; at more bases than 26 §10 used, and with `--policy plan` |
@@ -175,7 +181,7 @@ The remaining trait rows; a full re-costing at every crag with enough bases to d
 
 | Part | Measure | Note |
 |---|---|---|
-| Careers | 2,000 ten-year careers with fixed seeds as the exit run; 10,000 as a nightly stretch once M0's speed allows | 10,000 ten-year careers at today's speed take days of CPU; 2,000 give a 15% run-end share to ±0.8 points (one standard error) |
+| Careers | **decided:** 2,000 ten-year careers with fixed seeds as the exit run, for P2a at Font and Kalymnos and for P2b across the atlas; 10,000 as a nightly stretch once M0's speed allows | 10,000 ten-year careers at today's speed take days of CPU; 2,000 give a 15% run-end share to ±0.8 points (one standard error) |
 | Run lengths and ends | median 3–8 years; shares as settled in §6 | 19 §1 and 01 §7 disagree |
 | Injury rates | per 1,000 climbing days by site, career-ending rate, days lost | 19 §1 names the measures but no band; the band comes from 13 §1's anchors in M2 |
 | Grades | by discipline and year, by background and age band; IRCRA shares | 19 §1 gives no numeric band; 22's Climbstat anchors (first 7a at about 1.5 years) |
@@ -185,8 +191,8 @@ The remaining trait rows; a full re-costing at every crag with enough bases to d
 
 | Topic | The docs and code say | Proposal | Needed by |
 |---|---|---|---|
-| How many crags | 01 §4 "≥ 50"; 09 §2 tags 30 P2 rows (32 live) | 32 in P2; 50 once P3 and P4 bring theirs | M6 |
-| Save survival | 18 §5: replay through versioned reducers and adapters; 22 §4: old runs stay listed and cannot continue | adapters from M2 on, when careers become years long | M1 |
+| How many crags | 01 §4 "≥ 50"; 09 §2 tags 30 P2 rows (32 live) | **decided:** 32 in P2 (01 §4 now says so); every crag after them is data only (M1), so P3 and P4 add theirs, and later releases more, without code | M1, M6 |
+| Save survival | 18 §5: replay through versioned reducers and adapters; 22 §4: old runs stay listed and cannot continue | **decided:** state adapters from M2 on, when careers become years long; a run is rebased on its adapted snapshot rather than replayed (§4) | M1 |
 | Run-end targets | 19 §1: injury 15%, death ≤ 5%; 01 §7: injury 10%, death under 3%, median run 3–8 years | 01 §7's | M2 |
 | Forced retirement | 11 §4's triggers need a grade-3 spinal injury (13 has none), HACE or HAPE (P4) or a converted death (P3–P4); only a second grade-3 shoulder after 40 is left | add a back grade 3 that can end a career, or lower the target for P2 | M2 |
 | Injury rates | 13 §5.2's base rates give a 63% pulley chance in two years; 13 §1 says 13% | calibrate the base rates to 13 §1 with the harness | M2 |
@@ -216,15 +222,14 @@ The remaining trait rows; a full re-costing at every crag with enough bases to d
 | Harness speed | every exit test; re-costing 77 more traits | M0's speed work; 2,000-career exit runs; re-costing per milestone, not all at the end |
 | Authoring volume | M6 (sectors for 30 crags, 32–34 profiles, about 90 signatures: Kalymnos's three took a milestone, and steep hard lines meet the sport generator's limits, 26 open questions) and M8 (about 400 outcome texts) | crags in batches; the pipeline's validator first; signatures generated from authored walls, as Kalymnos's were |
 | Bundle | 30 crags shipped as Kalymnos is would be roughly 24–35 MB raw; one sport crag with three profiles would pass 2 MiB and silently leave the offline cache | M1's loading and size gate before M6 |
-| Orphaned saves | every milestone that changes play; every content edit to events in M8 | §6's save policy |
+| Orphaned saves | every milestone that changes play; every content edit to events in M8 | §4's adapters from M2 on; an adapter and an archived-save test per release that changes the reducer or a crag's data |
+| Crags as data | a crag added later that needs something no crag had (a new rock rule, a discipline's first sector) is code after all | M1's per-crag gates catch it at the validator; P3 and P4 crags come with their phases' systems, as 09 tags them |
 | Balance cascades | injuries slow the progress curve (22: first 7a at 0.9 years against about 1.5, now too fast, may come right); the load ratio after a layoff; burnout today barely moves (Font p90 2.6), against a 15% share | calibrate one system at a time, at two crags, before the atlas |
 | Determinism | data that may not be loaded; recomputed travel paths; new streams | M1's replay rules; isolation tests |
 
 ## Open questions
 
-- Whether to split P2 into P2a (M0–M5, systems at two crags) and P2b (M6–M9, the world), with a release between them. Recommendation: yes.
-- The exit run: 2,000 careers, or 10,000 at whatever speed M0 reaches.
-- Save survival across P2: build 18 §5's adapters (recommended from M2), or keep P1's "listed, not continuable".
+- Whether a crag added by an update appears in runs already under way (keyed world draws, M1, make that possible) or only in runs started after it.
 - Which crags make the first batch of M6. A candidate: the bouldering crags nearest Font in style and season (Albarracín, Magic Wood, Ticino), which reuse the most of what Font calibrated.
 - Whether the three mixed crags (Grampians, Red Rocks, Chattanooga) wait for M6c or one of them is M1's test crag.
 - How an event interrupts a simulated week: pause on every event, only on those with trait-gated options, or resolve by a policy the player sets (24 is silent; 15 §4 expects about 2.5 choices a week).

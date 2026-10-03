@@ -67,9 +67,15 @@ All docs in `docs/` written, cross-linked and consistent with [schemas.md](schem
 **Status:** M1, the sport engine, is implemented and the exit criterion holds in calibration test C10, on Font problems of the generator's normal length rather than 20 moves. M2 brings Kalymnos into the game: travel between the two crags, sport sessions and tactics, the grey-wall profile, limestone wet rules and the Rower/Swimmer background. M3 puts the pitch on the cartoon wall: the cliff, the rope, quickdraws, the belayer, clipping, catches and lowering. M4 brings the P1b content: the P1b traits, with every trait effect read by the engine or known to wait for a later phase, and the Grande Grotta's signature routes Priapos, DNA and Aegialis ([26](26-p1b-implementation-notes.md)). After M4, evolving traits and a first re-costing of every live trait over whole careers ([26 §10–11](26-p1b-implementation-notes.md)). P1b's scope is implemented and its exit criterion holds.
 
 ### P2 — World
-**Plan:** [27](27-p2-plan.md): ten milestones, the harness first and the systems at Font and Kalymnos before the atlas; it proposes splitting P2 into P2a (systems) and P2b (the world), and 32 live crags rather than 50 (09 tags 30 rows P2).
-**In:** full atlas (≥ 50 crags), travel graph with cost and time, visas and permits, seasons and the full climate model, injuries and health care, the full training and adaptation model, economy and work, NPC lifecycle and partners, the event deck, sponsorship, remaining traits and backgrounds, aging and all run-end conditions.
-**Exit criterion:** 10k-career harness shows run lengths, injury rates and grade distributions within the target bands in [19](19-balance-and-simulation-testing.md), and no trait outside the 5–60% pick-rate window.
+**Plan:** [27](27-p2-plan.md): ten milestones in two parts, each with its own release: the harness first, then the systems at Font and Kalymnos, then the atlas. Decided: 32 live crags in P2 (09 tags 30 rows P2), with every later crag added as data alone; an exit run of 2,000 ten-year careers, with 10,000 run nightly once the harness is fast enough; and runs saved from milestone M2 on carried across later releases rather than orphaned.
+
+#### P2a — Systems (27 M0–M5)
+**In:** the harness at scale (ten-year careers, run ends, money curves); groundwork for more crags (a folder per crag loaded on arrival, crags with boulders and routes, save adapters); injuries and health care; the full training and adaptation model; aging and all run-end conditions; economy, work and gear; seasons and the full climate model; the traits these systems make live. All at Fontainebleau and Kalymnos.
+**Exit criterion:** 2,000 ten-year careers at Font and Kalymnos show run lengths, run-end shares, injury rates, money curves and grade distributions within the target bands in [19](19-balance-and-simulation-testing.md) and [27 §5–6](27-p2-plan.md), and a run saved at M2 continues in the P2a release.
+
+#### P2b — World (27 M6–M9)
+**In:** the atlas of 32 live crags (≥ 50 once P3 and P4 bring theirs), travel graph with cost and time, visas and permits, NPC lifecycle and partners, the event deck, sponsorship, hidden traits, the remaining P2 traits and backgrounds.
+**Exit criterion:** 2,000 ten-year careers across the atlas show run lengths, injury rates and grade distributions within the target bands in [19](19-balance-and-simulation-testing.md), and no trait outside the 5–60% pick-rate window.
 
 ### P3 — Disciplines
 **In:** trad with gear placement and the danger axis in play; multipitch and big wall with the pitch sampler and logistics; DWS; competitions (boulder and lead formats, isolation, finals).
