@@ -1,9 +1,9 @@
 // Trait re-costing (docs/19 §4, docs/26 §10): the variant a base build gets for a trait, the price-level scale, the
-// verdict (a cost proposal on the trait's own side, the no-op and sign flags, clear only outside the noise), pick rates
-// under the greedy builder, and the caps check.
+// verdict (a cost proposal on the trait's own side, the no-op and sign flags, clear only outside the noise and when the
+// check against base-career luck moves the same way), pick rates under the greedy builder, and the caps check.
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
-import { capsOver, pickRates, priceSlope, proposed, toggled, verdict } from '../src/harness/recost';
+import { capsOver, divergedDelta, pickRates, priceSlope, proposed, toggled, verdict } from '../src/harness/recost';
 import { DEFAULT_OPTIONS, presetSpec } from '../src/sim/presets';
 import type { DataBundle, Trait } from '../src/sim/types';
 
@@ -50,6 +50,26 @@ describe('the verdict (19 §4 steps 2 and 5)', () => {
     expect(verdict(pos, tight(-4), 1)).toMatchObject({ flag: 'sign', clear: false });
     expect(verdict(neg, tight(0), 1)).toMatchObject({ flag: 'no-op', prop: -2, clear: false });
     expect(verdict(neg, tight(-9), 1)).toMatchObject({ prop: -9, clear: true });
+  });
+
+  it('re-costs only when the check proposes a move the same way', () => {
+    const tight = (m: number) => [m - 0.1, m, m + 0.1, m, m - 0.1, m + 0.1];
+    expect(verdict(pos, tight(9), 1, { d: tight(8), slope: 1 }).clear).toBe(true);
+    expect(verdict(pos, tight(9), 1, { d: tight(5), slope: 1 }).clear).toBe(false);
+    expect(verdict(pos, tight(9), 1, { d: tight(2), slope: 1 }).clear).toBe(false);
+    expect(verdict(neg, tight(0), 1, { d: tight(-1), slope: 1 }).flag).toBe('no-op');
+  });
+});
+
+describe('the check against base-career luck (docs/26 §10.3)', () => {
+  it('counts a variant that replays its base career as 0, and measures a diverged one against the median of the draws', () => {
+    const base = { score: 192, hardest: 18, ticks: 100, days: 365 };
+    const diverged = [195, 204, 203, 205, 206].map((score, i) => ({ score, hardest: 18 + i / 10, ticks: 101 + i, days: 365 }));
+    const check = divergedDelta(base, [{ ...base }, { ...base }, ...diverged]);
+    expect(check({ ...base })).toBe(0);
+    // The draws are the base and the five diverged careers: 192, 195, 203, 204, 205, 206; their median is 204.
+    expect(check(diverged[0]!)).toBe(195 - 204);
+    expect(check(diverged[4]!)).toBe(206 - 204);
   });
 });
 

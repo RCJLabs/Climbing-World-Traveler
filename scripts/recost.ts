@@ -14,7 +14,7 @@ import { cpus } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadBundle } from '../src/data/bundle';
 import { runCareer, type CareerConfig } from '../src/harness/career';
-import { capsOver, mean, pickRates, priceSlope, sd, toggled, verdict, type Verdict } from '../src/harness/recost';
+import { capsOver, divergedDelta, mean, pickRates, priceSlope, sd, toggled, verdict, type Lite, type Verdict } from '../src/harness/recost';
 import { sampleBuild } from '../src/harness/sampler';
 import { setRouteCacheMax } from '../src/sim/attempt';
 import { phaseLive } from '../src/sim/character';
@@ -23,8 +23,6 @@ import { cyrb53, stream } from '../src/sim/rng';
 import { PHYSICAL_ATTRS, type AttrId, type DataBundle, type NewRunSpec, type Trait } from '../src/sim/types';
 
 interface Job { key: string; cfg: CareerConfig }
-/** What a paired comparison needs from a career. */
-interface Lite { score: number; hardest: number; ticks: number; days: number }
 
 if (process.env.CWT_RECOST_WORKER) {
   const bundle = loadBundle(false);
@@ -113,7 +111,7 @@ async function main(): Promise<void> {
   console.log(report);
 }
 
-interface Row extends Verdict { t: Trait; n: number; d: number; yard: number; dPb: number; dTicks: number }
+interface Row extends Verdict { t: Trait; n: number; d: number; check: number; checkSe: number; yard: number; dPb: number; dTicks: number }
 
 function analyse(bundle: DataBundle, traits: Trait[], done: Map<string, Lite>, sign: Map<string, number>, m: { n: number; days: number; seed: string; crag: string; mins: number; out: string }): string {
   const L: string[] = [];
@@ -125,33 +123,39 @@ function analyse(bundle: DataBundle, traits: Trait[], done: Map<string, Lite>, s
   const Y = mean(yard);
   const seY = sd(yard) / Math.sqrt(Math.max(1, yard.length));
   const perAttr = attrs.map((a) => ({ a, d: mean(bases.flatMap((i) => { const x = delta(i, `a:${a}`); return x === null ? [] : [x]; })) }));
+  // The check (docs/26 §10.3): each variant against its base's diverged median, so one lucky base career moves no trait.
+  const checkOf = new Map(bases.map((i) => [i, divergedDelta(done.get(`${i}|base`)!, [...done].filter(([k]) => k.startsWith(`${i}|`) && k !== `${i}|base`).map(([, v]) => v))]));
   const raw = traits.map((t) => {
-    const d: number[] = [], pb: number[] = [], tk: number[] = [];
+    const d: number[] = [], d2: number[] = [], pb: number[] = [], tk: number[] = [];
     for (const i of bases) {
       const k = `${i}|t:${t.id}`;
       const v = done.get(k), b = done.get(`${i}|base`)!;
       if (!v) continue;
       const s = sign.get(k)!;
       d.push(s * (v.score - b.score));
+      d2.push(s * checkOf.get(i)!(v));
       pb.push(s * (v.hardest - b.hardest));
       tk.push(s * (v.ticks - b.ticks));
     }
-    return { t, d, pb, tk };
+    return { t, d, d2, pb, tk };
   }).filter((x) => x.d.length > 0);
   const priced = raw.filter((x) => x.t.category !== 'quirk' && x.t.cost !== 0 && x.d.length >= 4);
   const slope = priceSlope(priced.map((x) => ({ cost: x.t.cost, d: x.d })));
+  const slope2 = priceSlope(priced.map((x) => ({ cost: x.t.cost, d: x.d2 })));
   L.push(`# Trait re-costing · ${m.crag} · seed ${m.seed}`);
   L.push('');
   L.push(`${bases.length} base builds × ${m.days} days, paired careers (docs/19 §4); ${done.size} careers, ${m.mins.toFixed(0)} min this session.`);
   L.push('');
-  L.push(`**Scale:** ${slope.toFixed(2)} score points per cost point at today's prices (least squares over ${priced.length} priced traits). 19 §4's yardstick (+5 on one physical attribute, the mean of twelve) reads ${Y.toFixed(2)} ± ${seY.toFixed(2)} points: ${perAttr.map((x) => `${x.a} ${x.d.toFixed(1)}`).join(', ')}.`);
+  L.push(`**Scale:** ${slope.toFixed(2)} score points per cost point at today's prices (least squares over ${priced.length} priced traits); ${slope2.toFixed(2)} for the check against each base's diverged median. 19 §4's yardstick (+5 on one physical attribute, the mean of twelve) reads ${Y.toFixed(2)} ± ${seY.toFixed(2)} points: ${perAttr.map((x) => `${x.a} ${x.d.toFixed(1)}`).join(', ')}.`);
   L.push('');
-  const rows: Row[] = raw.map(({ t, d, pb, tk }) => ({ t, n: d.length, d: mean(d), yard: Y > 0 ? mean(d) / Y : NaN, dPb: mean(pb), dTicks: mean(tk), ...verdict(t, d, slope) }))
-    .sort((a, b) => Math.abs(b.impact - b.t.cost) - Math.abs(a.impact - a.t.cost));
-  L.push('| Trait | cost | impact ± se | 19 §4 cost | re-cost | flag | Δ score | yardstick units | Δ PB (DI) | Δ ticks | pairs |');
-  L.push('|---|---|---|---|---|---|---|---|---|---|---|');
+  const rows: Row[] = raw.map(({ t, d, d2, pb, tk }) => ({
+    t, n: d.length, d: mean(d), check: mean(d2) / slope2, checkSe: sd(d2) / Math.sqrt(Math.max(1, d2.length)) / Math.abs(slope2),
+    yard: Y > 0 ? mean(d) / Y : NaN, dPb: mean(pb), dTicks: mean(tk), ...verdict(t, d, slope, { d: d2, slope: slope2 }),
+  })).sort((a, b) => Math.abs(b.impact - b.t.cost) - Math.abs(a.impact - a.t.cost));
+  L.push('| Trait | cost | impact ± se | check ± se | 19 §4 cost | re-cost | flag | Δ score | yardstick units | Δ PB (DI) | Δ ticks | pairs |');
+  L.push('|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of rows) {
-    L.push(`| ${r.t.id} | ${r.t.cost} | ${r.impact.toFixed(1)} ± ${r.se.toFixed(1)} | ${r.prop} | ${r.clear ? 'yes' : ''} | ${r.flag} | ${r.d.toFixed(1)} | ${r.yard.toFixed(1)} | ${r.dPb.toFixed(2)} | ${r.dTicks.toFixed(0)} | ${r.n} |`);
+    L.push(`| ${r.t.id} | ${r.t.cost} | ${r.impact.toFixed(1)} ± ${r.se.toFixed(1)} | ${r.check.toFixed(1)} ± ${r.checkSe.toFixed(1)} | ${r.prop} | ${r.clear ? 'yes' : ''} | ${r.flag} | ${r.d.toFixed(1)} | ${Number.isNaN(r.yard) ? '—' : r.yard.toFixed(1)} | ${r.dPb.toFixed(2)} | ${r.dTicks.toFixed(0)} | ${r.n} |`);
   }
   L.push('');
   const clearRows = rows.filter((r) => r.clear);
@@ -167,6 +171,6 @@ function analyse(bundle: DataBundle, traits: Trait[], done: Map<string, Lite>, s
   L.push('');
   const caps = capsOver(bundle);
   L.push(`**Caps (19 §4 step 4):** ${caps.length ? `over +30%: ${caps.map((c) => `${c.key} +${(100 * c.total).toFixed(0)}%`).join(', ')}.` : 'no compatible set of traits passes +30% on any hold type or move class.'}`);
-  writeFileSync(`${m.out}/recost-${m.crag}-${m.seed}.json`, JSON.stringify({ slope, yardstick: { Y, seY, perAttr }, rows: rows.map((r) => ({ ...r, t: r.t.id, cost: r.t.cost })) }, null, 1) + '\n');
+  writeFileSync(`${m.out}/recost-${m.crag}-${m.seed}.json`, JSON.stringify({ slope, slope2, yardstick: { Y, seY, perAttr }, rows: rows.map((r) => ({ ...r, t: r.t.id, cost: r.t.cost })) }, null, 1) + '\n');
   return L.join('\n');
 }

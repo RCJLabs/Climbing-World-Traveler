@@ -51,20 +51,46 @@ export interface Verdict {
   prop: number;
   /** 'sign': clearly works against its side; 'no-op': clearly worth under 1.5 points on its side (19 §4 step 2). */
   flag: '' | 'sign' | 'no-op';
-  /** The rounded impact is a different cost, clear of the noise: |impact − cost| > max(1, 2 se), and no flag. */
+  /**
+   * The rounded impact is a different cost, clear of the noise: |impact − cost| > max(1, 2 se), and no flag; and, when
+   * a check is given (the same trait measured against each base's diverged median), its proposal moves the same way.
+   */
   clear: boolean;
 }
 
-/** The verdict on one trait from its paired score changes (each already signed as with − without). */
-export function verdict(t: Pick<Trait, 'category' | 'cost'>, d: readonly number[], slope: number): Verdict {
+/**
+ * The verdict on one trait from its paired score changes (each already signed as with − without). `check` is the
+ * second estimate of the same changes (`divergedDelta`): a re-cost it does not move the same way is not clear.
+ */
+export function verdict(t: Pick<Trait, 'category' | 'cost'>, d: readonly number[], slope: number, check?: { d: readonly number[]; slope: number }): Verdict {
   const impact = mean(d) / slope;
   const se = sd(d) / Math.sqrt(Math.max(1, d.length)) / Math.abs(slope);
   const priced = t.category !== 'quirk' && t.cost !== 0;
   const v = Math.sign(t.cost) * impact;
   const flag: Verdict['flag'] = !priced ? '' : v + 2 * se < 0 ? 'sign' : v + 2 * se < 1.5 ? 'no-op' : '';
   const prop = proposed(t, impact);
-  const clear = priced && !flag && d.length >= 4 && Math.abs(impact - t.cost) > Math.max(1, 2 * se) && prop !== t.cost;
+  const second = check ? proposed(t, mean(check.d) / check.slope) : prop;
+  const clear = priced && !flag && d.length >= 4 && Math.abs(impact - t.cost) > Math.max(1, 2 * se) && prop !== t.cost
+    && Math.sign(second - t.cost) === Math.sign(prop - t.cost);
   return { impact, se, prop, flag, clear };
+}
+
+/** What a paired comparison needs from a career. */
+export interface Lite { score: number; hardest: number; ticks: number; days: number }
+
+const same = (a: Lite, b: Lite) => a.score === b.score && a.hardest === b.hardest && a.ticks === b.ticks && a.days === b.days;
+const median = (xs: readonly number[]) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]!; };
+
+/**
+ * The second estimate of a variant's score change, against base-career luck. A career is fixed by its seed and build,
+ * so a variant whose toggle changes nothing replays the base career exactly and counts 0; one that changes anything
+ * diverges, and from there it is a fresh draw. A diverged variant is measured against the median of every career on
+ * its base that is a draw of its own (the base and the diverged variants), not against the one base career, which can
+ * be lucky or unlucky for every trait at once (docs/26 §10.3).
+ */
+export function divergedDelta(base: Lite, careers: readonly Lite[]): (variant: Lite) => number {
+  const ref = median([base.score, ...careers.filter((c) => !same(c, base)).map((c) => c.score)]);
+  return (v) => (same(v, base) ? 0 : v.score - ref);
 }
 
 /**
