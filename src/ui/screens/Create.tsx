@@ -81,7 +81,7 @@ export function effectText(t: Trait): string[] {
     else if (name === 'stakes_mult') out.push(`${v >= 1 ? 'stronger' : 'weaker'} on a redpoint at your best (×${value})`);
     else if (name === 'pre_move_time_mult') out.push(`slower over each move (×${value})`);
     else if (name === 'visualise_action') out.push(`a look first: familiarity +${v.toFixed(2)}`);
-    else if (name === 'redpoint_stoke_penalty') out.push(`each go after the third on a route costs ${v} stoke`);
+    else if (name === 'redpoint_stoke_penalty') out.push(`each go after the third on a sport route costs ${v} stoke`);
     else if (name === 'sketchy_send_stoke') out.push(`ugly sends cost ${Math.abs(v)} stoke`);
     else if (name === 'mass_shift') out.push(`${v > 0 ? '+' : '−'}${Math.abs(v)} kg`);
     else if (name === 'split_risk_cold') out.push(`skin wears faster on cold days (×${value})`);

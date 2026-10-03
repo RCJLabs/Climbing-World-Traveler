@@ -2,7 +2,7 @@
 // resource it has; the four traits whose downside or whole value needs a later system stay out; the resource
 // multipliers scale regeneration and gain (03 §2); a redpoint go at the personal best carries stakes, which Clutch and
 // Choker bend; Visualiser's look, Overthinker's slow moves, Weightlifter's mass, Dry Hands' cold splits, the stoke
-// Onsight Purist pays for going back to a route and Perfectionist for an ugly send.
+// Onsight Purist pays for going back to a sport route and Perfectionist for an ugly send.
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
 import { atRoute, syntheticRun } from '../src/harness/sim';
@@ -50,11 +50,13 @@ describe('the P1b traits in the data', () => {
     expect(traitEffectErrors({ id: 'later', phase: 'P2', effect: { resource_mult: { health: 1.2 } } })).toEqual([]);
   });
 
-  it('are live at creation, without the four whose downside or whole value needs a later system', () => {
+  it('are live at creation, without those whose downside or whole value needs a later system', () => {
     const p1b = [...bundle.traits.values()].filter((t) => t.phase === 'P1b' && t.kind === 'creation');
-    expect(p1b).toHaveLength(45);
+    expect(p1b).toHaveLength(43);
     for (const id of ['dry_hands', 'clutch', 'zen', 'rope_gun', 'vertigo', 'weightlifter', 'stubborn']) expect(bundle.traits.has(id), id).toBe(true);
     for (const id of ['bendy_shoulders', 'pain_tolerant', 'kneebar_finder', 'downclimber']) expect(bundle.traits.has(id), id).toBe(false);
+    // Nothing they carry is read before P2 (docs/26 §11): kept in the data, not offered at creation.
+    for (const id of ['lucky', 'unlucky', 'cool_head', 'risk_blind']) expect(phaseLive(bundle.traits.get(id)!.phase), id).toBe(false);
   });
 });
 
@@ -165,8 +167,8 @@ describe('the other P1b flags', () => {
   it('Weightlifter: three kilos at creation', () => {
     const spec = presetSpec('dirtbag', DEFAULT_OPTIONS);
     const plain = createRun('w', spec, bundle);
-    // Beta Blind's refund pays for it; it changes no mass.
-    const heavy = createRun('w', { ...spec, traits: [...spec.traits, 'weightlifter', 'beta_blind'] }, bundle);
+    // Slow Hands' refund pays for it; it changes no mass.
+    const heavy = createRun('w', { ...spec, traits: [...spec.traits, 'weightlifter', 'slow_hands'] }, bundle);
     expect(heavy.body.mass_kg - plain.body.mass_kg).toBeCloseTo(3, 9);
   });
 
@@ -182,22 +184,26 @@ describe('the other P1b flags', () => {
     expect(wear(['dry_hands'], 12)).toBeCloseTo(wear([], 12), 9);
   });
 
-  it('Onsight Purist pays two stoke for each go at a route from the fourth', () => {
-    const stokeAfterStart = (traits: string[], before: number) => {
-      const first = runWith(traits);
-      startAttempt(first, seed, 'flash', bundle);
+  it('Onsight Purist pays two stoke for each go at a sport route from the fourth, and nothing at a boulder', () => {
+    const pitch = bundle.benchmarks.get('kalymnos')!.find((r) => r.di_graded < 14)!;
+    registerRoute(pitch);
+    const stokeAfterStart = (traits: string[], before: number, route: Route = pitch) => {
+      const at = (r: Route) => { const run = syntheticRun(referenceAthlete(r.di_graded + 4), 'traits', bundle, traits); atRoute(run, r); return run; };
+      const first = at(route);
+      startAttempt(first, route.seed ?? route.id, 'flash', bundle);
       doWallAction(first, 'jump_off', bundle);
-      const run = runWith(traits);
+      const run = at(route);
       run.projects = first.projects;
-      run.projects[easy.id]!.attempts = before;
+      run.projects[route.id]!.attempts = before;
       run.res.stoke = 50;
-      startAttempt(run, seed, 'redpoint', bundle);
+      startAttempt(run, route.seed ?? route.id, 'redpoint', bundle);
       return run.res.stoke;
     };
     expect(stokeAfterStart(['onsight_purist'], 2)).toBe(50);
     expect(stokeAfterStart(['onsight_purist'], 3)).toBe(48);
     expect(stokeAfterStart(['onsight_purist'], 7)).toBe(48);
     expect(stokeAfterStart([], 7)).toBe(50);
+    expect(stokeAfterStart(['onsight_purist'], 7, easy)).toBe(50);
   });
 
   it('Perfectionist pays three stoke on a send with a sketchy move, none on a clean one', () => {

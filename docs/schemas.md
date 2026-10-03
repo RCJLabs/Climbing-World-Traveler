@@ -178,7 +178,7 @@ type TraitKind = 'creation' | 'hidden' | 'acquired' | 'evolving';
 // What an evolution counts (03 §1.7), each stored with the day it was first counted (RunState.counters.evolve):
 //   practice_falls  deliberate falls: three counted per fall-practice session (a drop to pads, or a lead fall above a bolt)
 //   unhurt_falls    falls in an attempt that cause no injury: a rope fall, or a boulder attempt ending in a fall or pump-off
-//   stakes_sends    sends on an attempt that carried stakes (03 open question 8)
+//   stakes_sends    sends on an attempt that carried stakes and beat the personal best (03 open question 8)
 //   clean_mantles   topout mantles resolved clean
 type EvolveCounter = 'practice_falls' | 'unhurt_falls' | 'stakes_sends' | 'clean_mantles';
 

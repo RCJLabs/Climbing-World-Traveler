@@ -163,7 +163,7 @@ export const resourceMult = (mods: Mods, key: string): number => mods.resource_m
 /** Trait flags the engine reads (03 §2's flag table). `fear_source_mult:` takes a source after the colon. */
 export const LIVE_FLAGS: ReadonlySet<string> = new Set([
   'reach_mult', 'feet_cut_recovery', 'familiarity_k_mult', 'fear_source_mult', 'sending_temp_shift', 'chalk_friction_base',
-  'overchalk_penalty_mult', 'flow_chance_mult', 'reroll_bad_outcome', 'reroll_good_outcome', 'quit_after_fails', 'quit_chance',
+  'overchalk_penalty_mult', 'flow_chance_mult', 'quit_after_fails', 'quit_chance',
   'stoke_hit', 'project_stoke_immunity', 'stakes_mult', 'pre_move_time_mult', 'visualise_action', 'redpoint_stoke_penalty',
   'sketchy_send_stoke', 'mass_shift', 'split_risk_cold', 'beta_mult',
 ]);
@@ -174,6 +174,8 @@ export const LIVE_FLAGS: ReadonlySet<string> = new Set([
  */
 export const INERT_FLAGS: Readonly<Record<string, Phase>> = {
   city_stoke: 'P2', sponsor_appeal_mult: 'P2', good_event_mult: 'P2', bad_event_mult: 'P2', onsight_rep_mult: 'P2',
+  // Parsed into Mods, but nothing rerolls an outcome before P2's injuries and events (docs/26 §11).
+  reroll_bad_outcome: 'P2', reroll_good_outcome: 'P2',
   plastic_mult: 'P3', swim_skill: 'P3',
 };
 

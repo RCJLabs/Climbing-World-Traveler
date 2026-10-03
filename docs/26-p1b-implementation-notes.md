@@ -18,7 +18,7 @@ P1b ships in four milestones, each its own pull request:
 | M2 Kalymnos in the game | sessions at Kalymnos, travel between the two crags, sport session tactics, the `rower_swimmer` background, limestone wet rules, French grades on the screens, a grey-wall profile for the low grades | merged (#23, the reach fix #24) |
 | M3 Watching a pitch | the cartoon wall with the cliff, the rope, quickdraws, the belayer, clipping, catches and lowering ([25 §10.8](25-visual-representation.md)) | merged (#25) |
 | M4 Content | the P1b traits and Kalymnos signature routes | merged (#26; signatures on a project day, #27, §9) |
-| Trait economy | 03 §1.7's evolving traits, 19 §4's re-costing and its first cost pass | this update (§10) |
+| Trait economy | 03 §1.7's evolving traits, 19 §4's re-costing and its first and second cost passes | this update (§10–11) |
 
 After M2, a run can start at Kalymnos (Rower/Swimmer) or travel there from Font and climb its routes by the same week plan. After M3, any rope attempt can be watched on the cartoon wall: the cliff, the bolts and quickdraws, the rope and the belayer, every clip, fall, take and lower. After M4, creation offers the P1b traits, every trait effect in the data is read by the engine or known to wait for a later phase, and the Grande Grotta has its three signature routes. With the trait economy update, Afraid of Falling, Choker and Topout Terror evolve as 03 §1.7 describes, `pnpm recost` measures what every trait is worth over whole careers, and 15 costs follow its first pass.
 
@@ -200,7 +200,7 @@ Measured (25 §10.8): a send plays in 41–79 s at 1× on the benchmarks (median
 | Inert side clauses | a live trait may carry a flag of a system that is not live yet (`INERT_FLAGS`: `onsight_rep_mult`, `swim_skill`, `city_stoke`, `sponsor_appeal_mult`, the event weights, `plastic_mult`) only when the flag is not the trait's downside. Onsight Purist's reputation bonus and Swimmer's swim-out are part of their price and missing from what they give until P2–P3 | [03 §1.3](03-traits.md) |
 | `resource_mult` | read for the first time, with 03 §1.9's meanings: skin overnight and on a rest block, stoke on a send and on a rest day, burnout accrual, chalk per chalk-up, focus gains, and the aerobic reserve and power an attempt starts with. `energy` (it refills to its cap every morning) and `health` (no regeneration before P2's injuries) are refused on a live trait (`INERT_RESOURCES`) | [03 §1.9](03-traits.md), [22 §4](22-p1a-implementation-notes.md) |
 | Stakes | an attempt has stakes when it is a redpoint go on a route at or above the discipline's personal best − 0.25: the redpoint clause of 03 open question 8; comp finals and an audience come with P2–P3. `stakes_mult` adds to `M_trait` like the other multipliers (03 §1.2): Clutch `+0.05`, Choker `−0.06` | [03 open question 8](03-traits.md), [05b §4](05b-move-resolution-and-attempt-loop.md) |
-| New flags | `pre_move_time_mult` (each move's time, and with it the aerobic drain), `visualise_action` (familiarity at the start of every attempt: the free look is always taken), `redpoint_stoke_penalty` (each go at a route from the fourth), `sketchy_send_stoke` (a send with a sketchy move in it; the 03 §1.9 table does not list the flag), `mass_shift` (kg at creation) | [03 §1.9](03-traits.md) |
+| New flags | `pre_move_time_mult` (each move's time, and with it the aerobic drain), `visualise_action` (familiarity at the start of every attempt: the free look is always taken), `redpoint_stoke_penalty` (each go at a route from the fourth; on sport routes only since §11), `sketchy_send_stoke` (a send with a sketchy move in it; the 03 §1.9 table does not list the flag), `mass_shift` (kg at creation) | [03 §1.9](03-traits.md) |
 | `beta_mult` | other climbers' beta exists only on signature problems until partners come (22 §1), so the flag scales that: Stubborn's first look at a signature starts at familiarity `0.075` instead of `0.15` | [03 §1.9](03-traits.md) |
 | `split_risk_cold` | there is no split-tip event before P2's skin injuries, so Dry Hands' winter tax is skin wear `× 1.3` on a cold day | [03 §1.9](03-traits.md), [13](13-injury-and-health.md) |
 | `mass_shift` ceiling | 03 adds `+0.5` strength ceiling per kg, as 02 §A.2 does for the creation slider; neither is implemented, so the shift is mass only | [02 §A.2](02-character-model.md) |
@@ -278,7 +278,7 @@ Measured on the same six probe careers (365 days at Kalymnos, `sampleBuild`, the
 | Counters | `RunState.counters.evolve`: per `EvolveCounter`, the count and the day of the first. Every climber counts, carrying an evolving trait or not, and counts never reset, so Falls Well counts from Falls OK's first practice fall | [schemas §8](schemas.md) |
 | Practice falls | 3 per fall-practice session, the gym block P1a already had (`fall_practice`, 12 §1), which is 03 §1.7's "max 3 per session". No climber takes a deliberate lead fall: the tactics never choose one, and a fall in play is not practice | [03 §1.7](03-traits.md) |
 | Falls without injury | every boulder attempt that ends in a fall or a pump-out, and every fall the rope holds: no fall injures before P2. 03 asks for "unplanned" falls; every fall in play is unplanned | [03 §1.7](03-traits.md), [13](13-injury-and-health.md) |
-| Stakes | a send on an attempt with stakes (§8.1: a redpoint go at or above the personal best − 0.25) | [03 §1.7](03-traits.md) |
+| Stakes | a send on an attempt with stakes (§8.1: a redpoint go at or above the personal best − 0.25); since §11, only one that beats the personal best | [03 §1.7](03-traits.md) |
 | Clean mantles | a topout whose mantle resolves clean ("Topped out."); an ugly mantle still sends and does not count | [03 §1.7](03-traits.md) |
 | When | at the end of a day, after the overnight skin; one stage a day, so a climber who has met both of Afraid of Falling's thresholds becomes Falls OK one evening and Falls Well the next | — |
 | Effects | the new stage's multipliers, fear and flags replace the old stage's at once. Attribute adds are values, not live effects: the old stage's stay where training has taken them, and a gained stage's (Falls Well: composure +4) apply once, on the day it is gained, within the ceilings, which are recomputed then (they otherwise move on birthdays) | [03 §1.7](03-traits.md) |
@@ -421,15 +421,70 @@ With evolution, the 40 sampled Font careers read as the #27 baseline line for li
 
 Checks: typecheck, 195 tests (19 new: 11 in `tests/evolve.test.ts`, 8 in `tests/recost.test.ts`), validate, calibrate `--quick` 13/13, build.
 
+## 11. Trait follow-ups
+
+The design calls §10 left open, decided:
+
+| Topic | Implemented | Why |
+|---|---|---|
+| Gated to P2 | Lucky, Unlucky, Cool Head and Risk Blind stay in the data at phase P2, so creation, the harness sampler and the re-costing leave them out (03 §1.3). The reroll flags Lucky and Unlucky carry move from `LIVE_FLAGS` to `INERT_FLAGS`: they were parsed and never read | none of the four changes a career at either crag (§10.3) |
+| Refunds | Beta Blind −4 → **−2**, Vertigo −6 → **−2** | both change nothing at Font, where six of seven backgrounds start, and cost about ten points at Kalymnos (§10.4). −2 is the least a negative can refund (03 §1.1), so a Font climber still gets two points for nothing |
+| Onsight Purist | its stoke penalty for each go from the fourth applies on sport routes only | a fourth go at a boulder is ordinary, and minding it cost a Font career 1.4 DI of personal best (§10.3) |
+| Choker | its evolution counts a send with stakes only when the send beats the personal best | a send at the best came so often that every Font career shed Choker within 11 weeks (§10.6) |
+| Presets | the Late Starter takes Tight Hips where it had Unlucky | its consequences already say "hips −"; the budget closes at 0 |
+| Versions | `DATA_VERSION` `p1b-6`, `REDUCER_VERSION` 8 | the gating changes which builds are valid, and the two rules how the same actions play out |
+
+### 11.1 Measured
+
+`pnpm recost --n 24 --days 365 --seed 7` again, on the new data: 88 live traits, 2,295 careers, 40 minutes. The bases are drawn within the new costs, so they are 24 new builds, not §10.3's.
+
+| Measure | Result |
+|---|---|
+| Price level | 0.33 score points per trait point over 79 priced traits (0.27 for the check), against 0.23 before: the dear traits now cost more and the free ones less, so cost follows value more closely. The yardstick reads 1.06 ± 0.45 |
+| §10.5's costs | Static Master 11.0 ± 2.5 and Sloper Whisperer 10.1 ± 2.6 at +10; Dancer 31.2 ± 7.1, Quiet Feet 20.5 ± 5.4 and Smear Faith 20.3 ± 4.9, still above the +10 cap; Clumsy Feet −16.5 ± 4.1 at −10; T-Rex Arms −5.2 ± 3.3 (check −9.5 ± 3.2) at −10. The traits at ±2 read about nothing (Rage Quitter 0.0, Jittery −0.2, Afraid of Falling +1.8 ± 1.5, Stiff Shoulders −1.0 ± 1.9, Flow Prone 0.0, Resistance +2.3 ± 1.8, Dirtbag +3.4 ± 2.1) |
+| Onsight Purist | 0.0 at Font: a route trait now |
+| Beta Blind, Vertigo | 0.0 at Font at their −2 floor; the greedy builder takes them, and Rage Quitter, every time |
+| Scatterbrain | *sign* at −2: +5.9 ± 2.3 (check +4.3 ± 1.8), as in §10.3 (+7.0 ± 4.6): a negative that helps at Font. Unverified reading: −10 focus narrows the auto-success band, so more moves are rolled, and the career score rewards the hardest send, a maximum that variance raises |
+| Clear now, not applied | Choker −6 → −2, Topout Terror −3 → −2, Overthinker −4 → −2, Paper Skin −5 → −2, Ice in the Veins +8 → +2, Unflappable +6 → +2, Laser Focus +6 → +2, Swagger +4 → +2, Loves Air +4 → +2, Skin Care Routine +3 → +2. Most are composure, focus and skin traits, which matter little at Font and more on routes (§10.4: Gecko Skin +16.6 ± 11.4 at Kalymnos). By 19 §4 step 6 the four shrinking refunds, Ice in the Veins and Unflappable (Kalymnos agrees on both) could move; the other four need a Kalymnos run. Left for a decision: this pass was to confirm §11's changes |
+
+`pnpm harness --trait choker`, with sends counted only when they beat the best: at Font Choker goes in all 24 careers by median day 98 (56–200), against day 75 (57–151) when a send at the best counted; at Kalymnos in 2 of 8 (days 164 and 217), as before (122 and 248). Harder to shed at Font, by about three weeks at the median: a young career beats its best often.
+
+Checks: typecheck, 195 tests, validate, calibrate `--quick` 13/13, build.
+
+### 11.2 Second pass
+
+§11.1's clear set, decided by 19 §4 step 6. Impacts are §11.1's, in trait points at its price level:
+
+| Trait | Cost | Why |
+|---|---|---|
+| Topout Terror, Overthinker, Paper Skin | −3, −4, −5 → **−2** | clear at Font: +2.8 ± 2.2, +1.9 ± 2.1, −0.2 ± 0.7 (checks +0.3, −0.6, −2.7); a refund that shrinks needs one crag. None was measured at Kalymnos, where skin counts (§10.4), so a sport climber with Paper Skin loses more than it refunds: a negative is priced where it hurts least |
+| Ice in the Veins, Unflappable | +8, +6 → **+2** | clear at Font: +1.6 ± 1.2, +1.3 ± 1.5. A cost that falls moves to the proposal of the crag where the trait is worth most, and Kalymnos proposes +2 for both (+0.6 ± 9.8; −7.7 ± 4.1, §10.4) |
+| Laser Focus, Swagger, Loves Air, Skin Care Routine | held at +6, +4, +4, +3 | clear at Font (+2 each), but not measured at Kalymnos, where focus, confidence, height fear and skin can count; they wait for faster Kalymnos careers ([27](27-p2-plan.md) M0) |
+| Choker | held at −6; its evolution needs **10** sends that beat the best over **≥ 16 weeks** (5 over 8) | §11.1 found −2 clear at Font (−1.4 ± 2.1, check −4.9 ± 2.8): most careers shed it within 14 weeks, so the refund paid for little. Harder to shed rather than cheaper keeps it a handicap worked off over a season; then measured (below) |
+
+With the harder evolution:
+
+| Measure | Font | Kalymnos |
+|---|---|---|
+| `pnpm harness --trait choker` | gone in 17 of 24 careers, median day 230 (179–280), against all 24 by day 98 (56–200) | gone in none of 8, against 2 |
+| `pnpm recost --traits choker`, n 24 | −1.7 ± 2.1, check −6.5 ± 2.5; −0.04 DI of personal best | — |
+
+A run of one trait cannot set its own price level (the slope over one trait returns its cost), so the second row converts the score at §11.1's level (0.33, check 0.27). The two measures disagree: paired with its base, the harder Choker costs a Font career about two points; against each base's diverged median, about six. 19 §4 step 5 moves a cost only when both agree, so Choker stays at −6. At Kalymnos, where it now never goes within a year, it is worth more than its refund (§10.4: −14.0 ± 7.1 with the easier evolution), but a refund grows only to the proposal of the crag where the trait hurts least, which is Font.
+
+The Quiet Lead sample build (03 §4.3) paid for Ice in the Veins with Soft Fingers' refund; at +2 it drops Soft Fingers and closes at 0. The presets carry none of these traits. `DATA_VERSION` stays `p1b-6`, which no released build has carried.
+
+Checks: typecheck, 195 tests, validate, calibrate `--quick` 13/13, build.
+
 ## Open questions
 
-- **Trait costs, second pass.** The first pass (§10.5) moved only what was clear. Next: more bases (the Font runs cost about 4 s a career, Kalymnos 40 s; n 24 at Kalymnos is about 3.5 hours on 4 workers, or faster Kalymnos careers first). Waiting on it: the five technique traits now at the +10 cap and still under-priced at Font (a cap, or a smaller effect); the tier below them (Farm Strong, Proprioceptor, Gym Kid, Clutch, Core of Steel, Bear Hugger, Monkey Arms, each measured at two to three times its cost); Slow Hands and Choker, held because the crags disagree; and Quiet Feet, which reads as harmful on routes at n 8 while Clumsy Feet costs there too.
-- **Free negatives.** Unlucky and Risk Blind change nothing anywhere, Beta Blind and Vertigo nothing at Font, where six of seven backgrounds start: points for free, and the greedy builder takes Unlucky and Beta Blind every time. Lucky and Cool Head are the same nothing at a price. 03 §1.3 says a trait whose system is not live is not selectable; candidates are gating them until injuries, events and danger display exist, or giving route reading and height fear something to do on a boulder.
-- **Onsight Purist.** Its stoke penalty for each go from the fourth lands on boulder sessions, where a fourth go is ordinary, and on every project; the climber's tactics never stop at three. −1.4 DI of personal best at Font in a year, −0.6 at Kalymnos. Candidates: routes only, or tactics that respect it.
+- **Trait costs, third pass.** The first pass (§10.5) and the second (§11.2) moved only what was clear. Next: more bases (the Font runs cost about 4 s a career, Kalymnos 40 s; n 24 at Kalymnos is about 3.5 hours on 4 workers, or faster Kalymnos careers first, 27 M0). Waiting on it: the five technique traits now at the +10 cap and still under-priced at Font (a cap, or a smaller effect); the tier below them (Farm Strong, Proprioceptor, Gym Kid, Clutch, Core of Steel, Bear Hugger, Monkey Arms, each measured at two to three times its cost); Slow Hands, held because the crags disagree; Laser Focus, Swagger, Loves Air and Skin Care Routine, clear at Font and never measured at Kalymnos; Topout Terror, Overthinker and Paper Skin, priced at Font alone; Choker, whose two measures disagree at Font (§11.2); and Quiet Feet, which reads as harmful on routes at n 8 while Clumsy Feet costs there too.
+- **Free negatives.** Unlucky and Risk Blind wait for P2 since §11. Beta Blind and Vertigo still change nothing at Font at their −2 floor, and Rage Quitter now reads the same: the greedy builder takes all three every time (§11.1). Giving route reading and height fear something to do on a boulder (highballs, hidden holds that matter) would end it; so would a negative's refund depending on the start crag, which the design does not have.
+- **Onsight Purist.** Since §11 its stoke penalty lands on sport routes only, and at Font it reads 0. At Kalymnos it still costs a projecting climber (−0.6 DI of personal best before §11), because the climber's tactics never stop at three goes; tactics that respect it would make it the trade its name promises.
+- **Variance and the score.** Scatterbrain (−10 focus) helps a Font career (§10.3, §11.1). The career score rewards the hardest send, a maximum, so anything that adds dice can pay; whether the score should weigh the pyramid more (16 §7's depth) is a design question for P2's score.
 - **Who the costs are for.** The technique traits are worth five to ten times more to the project bot than to the volume bot. The re-costing averages the two; a `--policy plan` (19 open questions) would price for the default week, whose personal best comes from its project days.
 - **Anaerobic capacity.** +5 moves careers by −0.7 score at Font and −1.6 at Kalymnos, and Resistance (+8) is worth nothing at either: the power pool barely binds for the climber's tactics.
 - **Steep, long and hard.** The sport generator's base search stops 8 DI under the grade, so a pitch that is steep all the way cannot be made easy enough off its cruxes for the top grades: Aegialis had to be gentler than the cave's steepest lines. The tufa profile rarely draws such walls (procedural Grande Grotta routes at DI 25–28: length-weighted mean angles 100–117°, steepest segments up to 144°, at most 1 in 8 needing an off-target retry), so it bites only on an authored wall; it also means the Grande Grotta's procedural routes are no steeper than any other tufa sector's. Candidates: a floor set by the profile's easiest holds rather than relative to the grade, more rests on steep ground (kneebars, with Kneebar Finder), or a steeper profile for the caves.
-- **Evolving traits.** At Font, Choker and Topout Terror go within about 11 and 5 weeks for any climber who climbs regularly: their minimum weeks bind, not their counts, so their refunds (−6 and −3) buy two or three months of a small penalty. At Kalymnos Choker stays (2 of 8 careers lost it, both projecting), and there it costs about 0.36 DI of personal best. Harder counts (stakes above the personal best, not at it; topouts on problems near the grade) would make them last. Fall practice is not in the default week, so a player who never plans it keeps Afraid of Falling; and the bot works rather than practises on its money-short days off, so 7 of 24 Font careers never reached Falls OK.
+- **Evolving traits.** Choker now needs ten sends that beat the best over sixteen weeks (§11.2): at Font it goes in 17 of 24 careers, by day 230 at the median, and at Kalymnos in none, so a sport climber who takes it keeps it, for a refund priced at Font. Topout Terror goes within about 5 weeks at Font, and at −2 refunds the least a negative can. Fall practice is not in the default week, so a player who never plans it keeps Afraid of Falling; and the bot works rather than practises on its money-short days off, so 7 of 24 Font careers never reached Falls OK.
 - **The ledge term.** 05b §11's `+0.4` for any ledge in a fall's path makes every ledge a bold route, however short the fall onto it would be. A term that grows with the fall's length below the ledge top would let ledges back into the profile at a natural rate.
 - **Play against grade on a route.** Play sends about six points more than the grade engine on average, and single routes differ by up to about 25 points: a long line is a chain of threshold tactics (shake at pump 35, chalk at 35, the clipping stance) that the expected-value walk follows down one path while play follows many. Candidates: a finer DI grid or logit interpolation for the steep pump-out curves, and fewer hard thresholds in the tactics.
 - **Recovery on the move.** The clearance uses `aerobic_capacity` only; physiologically, critical force is forearm-local, which in this game is closer to `finger_endurance`, already in `fe_mod`. M4 left it alone: Bellows' reserve multiplier reaches the clearance through `√(reserve/100)`, and §8.2's numbers show how much the route game now leans on `aerobic_capacity`.
