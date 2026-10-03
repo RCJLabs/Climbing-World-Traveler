@@ -17,6 +17,8 @@ import { DEFAULT_OPTIONS } from '../src/sim/presets';
 import { stream } from '../src/sim/rng';
 
 interface Job { index: number; cfg: CareerConfig }
+/** This script's own file: a worker is a fork of it, under tsx when it is TypeScript (scripts/bundled.ts runs a bundle). */
+const SELF = fileURLToPath(import.meta.url);
 
 if (process.env.CWT_HARNESS_WORKER) {
   const bundle = loadBundle(false);
@@ -61,7 +63,7 @@ async function main(): Promise<void> {
   const results: CareerResult[] = new Array(n);
   await Promise.all(Array.from({ length: workers }, (_, w) => new Promise<void>((resolve, reject) => {
     const mine = jobs.filter((_, i) => i % workers === w);
-    const child = fork(fileURLToPath(import.meta.url), [], { execArgv: ['--import', 'tsx'], env: { ...process.env, CWT_HARNESS_WORKER: '1' } });
+    const child = fork(SELF, [], { execArgv: SELF.endsWith('.ts') ? ['--import', 'tsx'] : [], env: { ...process.env, CWT_HARNESS_WORKER: '1' } });
     child.on('message', (m: { done?: boolean; index?: number; result?: CareerResult }) => {
       if (m.done) { child.kill(); resolve(); return; }
       results[m.index!] = m.result!;

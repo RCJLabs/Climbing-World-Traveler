@@ -23,6 +23,8 @@ import { cyrb53, stream } from '../src/sim/rng';
 import { PHYSICAL_ATTRS, type AttrId, type DataBundle, type NewRunSpec, type Trait } from '../src/sim/types';
 
 interface Job { key: string; cfg: CareerConfig }
+/** This script's own file: a worker is a fork of it, under tsx when it is TypeScript (scripts/bundled.ts runs a bundle). */
+const SELF = fileURLToPath(import.meta.url);
 
 if (process.env.CWT_RECOST_WORKER) {
   const bundle = loadBundle(false);
@@ -95,7 +97,7 @@ async function main(): Promise<void> {
   const baseOf = (j: Job) => Number(j.key.split('|')[0]);
   await Promise.all(Array.from({ length: Math.min(workers, todo.length) }, (_, w) => new Promise<void>((resolve, reject) => {
     const mine = todo.filter((j) => baseOf(j) % workers === w);
-    const child = fork(fileURLToPath(import.meta.url), [], { execArgv: ['--import', 'tsx'], env: { ...process.env, CWT_RECOST_WORKER: '1' } });
+    const child = fork(SELF, [], { execArgv: SELF.endsWith('.ts') ? ['--import', 'tsx'] : [], env: { ...process.env, CWT_RECOST_WORKER: '1' } });
     child.on('message', (m: { done?: boolean; key?: string; lite?: Lite }) => {
       if (m.done) { child.kill(); resolve(); return; }
       done.set(m.key!, m.lite!);
