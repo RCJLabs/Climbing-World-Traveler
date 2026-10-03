@@ -178,7 +178,7 @@
   "name": "T-Rex Arms",
   "category": "body",
   "kind": "creation",
-  "cost": -4,
+  "cost": -10,
   "phase": "P1a",
   "tags": [
    "reach",
@@ -376,7 +376,7 @@
   "name": "Sloper Whisperer",
   "category": "aptitude",
   "kind": "creation",
-  "cost": 5,
+  "cost": 10,
   "phase": "P1a",
   "tags": [
    "sloper",
@@ -455,7 +455,7 @@
   "name": "Static Master",
   "category": "aptitude",
   "kind": "creation",
-  "cost": 5,
+  "cost": 10,
   "phase": "P1a",
   "tags": [
    "static",
@@ -538,7 +538,7 @@
   "name": "Smear Faith",
   "category": "aptitude",
   "kind": "creation",
-  "cost": 4,
+  "cost": 10,
   "phase": "P1a",
   "tags": [
    "slab",
@@ -563,7 +563,7 @@
   "name": "Quiet Feet",
   "category": "aptitude",
   "kind": "creation",
-  "cost": 5,
+  "cost": 10,
   "phase": "P1a",
   "tags": [
    "footwork",
@@ -588,7 +588,7 @@
   "name": "Clumsy Feet",
   "category": "aptitude",
   "kind": "creation",
-  "cost": -5,
+  "cost": -10,
   "phase": "P1a",
   "tags": [
    "footwork"
@@ -718,7 +718,7 @@
   "name": "Afraid of Falling",
   "category": "mental",
   "kind": "evolving",
-  "cost": -6,
+  "cost": -2,
   "phase": "P1a",
   "tags": [
    "fear",
@@ -759,7 +759,7 @@
   "name": "Flow Prone",
   "category": "mental",
   "kind": "creation",
-  "cost": 5,
+  "cost": 2,
   "phase": "P1a",
   "tags": [
    "flow",
@@ -820,7 +820,7 @@
   "name": "Rage Quitter",
   "category": "mental",
   "kind": "creation",
-  "cost": -5,
+  "cost": -2,
   "phase": "P1a",
   "tags": [
    "patience",
@@ -933,7 +933,7 @@
   "name": "Scatterbrain",
   "category": "mental",
   "kind": "creation",
-  "cost": -5,
+  "cost": -2,
   "phase": "P1a",
   "tags": [
    "focus"
@@ -953,7 +953,7 @@
   "name": "Dirtbag",
   "category": "lifestyle",
   "kind": "creation",
-  "cost": 5,
+  "cost": 2,
   "phase": "P1a",
   "tags": [
    "money",
@@ -1032,7 +1032,7 @@
   "name": "Dancer",
   "category": "history",
   "kind": "creation",
-  "cost": 5,
+  "cost": 10,
   "phase": "P1a",
   "tags": [
    "footwork",
@@ -1402,7 +1402,7 @@
   "name": "Stiff Shoulders",
   "category": "body",
   "kind": "creation",
-  "cost": -4,
+  "cost": -2,
   "phase": "P1b",
   "tags": [
    "flexibility"
@@ -1602,7 +1602,7 @@
   "name": "Resistance",
   "category": "aptitude",
   "kind": "creation",
-  "cost": 5,
+  "cost": 2,
   "phase": "P1b",
   "tags": [
    "endurance",
@@ -2008,7 +2008,7 @@
   "name": "Jittery",
   "category": "mental",
   "kind": "creation",
-  "cost": -5,
+  "cost": -2,
   "phase": "P1b",
   "tags": [
    "fear"
