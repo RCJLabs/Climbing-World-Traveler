@@ -1,146 +1,155 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
-import { C, drawWall, type FrameExtras, type Layout, type WallView } from './render';
-import { drop, ease, fallenPose, frameFor, lerpPose, poseOf, toppedPose, wallBounds, ZOOM_RANGE, type MotionStyle, type P, type Pose } from './pose';
+import { easeCam, frameFor, toScreen, ZOOM_RANGE, type Cam, type P2 } from './camera';
+import { ease } from './moves';
+import { endingMs, momentAt, stepMs, type Playback } from './playback';
+import { drawToon } from './toon';
 
-/** How the attempt ends, for the last animation before the result screen. */
-export type Ending = 'fall' | 'send' | 'off' | null;
+/** The start pose shows this long before the first move, and each move's end pose holds this long, at 1× (ms). **(tune)** */
+export const START_MS = 600;
+export const DWELL_MS = 250;
+/** The last frame of the ending holds this long before the result. */
+export const AFTER_MS = 450;
+/** The camera follows the climber with this time constant (ms), and a drag eases back to the climber over this long. */
+const FOLLOW_MS = 140;
+const PAN_BACK_MS = 500;
 
-export interface WallMotion {
-  /** Changes on every step of the playback, so a slip that does not move the body still shows. */
-  step: number;
-  style: MotionStyle;
-  shake: boolean;
-  /** Playback speed: 1, 2 or 4. */
-  speed: number;
+interface Clock {
+  /** The step playing, how far into it (ms at 1×), the ending's progress (ms, −1 before it), done. */
+  i: number;
+  ms: number;
+  ending: number;
+  done: boolean;
+  last: number;
+  /** A drag in force when this step started, eased back to the climber; `held` while the player keeps one. */
+  panFrom: P2;
+  held: boolean;
 }
 
-/** 17 §2: a move animates in 250 ms; a dynamic move gets longer so the launch reads. At 2× or 4× they shorten. */
-const MOVE_MS = 250;
-const DYNAMIC_MS = 420;
-const SHAKE_MS = 320;
-export const ENDING_MS = 700;
-
-interface Anim { from: Pose; to: Pose; t0: number; dur: number; style: MotionStyle; shake: number; panFrom: P }
-
 /**
- * The wall, playing a simulated attempt back (docs/24 §5). Poses animate between the states it is given; the camera
- * follows the climber and can be pinched (0.6–2.5×), dragged and double-tapped back to the climber (17 §2). Nothing on
- * the wall changes the climb.
+ * The cartoon wall playing a simulated attempt (docs/24 §5, 25 §10). It keeps the playback clock: each step plays for
+ * its move's time (`stepMs`) divided by the speed and holds briefly, then the ending plays. The camera follows the
+ * climber and can be pinched (0.6–2.5×), dragged and double-tapped back to the climber (17 §2). Nothing on the wall
+ * changes the climb.
  */
 export function WallCanvas(props: {
-  view: WallView; label: string; motion: WallMotion; ending: Ending; reduceMotion: boolean; children?: ComponentChildren;
+  pb: Playback;
+  /** Hidden holds the climber has not found: not drawn. */
+  hidden: ReadonlySet<string>;
+  label: string;
+  /** Playback speed: 1, 2 or 4. */
+  speed: number;
+  /** Each step snaps to its end pose. */
+  reduceMotion: boolean;
+  /** A step has started: frame `i` is on the wall. */
+  onStep: (i: number) => void;
+  /** The ending has started. */
+  onEnding: () => void;
+  /** The ending has played. */
+  onDone: () => void;
+  children?: ComponentChildren;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
-  const layout = useRef<Layout | null>(null);
-  const view = useRef(props.view);
-  view.current = props.view;
-  const shown = useRef<Pose | null>(null);
-  const anim = useRef<Anim | null>(null);
-  const ending = useRef<{ kind: Exclude<Ending, null>; from: Pose; t0: number } | null>(null);
+  const live = useRef(props);
+  live.current = props;
   const raf = useRef(0);
   const zoom = useRef(1);
-  const pan = useRef<P>([0, 0]);
-  const lastStep = useRef(props.motion.step);
-  const lastKey = useRef('');
-  const reduce = useRef(props.reduceMotion);
-  reduce.current = props.reduceMotion;
+  const pan = useRef<P2>([0, 0]);
+  const cam = useRef<Cam | null>(null);
+  const clock = useRef<Clock>({ i: 0, ms: 0, ending: -1, done: false, last: 0, panFrom: [0, 0], held: false });
+  const touching = useRef(false);
 
-  const paint = (now = performance.now()) => {
+  const paint = (now: number, dt: number) => {
     const c = canvas.current;
     const w = wrap.current;
-    if (!c || !w) return false;
-    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    if (!c || !w) return;
+    // Two device pixels per CSS pixel at most: the cartoon's thick lines do not need three, and fill costs per pixel.
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
     const cw = w.clientWidth;
     const ch = w.clientHeight;
-    if (cw === 0 || ch === 0) return false;
+    if (cw === 0 || ch === 0) return;
     if (c.width !== Math.round(cw * dpr) || c.height !== Math.round(ch * dpr)) {
       c.width = Math.round(cw * dpr);
       c.height = Math.round(ch * dpr);
     }
     const ctx = c.getContext('2d');
-    if (!ctx) return false;
+    if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const v = view.current;
-    let pose = poseOf(v.geom, v.ath, v.climb);
-    let running = false;
-    let banner: FrameExtras['banner'];
-    const a = anim.current;
-    if (a) {
-      const t = Math.min(1, (now - a.t0) / a.dur);
-      pose = lerpPose(a.from, a.to, t, a.style);
-      if (a.shake > 0) {
-        const j = 0.035 * Math.sin(t * Math.PI * 7) * (1 - t);
-        pose = { ...pose, sh: [pose.sh[0] + j, pose.sh[1]], hip: [pose.hip[0] + j, pose.hip[1]] };
+    const { pb, reduceMotion, hidden } = live.current;
+    const k = clock.current;
+    const last = pb.bodies.length - 1;
+    const m = k.ending >= 0 && pb.ending
+      ? momentAt(pb, last, 1, reduceMotion ? 1 : Math.min(1, k.ending / endingMs(pb.ending.kind)))
+      : momentAt(pb, k.i, k.i === 0 || reduceMotion ? 1 : Math.min(1, k.ms / stepMs(pb.steps[k.i]!)));
+    if (!touching.current && !k.held) {
+      const back = 1 - ease(Math.min(1, k.ms / PAN_BACK_MS));
+      pan.current = [k.panFrom[0] * back, k.panFrom[1] * back];
+    }
+    const target = frameFor(m.focus, cw, ch, pb.bounds, zoom.current, pan.current);
+    cam.current = cam.current && !touching.current && !reduceMotion ? easeCam(cam.current, target, 1 - Math.exp(-dt / FOLLOW_MS)) : target;
+    const cm = cam.current;
+    drawToon(ctx, cw, ch, toScreen(cm, cw, ch), cm.scale, { proj: pb.proj, block: pb.block, geom: pb.geom, joints: m.joints, fx: m.fx, touched: m.touched, hidden, target: m.target, time: now / 1000 });
+  };
+
+  const tick = (now: number) => {
+    const k = clock.current;
+    const { pb, speed } = live.current;
+    const dt = k.last ? Math.min(100, now - k.last) : 0;
+    k.last = now;
+    if (!k.done) {
+      if (k.ending < 0) {
+        k.ms += dt * speed;
+        const dur = (k.i === 0 ? START_MS : stepMs(pb.steps[k.i]!)) + DWELL_MS;
+        if (k.ms >= dur) {
+          if (k.i < pb.bodies.length - 1) {
+            k.i++;
+            k.ms = 0;
+            k.panFrom = [...pan.current];
+            k.held = false;
+            live.current.onStep(k.i);
+          } else if (pb.ending) {
+            k.ending = 0;
+            live.current.onEnding();
+          } else {
+            k.done = true;
+            live.current.onDone();
+          }
+        }
+      } else {
+        k.ending += dt * speed;
+        if (!pb.ending || k.ending >= endingMs(pb.ending.kind) + AFTER_MS * speed) {
+          k.done = true;
+          live.current.onDone();
+        }
       }
-      pan.current = [a.panFrom[0] * (1 - t), a.panFrom[1] * (1 - t)];
-      if (t >= 1) anim.current = null; else running = true;
     }
-    const e = ending.current;
-    if (e) {
-      const t = Math.min(1, (now - e.t0) / ENDING_MS);
-      const top = v.geom.route.wall[v.geom.route.wall.length - 1]!.y1;
-      const to = e.kind === 'send' ? toppedPose(e.from, top) : fallenPose(e.from);
-      // Falls accelerate; a top-out eases. The word goes where the body is not: below a top-out, above a fall.
-      pose = lerpPose(e.from, to, t, {}, e.kind === 'send' ? ease : drop);
-      banner = e.kind === 'send' ? { text: 'SENT', colour: C.safe, alpha: Math.min(1, t * 2), y: 0.78 }
-        : { text: e.kind === 'off' ? 'OFF' : 'FELL', colour: C.danger, alpha: Math.min(1, t * 2), y: 0.2 };
-      running = running || t < 1;
-    }
-    shown.current = pose;
-    const cam = frameFor(pose, cw, ch, wallBounds(v.geom), zoom.current, pan.current);
-    layout.current = drawWall(ctx, cw, ch, v, pose, cam, { envelope: false, banner });
-    // Dev-only: where holds and limbs are on screen, for browser tests.
-    if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__cwtWall = layout.current;
-    return running;
+    paint(now, dt);
+    if (!k.done) raf.current = requestAnimationFrame(tick);
   };
 
-  const loop = () => {
+  // A new attempt starts the clock from its first frame.
+  useEffect(() => {
+    clock.current = { i: 0, ms: 0, ending: -1, done: false, last: 0, panFrom: [0, 0], held: false };
+    cam.current = null;
+    zoom.current = 1;
+    pan.current = [0, 0];
     cancelAnimationFrame(raf.current);
-    const tick = (now: number) => { if (paint(now)) raf.current = requestAnimationFrame(tick); };
     raf.current = requestAnimationFrame(tick);
-  };
+    return () => cancelAnimationFrame(raf.current);
+  }, [props.pb]);
 
   useEffect(() => {
-    const ro = new ResizeObserver(() => paint());
+    // The comic lettering's font, before the first word goes up.
+    void document.fonts?.load('20px Bangers').catch(() => undefined);
+    const ro = new ResizeObserver(() => { if (clock.current.done) paint(performance.now(), 0); });
     if (wrap.current) ro.observe(wrap.current);
-    return () => { ro.disconnect(); cancelAnimationFrame(raf.current); };
+    return () => ro.disconnect();
   }, []);
-
-  // A new state animates from what is on screen now; a slip that keeps the body in place still shakes it.
-  useEffect(() => {
-    const v = props.view;
-    const key = JSON.stringify(v.climb);
-    const target = poseOf(v.geom, v.ath, v.climb);
-    const stepped = props.motion.step !== lastStep.current;
-    lastStep.current = props.motion.step;
-    const moved = lastKey.current !== '' && key !== lastKey.current;
-    lastKey.current = key;
-    if (!reduce.current && shown.current && (moved || (stepped && props.motion.shake))) {
-      const dynamic = props.motion.style.cls === 'dyno' || props.motion.style.cls === 'deadpoint';
-      const dur = (moved ? (dynamic ? DYNAMIC_MS : MOVE_MS) : SHAKE_MS) / Math.max(1, props.motion.speed);
-      anim.current = {
-        from: shown.current, to: target, t0: performance.now(), dur,
-        style: moved ? props.motion.style : {}, shake: props.motion.shake ? 1 : 0, panFrom: pan.current,
-      };
-      loop();
-    } else {
-      if (moved) pan.current = [0, 0];
-      paint();
-    }
-  });
-
-  useEffect(() => {
-    if (props.ending && shown.current && !reduce.current) {
-      ending.current = { kind: props.ending, from: shown.current, t0: performance.now() };
-      loop();
-    }
-  }, [props.ending]);
 
   // Gestures: one finger pans, two fingers pinch; double-tap recentres.
   const pointers = useRef(new Map<number, { x: number; y: number }>());
-  const gesture = useRef<{ x0: number; y0: number; moved: boolean; pan0: P; zoom0: number; d0: number; mid0: [number, number] } | null>(null);
+  const gesture = useRef<{ x0: number; y0: number; moved: boolean; pan0: P2; zoom0: number; d0: number; mid0: [number, number] } | null>(null);
   const lastTap = useRef<{ t: number; x: number; y: number } | null>(null);
   const local = (e: PointerEvent): [number, number] => {
     const r = canvas.current!.getBoundingClientRect();
@@ -150,6 +159,7 @@ export function WallCanvas(props: {
     const ps = [...pointers.current.values()];
     return { d: Math.hypot(ps[0]!.x - ps[1]!.x, ps[0]!.y - ps[1]!.y), mid: [(ps[0]!.x + ps[1]!.x) / 2, (ps[0]!.y + ps[1]!.y) / 2] as [number, number] };
   };
+  const repaint = () => { if (clock.current.done) paint(performance.now(), 0); };
   const onDown = (e: PointerEvent) => {
     const [x, y] = local(e);
     canvas.current?.setPointerCapture?.(e.pointerId);
@@ -162,25 +172,26 @@ export function WallCanvas(props: {
     if (!g || !pointers.current.has(e.pointerId)) return;
     const [x, y] = local(e);
     pointers.current.set(e.pointerId, { x, y });
-    const scale = layout.current?.scale ?? 100;
+    const scale = cam.current?.scale ?? 100;
     if (pointers.current.size >= 2 && g.d0 > 0) {
       const { d, mid } = spread();
       zoom.current = Math.min(ZOOM_RANGE[1], Math.max(ZOOM_RANGE[0], (g.zoom0 * d) / g.d0));
       pan.current = [g.pan0[0] - (mid[0] - g.mid0[0]) / scale, g.pan0[1] + (mid[1] - g.mid0[1]) / scale];
-      g.moved = true;
-      paint();
     } else if (pointers.current.size === 1) {
       if (!g.moved && Math.hypot(x - g.x0, y - g.y0) < 8) return;
-      g.moved = true;
       pan.current = [g.pan0[0] - (x - g.x0) / scale, g.pan0[1] + (y - g.y0) / scale];
-      paint();
-    }
+    } else return;
+    g.moved = true;
+    touching.current = true;
+    clock.current.held = true;
+    repaint();
   };
   const onUp = (e: PointerEvent) => {
     const g = gesture.current;
     pointers.current.delete(e.pointerId);
     if (pointers.current.size > 0) return;
     gesture.current = null;
+    touching.current = false;
     if (!g || g.moved) return;
     const [x, y] = local(e);
     const now = performance.now();
@@ -190,14 +201,16 @@ export function WallCanvas(props: {
       // Double-tap: back to the climber at the default zoom.
       zoom.current = 1;
       pan.current = [0, 0];
+      clock.current.panFrom = [0, 0];
+      clock.current.held = false;
       lastTap.current = null;
-      paint();
+      repaint();
     }
   };
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
     zoom.current = Math.min(ZOOM_RANGE[1], Math.max(ZOOM_RANGE[0], zoom.current * Math.exp(-e.deltaY * 0.0015)));
-    paint();
+    repaint();
   };
 
   return (

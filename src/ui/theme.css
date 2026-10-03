@@ -18,6 +18,7 @@
   --font: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --cond: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --toon: 'Baloo 2', 'Barlow', system-ui, sans-serif;
   --pad: 16px;
   --radius: 12px;
   color-scheme: dark;
@@ -177,3 +178,25 @@ button.card:hover { border-color: #55558a; }
 .pyramid .bar { height: 14px; background: var(--accent); border-radius: 3px; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* The cartoon watch screen (docs/25 §10): ink outlines, sky and paper, chunky meters, the commentary in a bubble. */
+.toon { --ink: #2b2340; --paper: #fff8ea; --chalk: #ffffff; --muted: #7d7591; font-family: var(--toon); color: var(--ink); background: #7fd3f7; }
+.toon .top { background: #7fd3f7; border-bottom: 3px solid var(--ink); }
+.toon .card-title { font-weight: 800; font-size: 18px; line-height: 1.15; }
+.toon .top .tiny { color: #2b2340; opacity: 0.8; font-weight: 600; }
+.toon .chip-btn { background: #fff; border: 2.5px solid var(--ink); color: var(--ink); font-weight: 800; box-shadow: 2px 2px 0 var(--ink); }
+.toon .wall-wrap { background: #7fd3f7; }
+.toon .hud { background: var(--paper); border-top: 3px solid var(--ink); color: var(--ink); }
+.toon .commentary { background: #fff; border: 2.5px solid var(--ink); border-radius: 14px; padding: 6px 10px; box-shadow: 3px 3px 0 var(--ink); line-height: 1.25; }
+.toon .commentary .now { font-weight: 700; }
+.toon .commentary .muted { color: var(--muted); }
+.toon .meter-label { color: var(--ink); font-family: var(--toon); font-weight: 800; font-size: 12px; letter-spacing: 0.02em; }
+.toon .meter-track { height: 13px; border-radius: 8px; border: 2.5px solid var(--ink); background: #e9dfca; }
+.toon .meter-fill { border-radius: 0; }
+.toon .meter-band { background: rgba(46, 196, 182, 0.35); border-color: #1f9e93; }
+.toon .chip { background: #fff; border: 2px solid var(--ink); color: var(--ink); border-radius: 999px; font-weight: 700; padding: 1px 8px; }
+.toon .seg { border: 2.5px solid var(--ink); border-radius: 12px; background: #fff; box-shadow: 2px 2px 0 var(--ink); }
+.toon .seg button { color: var(--ink); font-weight: 800; }
+.toon .seg button[aria-pressed='true'] { background: #ffd93d; color: var(--ink); }
+.toon .btn { background: #ffd93d; color: var(--ink); border: 2.5px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); font-weight: 800; }
+.toon .circuit { border-color: var(--ink); }
