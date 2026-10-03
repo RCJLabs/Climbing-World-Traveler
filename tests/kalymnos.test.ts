@@ -19,7 +19,7 @@ import { stream } from '../src/sim/rng';
 import { profileFor, sectorFloor } from '../src/sim/routes';
 import { applyAction, createRun, dailyCost, estimateDI, InvalidAction, replay, sectorList, sessionSlots, travelBlock } from '../src/sim/run';
 import type { RunState } from '../src/sim/state';
-import { nextSessionAttempt, pickSector, ROUTE_TACTICS, simulateDays, WORK_FIRST_ABOVE } from '../src/sim/tactics';
+import { nextSessionAttempt, pickSector, ROUTE_TACTICS, simulateDays, TACTICS, WORK_FIRST_ABOVE } from '../src/sim/tactics';
 import { destinations, travelGraphErrors, tripTo } from '../src/sim/travel';
 import type { Action, TravelEdge } from '../src/sim/types';
 import { calendarDate, freshWeather, sectorStatus, type DayWeather } from '../src/sim/weather';
@@ -291,6 +291,25 @@ describe('the Grande Grotta signatures (09 §7b, docs/26 §8)', () => {
       for (const b of bolts) expect(b.reach_from!.some((h) => line.has(h)), `${r.name} ${b.id}`).toBe(true);
       expect(r.protection.at(-1)).toMatchObject({ kind: 'anchor', reach_from: [r.finish_hold] });
     }
+  });
+
+  it('are a project day\'s first aim when within reach, ahead of the generated project; Mileage and Font keep their order', () => {
+    const run = atKalymnos('sig-project');
+    for (let i = 0; i < 40 && !sectorList(run, bundle).find((s) => s.id === 'grande_grotta')?.open; i++) applyAction(run, { t: 'end_day' }, bundle);
+    applyAction(run, { t: 'block_start', kind: 'climb', target: 'grande_grotta' }, bundle);
+    const s = run.block!.session!;
+    // A climber at DI 16: Priapos (17) is within the project tactic's reach, DNA (21) and Aegialis (27) are not.
+    s.E = 16;
+    const warm = [...s.slots].sort((a, b) => a.di_target - b.di_target)[0]!;
+    s.tried[warm.seed] = { n: 1, sent: true };
+    expect(nextSessionAttempt(run, bundle, 'project')).toEqual({ route_seed: 'sig_priapos', mode: 'flash' });
+    s.tried.sig_priapos = { n: ROUTE_TACTICS.project.tries(s.slots.find((x) => x.seed === 'sig_priapos')!), sent: false };
+    const project = s.slots.find((x) => x.kind === 'project')!;
+    expect(nextSessionAttempt(run, bundle, 'project')?.route_seed).toBe(project.seed);
+    // Mileage still warms up on the mid routes first; Font's boulder order is unchanged.
+    delete s.tried.sig_priapos;
+    expect(s.slots.find((x) => x.seed === nextSessionAttempt(run, bundle, 'volume')?.route_seed)?.kind).toBe('mid');
+    expect(TACTICS.project.order).toEqual(['known', 'project', 'push', 'signature', 'mid', 'warmup']);
   });
 
   it('get a flash on the first look, as the Font signatures do, and play out the same twice', () => {
