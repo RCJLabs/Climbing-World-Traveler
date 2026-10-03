@@ -137,7 +137,7 @@ The engine stores, and the route card shows, the pieces behind the number (all e
 | Pump accumulation | `max` expected pump on the line | "powerful" (< 30), "pumpy" (30–60), "enduro" (> 60) |
 | Rests | stances with `Δpump_1 ≤ −3` | "2 good rests", "no rests" |
 | Dynamic share | windows / hand moves | "dynamic" if > 10 % |
-| Style tags | dominant hold family and move classes → `Route.style_tags` | icons |
+| Style tags | dominant hold family and move classes → `Route.style_tags`. A boulder is tagged by what it has at all (one dyno makes it `dynamic`, its steepest segment its terrain); a route by shares (P1b, [26 §4](26-p1b-implementation-notes.md)): its main hold family if it is 30% of the hand holds, the angle most of its length climbs at, `power` when the hardest move is within 0.5 DI of the grade and `endurance` when it is 1.5 or more under, `dynamic` at 12% dynamic hand moves, `footwork` at 12% high steps, `flexibility` at 3% heel hooks **(tune)**. The pocket sizes are one family, `pocket` | icons |
 
 ---
 

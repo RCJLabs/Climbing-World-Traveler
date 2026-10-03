@@ -333,15 +333,16 @@ interface Route {
   signature: boolean;
   seed?: string;                    // procedural only
   beta_line?: { limb: Limb; hold: string }[];   // the generator's intended sequence; revealed by route_reading or beta (06)
-  components?: { hardest_move: number; crux_density: number; pump_peak: number; rests: number };   // surfaced by the grade engine (05c)
+  components?: { hardest_move: number; crux_density: number; pump_peak: number; rests: number; dynamic_share: number };   // surfaced by the grade engine (05c)
   aid_grade?: string;               // 'A0'..'A5' | 'C1'..'C5' (P3)
   nccs?: 'I' | 'II' | 'III' | 'IV' | 'V' | 'VI';   // commitment grade for multipitch/big wall (P3)
   hazard_zones?: { y0: number; y1: number; kind: 'serac' | 'rockfall' | 'avalanche' | 'cornice'; p_per_hour: number }[];   // alpine objective hazard (P4)
   fa_note?: string;                 // fictional FA credit text; no real people
 }
 
-interface Hub { id: string; name: string; country: string; lat: number; lon: number; airport: boolean; }
-// TravelEdge gains an `id` (referenced by Action.travel.edge): `${from}__${to}__${mode}`.
+interface Hub { id: string; name: string; country: string; lat: number; lon: number; airport: boolean; }   // id matches ^hub_; country is ISO 3166 alpha-2
+// A TravelEdge is known by the id `${from}__${to}__${mode}`. Edges run both ways. P1b's travel action names the destination
+// crag and the reducer takes the cheapest path (fewer days on a tie); a later action can name edges for a chosen path.
 ```
 
 ---
@@ -382,6 +383,7 @@ interface CragStyleProfile {
   pad_coverage?: number;            // boulders: default pad zone width as a fraction of landing
   name_bank?: string;               // id of the crag-flavoured name generator table
   di_max?: number;                  // hardest DI the style can be built to; above it a sector picks among its other profiles (06 §2.1)
+  di_min?: number;                  // easiest DI the style is built to; below it a sector picks among its other profiles, and a sector whose every style has a floor has no routes below the lowest (P1b, 06 §2.1). Must be below di_max
   tags: Tag[];
 }
 
@@ -413,7 +415,12 @@ interface Crag {
   min_rope_m?: number;
   landing?: 'flat' | 'uneven' | 'sloping' | 'blocks' | 'water';   // boulder landings default
   tide_seed?: string;                    // DWS crags: seeds the daily tide/swell series (07)
-  sectors?: { id: string; name: string; character: string; circuits?: { colour: string; di_range: [number, number] }[]; landing?: Crag['landing']; dry_lag_days?: number }[];
+  sectors?: {
+    id: string; name: string; character: string; circuits?: { colour: string; di_range: [number, number] }[]; landing?: Crag['landing'];
+    dry_lag_days?: number;
+    seep_lag_days?: number;              // P1b: a tufa cave seeps this many days (1..30) after rain over 15 mm (10 §4). Climate.seep_lag_days, per sector, because only the caves seep
+    shade: boolean; style_profiles: string[]; signature_routes: string[];   // as implemented since P1a: profiles and signatures per sector
+  }[];
   signature_routes: string[];            // route ids
   style_profiles: string[];              // CragStyleProfile ids
   npc_archetypes: string[];
@@ -528,7 +535,7 @@ interface NPC extends Climber {
 
 interface Relationship { trust: number; familiarity: number; rivalry: number; romance?: number; last_seen_day: number; }
 
-interface Tick { route: string; day: number; style: 'onsight' | 'flash' | 'redpoint' | 'repeat' | 'attempt'; attempts: number; di: number; }
+interface Tick { route: string; day: number; style: 'onsight' | 'flash' | 'redpoint' | 'repeat' | 'attempt'; attempts: number; di: number; discipline?: Discipline; }   // discipline set on routes (P1b); unset = a boulder
 ```
 
 ---
@@ -566,6 +573,7 @@ type Action =
   | { t: 'end_day' }
   | { t: 'attempt'; route_seed: string; mode: 'onsight' | 'flash' | 'redpoint' | 'work' }   // a whole simulated attempt (docs/24 §3.1)
   | { t: 'set_plan'; plan: WeekPlan }                   // the training week (docs/24 §2); changes no outcome by itself
+  | { t: 'travel'; to: string }                         // P1b: go to another live crag by the cheapest path; the fare is paid and the trip's days pass (09 §8)
   | { t: 'retire' };
 // Retired with docs/24 (data version p1a-13): attempt_start, move (with a Reach or Balance perf), commit (with a
 // Swing and Catch), wall_action and settings (auto_commit, sweep_speed, pause_drift). Runs saved with them cannot continue.
@@ -579,7 +587,7 @@ interface NewRunSpec { name: string; background: string; body: Body; traits: str
 // rope falls for the "lead" fear source (05b §9.1).
 
 // Full-game additions, not yet implemented:
-//   { t: 'travel'; edge: string } · { t: 'event_choice'; event: string; option: number }
+//   { t: 'event_choice'; event: string; option: number }
 //   { t: 'risky_choice'; kind: 'solo' | 'dws_s3' | 'highball_reckless' | 'ignore_gear_warning' | 'alpine_commit'; route?: string }
 //   { t: 'buy' | 'sell'; item: string } · block kinds social, travel, admin, physio, comp_round, climb_bigwall, alpine_day
 
@@ -600,9 +608,12 @@ interface WeekPlan {
 }
 
 // A weekly progress point in RunState.history (docs/24 §4), written at creation and every seventh day.
-interface WeekPoint { day: number; E: number | null; pb: number; ticks: number; attrs: Partial<Record<AttrId, number>> }
-// RunState also carries plan: WeekPlan, est: number | null (the latest session's unrounded estimate) and
-// history: WeekPoint[]. SessionState carries tried: Record<route_seed, { n: number; sent: boolean }> for the tactics.
+interface WeekPoint { day: number; E: number | null; pb: number; ticks: number; attrs: Partial<Record<AttrId, number>>; crag?: string; pb_route?: number }
+// RunState also carries plan: WeekPlan, est: number | null (the latest session's unrounded estimate, a route grade at a
+// sport crag) and history: WeekPoint[]. SessionState carries tried: Record<route_seed, { n: number; sent: boolean }> for
+// the tactics. P1b adds pb_route: number (the hardest route sent; pb stays the boulder one), visited: string[] (crag ids
+// in the order first reached), counters.pyramid_route (the route pyramid beside counters.pyramid), DaySummary.travel?:
+// string (the destination on a day on the move) and ProjectState.discipline?: Discipline (set on routes).
 
 interface RunSummary {                   // P1a shape (src/sim/types.ts); later phases make hardest per discipline
   climber: string; background: string; days: number; age_end: number;
@@ -610,14 +621,18 @@ interface RunSummary {                   // P1a shape (src/sim/types.ts); later 
   hardest: number;                       // boulder DI, best first send
   hardest_onsight: number;               // DI
   hardest_flash: number;                 // DI, onsight or flash
+  hardest_route: number;                 // P1b: route DI, best first send (0 for none)
+  hardest_route_onsight: number;         // P1b
+  countries: number;                     // P1b: distinct countries of the crags visited
   ticks: number;                         // first sends (repeats excluded)
   circuits: Partial<Record<CircuitColour, number>>;
   score: number;                         // Hall of Fame score (16 §6, P1a formula in 22)
   unlocks: string[];
   seed: string;
-  pyramid: Record<string, number>;       // rounded DI -> first sends
-  got_away?: { name: string; sessions: number; di: number };
-  // later: scenario, risky_choices, first_ascents, injuries, countries, legacy_npc_id
+  pyramid: Record<string, number>;       // rounded DI -> first sends (boulders)
+  pyramid_route: Record<string, number>; // P1b: the same for routes
+  got_away?: { name: string; sessions: number; di: number; discipline?: Discipline };
+  // later: scenario, risky_choices, first_ascents, injuries, legacy_npc_id
 }
 ```
 
@@ -638,10 +653,13 @@ interface RunSummary {                   // P1a shape (src/sim/types.ts); later 
 11. Every `scope`, `foreshadow`, `requires_age`, `expires` and `TraitEffect.flags` entry must be read by a system named in the trait's row; the validator keeps the flag registry from 03 §1.9.
 12. `deprecated` entries are excluded from new-run selection and from the harness, but must still validate.
 13. A `CragStyleProfile` with `protection.kind = 'bolt'` has `protection.spacing_m` and `rest_spacing_m`; a crag whose `disciplines` include `sport` uses bolted profiles in every sector, and any other crag uses none (P1b).
+14. A `CragStyleProfile`'s `di_min`, when set with `di_max`, is below it; a sector's `seep_lag_days` lies in 1..30 (P1b).
+15. The travel graph: hub ids match `^hub_`, hub countries are two letters, edge `days` are whole numbers 0..10; every edge joins known crags or hubs, and every live crag can reach every other live crag (P1b, `travelGraphErrors`).
+16. A live background starts at a live crag, and every live crag ships a benchmark set of at least 12 problems or routes (P1b).
 
 ## Open questions
 
 - Whether the sim should expose a `t: 'meta'` action family for unlock claims and legacy deletion, or keep all `MetaState` mutations outside the run log as [18 §5](18-tech-architecture.md) assumes. Current answer: outside the log.
-- `WorldState` is typed as `RunState` in `src/sim/state.ts` (reducer version 1, P1a). NPCs, visited-crag state beyond Fontainebleau, snow depth and event cooldowns join it with their systems.
+- `WorldState` is typed as `RunState` in `src/sim/state.ts` (reducer version 5, P1b). NPCs, per-crag state beyond the visited list (local reputation, known sectors), snow depth and event cooldowns join it with their systems.
 - `Climber.burnout_inputs` (the monotony and failure-streak accumulators behind the burnout formula in [12](12-training-and-adaptation.md)) may belong in `Resources` or in `counters`; decide when the day loop is implemented.
 - Placeholder keys in `EventEffect` (`@here`, `@partner`…) versus explicit `target` fields on `GameEvent`: placeholders are simpler for authors and are adopted here; revisit if the event validator cannot check them statically.

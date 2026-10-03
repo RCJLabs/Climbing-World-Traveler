@@ -28,6 +28,8 @@ Numbers marked **(tune)** are proposals for the balance harness ([19](19-balance
 
 A crag lists several profiles (`Crag.style_profiles`); a visit samples one per slot weighted equally, so a Font day mixes slab, sloper-bulge and roof problems. A profile may set `di_max`, the hardest DI its style can be built to: low-angle rock makes hand holds easier, so past some grade even the worst holds cannot make a slab harder. A slot above a profile's `di_max` samples among the sector's other profiles; if none reaches that DI, it uses the one with the highest ceiling, and its problem grades soft. Font: slab to DI 21, sloper bulge to 25, roof uncapped **(tune)**.
 
+A profile may also set `di_min`, the easiest DI it is built to (P1b): Kalymnos's steep tufas start at DI 14 (6b+), its grey vertical walls have no floor and stop at 21. A slot below every floor uses the profile that reaches lowest. A sector whose every profile has a floor has no routes below the lowest of them (`sectorFloor`): its session slots are clamped up to it, as they are to the crag's `di_range`, so a tufa cave offers nothing under 6b+ and a climber below that climbs elsewhere ([24 §2](24-simulation-game.md), [26 §5](26-p1b-implementation-notes.md)).
+
 ---
 
 ## 2. The pipeline

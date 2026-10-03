@@ -79,6 +79,16 @@ When `t_rock < Td` (rock colder than dew point; typical on a warm humid afternoo
 
 Violation penalties apply to regional reputation ([15](15-social-reputation-events.md)) and may spawn a confrontation event; they never apply to the player's own score. Partners with high `ethics` refuse to spot or belay on wet sandstone.
 
+**As implemented (P1a–P1b, `sectorStatus`).** The game has no wet climbing yet, so a sector is simply open or shut:
+
+| Rock | Shut | Reason shown |
+|---|---|---|
+| sandstone (Font) | on a rain or storm day; when `rh > 90`; and until `dry_lag_days` (+1 in still humid air, +1 after rain over 15 mm) have passed since the last rain | "Still drying after rain (n of m days)." |
+| everything else (Kalymnos limestone) | on a rain or storm day, then until `dry_lag_days` (0.5: the next day is dry) | "Raining." |
+| a sector with `seep_lag_days` (the two tufa caves, 7) | after rain over 15 mm (`HEAVY_RAIN_MM`) until `seep_lag_days` have passed, whatever the sky | "The tufas are seeping after heavy rain (n of m days)." |
+
+The seep is visible to every climber for now; hiding it behind `rock_knowledge[limestone]` waits for the knowledge system. The first night at a crag after travel draws its weather afresh from the month's stationary distribution (`freshWeather`), and the climber arrives with no rain on record there ([26 §5](26-p1b-implementation-notes.md)).
+
 ---
 
 ## 5. Snow and ice at mountain crags

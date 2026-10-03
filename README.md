@@ -4,7 +4,7 @@ Build a climber. Live a climbing life. See how far your body, head and heart tak
 
 A climbing career simulation for phone and browser. Create a climber from anthropometrics, trainable attributes and Project-Zomboid-style traits (positives cost points, negatives refund them). Plan their training and their days; every climb plays out by itself, hold by hold on a 2D wall, resolved by the build. Travel a world of real crags. Age, get injured, go broke, get sponsored, retire or do not. Then build another one.
 
-**Status:** P1a, the Fontainebleau vertical slice, is playable as a simulation ([docs/24](docs/24-simulation-game.md)). Create a climber, plan their training week, and simulate days, weeks or months in the forest; every attempt on a procedural or signature boulder is simulated, and any single attempt can be watched on the wall. P1b, Kalymnos sport, is under way: its engine is in (rope, bolts, clipping, falls on the rope, working a route, generated and graded 15–40 m routes, French grades), headless for now; travel to Kalymnos and watching a pitch come next. The full design set is in `docs/`; what P1a implements differently, and the measured balance numbers, are in [docs/22](docs/22-p1a-implementation-notes.md), and P1b's in [docs/26](docs/26-p1b-implementation-notes.md).
+**Status:** P1a, the Fontainebleau vertical slice, is playable as a simulation ([docs/24](docs/24-simulation-game.md)). Create a climber, plan their training week, and simulate days, weeks or months in the forest; every attempt on a procedural or signature boulder is simulated, and any single attempt can be watched on the wall. P1b, Kalymnos sport, is under way: a run can start at Kalymnos or travel there from Font ($280, two days) and climb its routes by the same week plan, on the rope (bolts, clipping, falls, working a route, generated and graded 15–40 m routes, French grades); watching a pitch on the cartoon wall and the P1b traits come next. The full design set is in `docs/`; what P1a implements differently, and the measured balance numbers, are in [docs/22](docs/22-p1a-implementation-notes.md), and P1b's in [docs/26](docs/26-p1b-implementation-notes.md).
 
 Platform: offline-first PWA on GitHub Pages, later a Trusted Web Activity on Google Play. Stack: Vite, TypeScript, Preact, Canvas2D. See [docs/18-tech-architecture.md](docs/18-tech-architecture.md).
 
@@ -16,7 +16,7 @@ pnpm dev                 # the game at http://localhost:5173
 pnpm test                # engine golden tests, generator, reducer, replay and saves
 pnpm validate            # content validator
 pnpm calibrate --quick   # grade-engine calibration (C1–C10, boulders and routes); drop --quick for the fuller sweep
-pnpm harness --n 40 --days 365 --out reports   # headless careers with a scripted player
+pnpm harness --n 40 --days 365 --out reports   # headless careers with a scripted player; --crag kalymnos for route careers
 pnpm build               # typecheck + production build into dist/
 ```
 
@@ -59,7 +59,7 @@ Read in this order for a first pass: 00 → 01 → 24 → 02 → 05b → 03.
 | 23 | [Move Types and Art Direction](docs/23-move-types-and-art-direction.md) | Flat Dusk, the art direction of the app's screens (the wall is the cartoon, 25); the per-move controls it also describes are retired (24) |
 | 24 | [The Simulation Game](docs/24-simulation-game.md) | How the game is played: the week plan, the climber's own tactics, simulated days, reports, watching an attempt |
 | 25 | [Watching the Simulation](docs/25-visual-representation.md) | The cartoon wall (chosen 2026-10-03): each problem drawn as its own block, natural legs, every move class animated; and the ten styles it was chosen from |
-| 26 | [P1b Implementation Notes](docs/26-p1b-implementation-notes.md) | Kalymnos sport: how the engine resolves the design docs' conflicts on the rope, the endurance changes that make a route a pump game, the sport generator, and the measured calibration and exit test |
+| 26 | [P1b Implementation Notes](docs/26-p1b-implementation-notes.md) | Kalymnos sport: how the engine resolves the design docs' conflicts on the rope, the endurance changes that make a route a pump game, the sport generator, Kalymnos in the game (travel, sessions, wet rules, records), and the measured calibration, careers and exit test |
 
 ## Conventions
 

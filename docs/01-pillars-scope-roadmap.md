@@ -64,7 +64,7 @@ All docs in `docs/` written, cross-linked and consistent with [schemas.md](schem
 ### P1b — Kalymnos sport
 **In:** rope, bolts, clipping stances and clip costs, aerobic reserve and rest loop on 25–35 m routes, falls on rope with belayer quality, redpoint/onsight/flash/working-mode rules, route familiarity, stick-clip.
 **Exit criterion:** an endurance build and a power build swap places in the harness send-rate ranking between a 20-move Font problem and a 35 m Kalymnos tufa pitch of equal DI.
-**Status:** M1, the sport engine, is implemented and the exit criterion holds in calibration test C10, on Font problems of the generator's normal length rather than 20 moves; M2–M4 bring Kalymnos into the game, the pitch onto the wall and the P1b content ([26](26-p1b-implementation-notes.md)).
+**Status:** M1, the sport engine, is implemented and the exit criterion holds in calibration test C10, on Font problems of the generator's normal length rather than 20 moves. M2 brings Kalymnos into the game: travel between the two crags, sport sessions and tactics, the grey-wall profile, limestone wet rules and the Rower/Swimmer background. M3–M4 bring the pitch onto the wall and the P1b content ([26](26-p1b-implementation-notes.md)).
 
 ### P2 — World
 **In:** full atlas (≥ 50 crags), travel graph with cost and time, visas and permits, seasons and the full climate model, injuries and health care, the full training and adaptation model, economy and work, NPC lifecycle and partners, the event deck, sponsorship, remaining traits and backgrounds, aging and all run-end conditions.
