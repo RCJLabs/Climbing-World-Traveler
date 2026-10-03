@@ -19,7 +19,7 @@ import { sampleBuild } from '../src/harness/sampler';
 import { setRouteCacheMax } from '../src/sim/attempt';
 import { phaseLive } from '../src/sim/character';
 import { DEFAULT_OPTIONS } from '../src/sim/presets';
-import { stream } from '../src/sim/rng';
+import { cyrb53, stream } from '../src/sim/rng';
 import { PHYSICAL_ATTRS, type AttrId, type DataBundle, type NewRunSpec, type Trait } from '../src/sim/types';
 
 interface Job { key: string; cfg: CareerConfig }
@@ -79,12 +79,15 @@ async function main(): Promise<void> {
   mkdirSync(out, { recursive: true });
   const file = `${out}/recost-${crag}-${seed}.jsonl`;
   const done = new Map<string, Lite>();
-  // Careers are keyed by base index and length, so a later run with more bases reuses the earlier ones.
+  // Careers are keyed by base index and length, so a later run with more bases reuses the earlier ones, and each
+  // carries a hash of its configuration: a base is drawn within the trait budget, so a cost change can draw another
+  // build for the same index, and its old careers must not pair with the new one's.
   const tag = `${days}`;
+  const hashOf = new Map(jobs.map((j) => [j.key, cyrb53(JSON.stringify(j.cfg))]));
   if (existsSync(file)) {
     for (const line of readFileSync(file, 'utf8').split('\n').filter(Boolean)) {
-      const x = JSON.parse(line) as { key: string; run: string; lite: Lite };
-      if (x.run === tag) done.set(x.key, x.lite);
+      const x = JSON.parse(line) as { key: string; run: string; h?: number; lite: Lite };
+      if (x.run === tag && (x.h === undefined || x.h === hashOf.get(x.key))) done.set(x.key, x.lite);
     }
   }
   const todo = jobs.filter((j) => !done.has(j.key));
@@ -98,7 +101,7 @@ async function main(): Promise<void> {
     child.on('message', (m: { done?: boolean; key?: string; lite?: Lite }) => {
       if (m.done) { child.kill(); resolve(); return; }
       done.set(m.key!, m.lite!);
-      appendFileSync(file, JSON.stringify({ key: m.key, run: tag, lite: m.lite }) + '\n');
+      appendFileSync(file, JSON.stringify({ key: m.key, run: tag, h: hashOf.get(m.key!), lite: m.lite }) + '\n');
       if (done.size % 50 === 0) process.stderr.write(`${done.size}/${jobs.length} in ${((performance.now() - t0) / 60000).toFixed(1)} min\n`);
     });
     child.on('error', reject);
