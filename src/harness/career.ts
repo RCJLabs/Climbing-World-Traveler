@@ -6,6 +6,13 @@ import { cyrb53 } from '../sim/rng';
 import { applyAction, createRun, estimateDI, replay } from '../sim/run';
 import type { Action, DataBundle, NewRunSpec, RunSummary } from '../sim/types';
 
+/**
+ * Routes a harness worker keeps built (06 §5, P2): every sector's catalogue at both crags (5,800 routes) and the
+ * signatures, so each route is built once per worker and every later career that climbs it reuses it. At most about
+ * 0.4 GB (a pitch with its geometry is about 0.2 MB, a problem a tenth of that).
+ */
+export const HARNESS_ROUTE_CACHE = 8000;
+
 export interface CareerConfig {
   seed: string;
   spec: NewRunSpec;

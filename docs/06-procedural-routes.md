@@ -178,23 +178,40 @@ Signature routes are listed on every visit, keep their `Tick` history, and are w
 
 ---
 
-## 5. Determinism, routes per visit, persistence
+## 5. Determinism, the sector's routes, persistence
+
+**A sector's routes are fixed (P2, [27](27-p2-plan.md) M0).** Each sector has a catalogue, its guidebook: `Sector.routes` procedural routes, the same in every run, regenerated from their seeds. Until P2 a session generated fresh routes from the run's seed every day; building them was most of a sport career's cost in the harness and in the game, and a crag whose routes change daily is not a real crag.
 
 ```
-seed       = hash(crag.id, sim_day, slot)                       slot = 0..N−1 for the visit
-Route.seed = `${crag.id}:${sim_day}:${slot}`
-Route.id   = 'proc_' + hash(Route.seed)                         reproducible from the seed string alone
+lo, hi     = max(Crag.di_range[0] + 1, sectorFloor(sector)), Crag.di_range[1]
+entry i    = 0 .. Sector.routes − 1, drawn in order from stream('catalogue', crag.id, sector.id)
+di_i       = round to 0.5 of triangular(lo, lo + 0.35 × (hi − lo), hi)        (tune)
+Route.seed = `${crag.id}/${sector.id}#${i}:${di_i.toFixed(1)}`
+Route.id   = 'proc_' + hash(Route.seed)                                     reproducible from the seed string alone
 ```
 
-| Discipline at the crag | Procedural routes per visit (slots) | Target DI per slot (relative to the player's estimate `E` from [02 §C.3](02-character-model.md#c3-grade-estimates-display-on-the-character-sheet)) |
+The mode at 35% of the sector's range puts most routes in the middle grades, as on real crags: 6c on Kalymnos's walls, 7a+ in its caves, 6B+ in the forest.
+
+A session offers some of the sector's routes, one per slot, around the climber's estimate `E` ([02 §C.3](02-character-model.md#c3-grade-estimates-display-on-the-character-sheet)), rounded to 0.5 DI. `E` is worked out at creation, on arrival at a crag and at the start of every week (P2), not at every session: it moves about 0.02 DI a day, and the benchmark walk was a third of a career's cost once routes were fixed.
+
+| Discipline at the crag | Slots | Band per slot (relative to `E`), clamped to `[lo, hi]` |
 |---|---|---|
-| `boulder` | 8 | 1 warm-up `E − 4..−3` · 3 at `E − 2..0` · 3 at `E..E + 2` · 1 project `E + 3..E + 4`, each clamped to `Crag.di_range` |
-| `sport`, `trad` | 5 | 1 at `E − 3..−2` · 2 at `E − 1..0` · 1 at `E..E + 1` · 1 at `E + 2..E + 3` |
-| `dws`, multipitch | 3 | as sport without the project slot |
+| `boulder` | 8 | 1 warm-up `E − 4..−3` · 3 mid `E − 2..0` · 3 push `E..E + 2` · 1 project `E + 3..E + 4` |
+| `sport` | 6 | 1 warm-up `E − 4..−3` · 2 mid `E − 2..0` · 2 push `E..E + 2` · 1 project `E + 3..E + 4` ([26 §5](26-p1b-implementation-notes.md)) |
+| `trad`, `dws`, multipitch | — | as sport, until their phases say otherwise |
 
-Signature routes are always listed in addition. The generator is deterministic given `(crag, day, slot, player E)`, where `E` is rounded to `0.5 DI` so that small attribute changes during a day do not reshuffle the list; the action log records `E` with the `day_plan` so replay regenerates the same routes.
+Each slot draws a target grade in its band from the session's slot stream (`stream('slots', run_seed, crag, sector, day)`), exactly as sessions drew their grades before P2, and takes, among the sector's routes not already in the session, the one that ranks first by: within `SLOT_TOLERANCE` = 0.5 DI of the target **(tune)**; the climber's history with it; the nearest; then the session's own order. A slot's ranking keeps the session's grade mix whatever the catalogue's shape (a first version ranked by band alone, and since most routes sit above a 6b climber's level its push slots drew grades above `E + 1`, which mileage leaves alone).
 
-**Tick-list persistence.** A `Tick` stores `route` (the id), `day`, `style`, `attempts`, `di`. Because the id encodes the seed, any ticked or attempted procedural route can be regenerated for display forever. The save state keeps per crag a list of **known routes** (proposed field): every procedural route the player attempted stays listed on later visits, regenerated from its seed; routes attempted three or more times are pinned as **projects** until sent or until 365 sim-days pass; untouched routes vanish with the day. Day-specific `Hold.state` (chalk, wet, seep) is not part of the route and is recomputed from weather on each visit.
+| Slot | Prefers, in order |
+|---|---|
+| warm-up, mid | a route never tried · one sent (a repeat) · one tried and not sent · one out of reach |
+| push, project | a route never tried · one tried and not sent · one sent · one out of reach |
+
+A mileage session (the `volume` tactic) climbs the repeats its warm-up, mid and push slots hold; other tactics leave a sent route alone but for the warm-up ([24 §3](24-simulation-game.md)). A climber who has climbed a sector out at their grade gets repeats, and moves on to another sector or crag, as climbers do. Signature routes and the climber's known projects are listed in addition, as before.
+
+**Out of reach.** An attempt that comes off at a move the climber can see and has no legal way to make, for its reach, mobility or lock-off, marks the route: the climber's tactics, its known projects and its slots leave it alone for `REACH_RETRY_DAYS` = 90 days **(tune)**, after which mobility or lock-off may have come. With fresh routes every day a short climber found climbable ones by chance; with fixed routes the same impossible ones came back every session (a 150 cm climber at Kalymnos sent one route in a year, against 26 before the catalogue and 23 with this rule).
+
+**Tick-list persistence.** A `Tick` stores `route` (the id), `day`, `style`, `attempts`, `di`. Because the id encodes the seed, any ticked or attempted route can be regenerated for display forever, and since routes are fixed a project is the same route on every visit. Routes attempted three or more times are listed as **known** projects until sent or until 365 sim-days pass, and any route tried in the last 30 days as well ([24 §2](24-simulation-game.md)). Day-specific `Hold.state` (chalk, wet, seep) is not part of the route and is recomputed from weather on each visit. A seed of the older form `${crag.id}/${sector.id}:${day}:${slot}:${di}` still builds a one-off route for calibration and tests.
 
 ---
 

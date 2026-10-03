@@ -87,18 +87,66 @@ const BOULDER_SHAPE: Shape = { discipline: 'boulder', width: BOULDER_WIDTH, maxI
 
 // ---------------------------------------------------------------- seeds
 
-/** Seed string for a procedural problem: crag/sector:day:slot:target. Encodes everything needed to regenerate it. */
+/**
+ * Seed string for a one-off procedural problem: crag/sector:day:slot:target. Encodes everything needed to regenerate
+ * it. The game's routes are a sector's catalogue (`catalogueSeed`, 06 §5); this form builds routes for calibration and
+ * tests.
+ */
 export function routeSeed(crag: string, sector: string, day: number, slot: number, diTarget: number): string {
   return `${crag}/${sector}:${day}:${slot}:${diTarget.toFixed(1)}`;
 }
 
-export function parseRouteSeed(seed: string): { crag: string; sector: string; day: number; slot: number; di: number } | null {
-  const m = /^([a-z0-9_]+)\/([a-z0-9_]+):(\d+):(\d+):([\d.]+)$/.exec(seed);
+/** Seed string for route `index` of a sector's catalogue (06 §5, P2): crag/sector#index:target. */
+export function catalogueSeed(crag: string, sector: string, index: number, diTarget: number): string {
+  return `${crag}/${sector}#${index}:${diTarget.toFixed(1)}`;
+}
+
+/** The crag, sector and target a procedural seed of either form builds. */
+export function parseRouteSeed(seed: string): { crag: string; sector: string; di: number } | null {
+  const m = /^([a-z0-9_]+)\/([a-z0-9_]+)(?::\d+:\d+|#\d+):([\d.]+)$/.exec(seed);
   if (!m) return null;
-  return { crag: m[1]!, sector: m[2]!, day: Number(m[3]), slot: Number(m[4]), di: Number(m[5]) };
+  return { crag: m[1]!, sector: m[2]!, di: Number(m[3]) };
 }
 
 export const routeIdFor = (seed: string): string => 'proc_' + cyrb53(seed).toString(36);
+
+// ---------------------------------------------------------------- a sector's catalogue (06 §5, P2)
+
+/** A catalogue's grades are triangular over the sector's range, peaking this far up it: most routes are mid-grade. **(tune)** */
+export const CATALOGUE_MODE = 0.35;
+
+export interface CatalogueEntry { index: number; di: number; seed: string; id: string }
+
+/** The DI range a sector's routes span: above the crag's easiest grade and the sector's floor, up to the crag's hardest. */
+export function sectorRange(crag: Crag, sector: Sector, bundle: Pick<DataBundle, 'profiles'>): [number, number] {
+  const lo = Math.max(crag.di_range[0] + 1, sectorFloor(sector, bundle));
+  return [lo, Math.max(lo, crag.di_range[1])];
+}
+
+const catalogues = new Map<string, CatalogueEntry[]>();
+
+/** A sector's fixed routes (06 §5), the same in every run: `sector.routes` entries, drawn in order from one stream. */
+export function sectorCatalogue(crag: Crag, sector: Sector, bundle: Pick<DataBundle, 'profiles' | 'version'>): CatalogueEntry[] {
+  const key = `${bundle.version}|${crag.id}|${sector.id}`;
+  let out = catalogues.get(key);
+  if (out) return out;
+  const [lo, hi] = sectorRange(crag, sector, bundle);
+  const rng = stream('catalogue', crag.id, sector.id);
+  out = [];
+  for (let index = 0; index < (sector.routes ?? 0); index++) {
+    const di = Math.round(rng.triangular(lo, lo + CATALOGUE_MODE * (hi - lo), hi) * 2) / 2;
+    const seed = catalogueSeed(crag.id, sector.id, index, di);
+    out.push({ index, di, seed, id: routeIdFor(seed) });
+  }
+  catalogues.set(key, out);
+  return out;
+}
+
+/** Content errors for a crag's catalogues (schemas §9 rule 18): a live crag's every sector has routes. */
+export function catalogueErrors(crag: Pick<Crag, 'id' | 'sectors'>, live: boolean): string[] {
+  if (!live) return [];
+  return crag.sectors.filter((s) => !s.routes).map((s) => `crag ${crag.id}/${s.id}: a live crag's sector needs a catalogue (routes)`);
+}
 
 // ---------------------------------------------------------------- wall
 

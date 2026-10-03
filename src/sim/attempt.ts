@@ -622,11 +622,12 @@ export function doWallAction(run: RunState, kind: WallActionKind, bundle: DataBu
     if (kind === 'clip') clipBolt(run, at, geom, ath, bundle);
     else if (kind === 'clip_anchor') clipAnchor(run, at, geom, ath, bundle);
     else if (kind === 'take') take(run, at, ath, 'Take! A minute on the rope.');
-    else if (kind === 'lower') lowerOff(run, at, geom, ath, at.rope.falls > 0 ? 'fell' : 'jumped', bundle);
+    else if (kind === 'lower') { noteOutOfReach(run, at, geom, ath); lowerOff(run, at, geom, ath, at.rope.falls > 0 ? 'fell' : 'jumped', bundle); }
     else pullThrough(run, at, geom, ath, bundle);
     return;
   }
   if (kind === 'jump_off') {
+    noteOutOfReach(run, at, geom, ath);
     if (at.rope) { lowerOff(run, at, geom, ath, at.rope.falls > 0 ? 'fell' : 'jumped', bundle); return; }
     report(at, { kind: 'jump', pump_delta: 0, text: 'You jumped off onto the pads.' });
     finishAttempt(run, at, geom, ath, 'jumped', bundle);
@@ -785,9 +786,7 @@ export function climberStep(run: RunState, bundle: DataBundle): ClimbStep | null
   const step = route.beta_line[at.beta_ptr];
   if (!step) return { t: 'wall_action', kind: off };
   if (!isVisible(run.projects[at.route_id], route, step.hold)) return { t: 'wall_action', kind: at.shake_k < 1 ? 'rest' : off };
-  const prep = step.class === 'mantle'
-    ? (canMantle(geom, at.climb) === step.limb ? prepareMove(geom, ath, at.climb, step.limb, step.hold, 'mantle') : null)
-    : prepareMove(geom, ath, at.climb, step.limb, step.hold, step.class) ?? prepareMove(geom, ath, at.climb, step.limb, step.hold);
+  const prep = nextMove(at, geom, ath);
   if (!prep) return { t: 'wall_action', kind: off };
   // Working a route: three falls on one move and the climber pulls through on the draw; pumped, it takes rather than falls.
   if (at.rope && at.rope.falls_here >= 3) return { t: 'wall_action', kind: 'pull_through' };
@@ -795,6 +794,30 @@ export function climberStep(run: RunState, bundle: DataBundle): ClimbStep | null
   if (at.rope && at.mode === 'work' && at.pump >= TAKE_PUMP) return { t: 'wall_action', kind: 'take' };
   if (chalkNow(at.chalk)) return { t: 'wall_action', kind: 'chalk' };
   return { t: 'move', limb: step.limb, hold: step.hold, class: prep.cls };
+}
+
+/** The beta line's next move from where the climber is, or null when its body has no legal way to make it. */
+function nextMove(at: AttemptState, geom: RouteGeom, ath: Athlete): Prepared | null {
+  const step = geom.route.beta_line[at.beta_ptr];
+  if (!step) return null;
+  return step.class === 'mantle'
+    ? (canMantle(geom, at.climb) === step.limb ? prepareMove(geom, ath, at.climb, step.limb, step.hold, 'mantle') : null)
+    : prepareMove(geom, ath, at.climb, step.limb, step.hold, step.class) ?? prepareMove(geom, ath, at.climb, step.limb, step.hold);
+}
+
+/** Days a route stays left alone after the climber found a move on it out of its reach (06 §5). **(tune)** */
+export const REACH_RETRY_DAYS = 90;
+
+/**
+ * An attempt that comes off at a move the climber can see and has no legal way to make: the project remembers, and the
+ * climber's tactics leave the route alone for REACH_RETRY_DAYS (06 §5). Without it a short climber at a crag of fixed
+ * routes went back to the same impossible ones every session.
+ */
+function noteOutOfReach(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athlete): void {
+  const step = geom.route.beta_line[at.beta_ptr];
+  const project = run.projects[at.route_id];
+  if (!step || !project || !isVisible(project, geom.route, step.hold) || nextMove(at, geom, ath)) return;
+  project.reach_until = run.day + REACH_RETRY_DAYS;
 }
 
 /** Steps after which an attempt is called off: a guard, no line takes this many (a 40 m route with its clips and falls takes a few hundred). */

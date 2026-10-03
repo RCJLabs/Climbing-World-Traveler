@@ -7,7 +7,8 @@ import { fork } from 'node:child_process';
 import { cpus } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadBundle } from '../src/data/bundle';
-import { runCareer, type CareerConfig, type CareerResult } from '../src/harness/career';
+import { HARNESS_ROUTE_CACHE, runCareer, type CareerConfig, type CareerResult } from '../src/harness/career';
+import { setRouteCacheMax } from '../src/sim/attempt';
 import { toggled } from '../src/harness/recost';
 import { sampleBuild } from '../src/harness/sampler';
 import { mean, quantile } from '../src/harness/sim';
@@ -22,6 +23,7 @@ const SELF = fileURLToPath(import.meta.url);
 
 if (process.env.CWT_HARNESS_WORKER) {
   const bundle = loadBundle(false);
+  setRouteCacheMax(HARNESS_ROUTE_CACHE);
   process.on('message', (msg: { jobs: Job[] }) => {
     for (const job of msg.jobs) process.send!({ index: job.index, result: runCareer(job.cfg, bundle) });
     process.send!({ done: true });

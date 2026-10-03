@@ -69,7 +69,12 @@ export function nextSessionAttempt(run: RunState, bundle: DataBundle, tactic: Se
     const done = s.tried[slot.seed];
     if (done && (done.sent || done.n >= t.tries(slot))) continue;
     const { route } = routeEntry(slot.seed, bundle);
-    if (run.projects[route.id]?.sent && slot.kind !== 'warmup') continue;
+    // A route sent for good is left alone, but for a warm-up, and for mileage: once a sector is climbed out at the
+    // climber's grade its slots hold repeats (06 §5), and a mileage day climbs them.
+    const repeat = slot.kind === 'warmup' || (tactic === 'volume' && (slot.kind === 'mid' || slot.kind === 'push'));
+    if (run.projects[route.id]?.sent && !repeat) continue;
+    // A route with a move out of the climber's reach is left alone for a while (06 §5).
+    if ((run.projects[route.id]?.reach_until ?? -1) > run.day) continue;
     // A route well above the climber is worked first, hanging on the rope to learn it; later goes are redpoints.
     const work = roped && isRoped(route) && tactic === 'project' && !run.projects[route.id] && route.di_graded > s.E + WORK_FIRST_ABOVE;
     return { route_seed: slot.seed, mode: work ? 'work' : firstMode(run, slot.seed, bundle) };

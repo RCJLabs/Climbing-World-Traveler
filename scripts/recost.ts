@@ -13,7 +13,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { cpus } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadBundle } from '../src/data/bundle';
-import { runCareer, type CareerConfig } from '../src/harness/career';
+import { HARNESS_ROUTE_CACHE, runCareer, type CareerConfig } from '../src/harness/career';
 import { capsOver, divergedDelta, mean, pickRates, priceSlope, sd, toggled, verdict, type Lite, type Verdict } from '../src/harness/recost';
 import { sampleBuild } from '../src/harness/sampler';
 import { setRouteCacheMax } from '../src/sim/attempt';
@@ -28,8 +28,7 @@ const SELF = fileURLToPath(import.meta.url);
 
 if (process.env.CWT_RECOST_WORKER) {
   const bundle = loadBundle(false);
-  // A year at Kalymnos builds over a thousand routes; a base's variants follow the same seed, so they share most.
-  setRouteCacheMax(3000);
+  setRouteCacheMax(HARNESS_ROUTE_CACHE);
   process.on('message', (msg: { jobs: Job[] }) => {
     for (const job of msg.jobs) {
       const r = runCareer(job.cfg, bundle);
