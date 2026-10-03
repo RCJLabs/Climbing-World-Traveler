@@ -15,11 +15,11 @@ P1b ships in four milestones, each its own pull request:
 | Milestone | Scope | State |
 |---|---|---|
 | M1 Sport engine | rope, bolts, clipping, falls on the rope, working a route, the sport generator, the grade engine on routes, French grades, calibration and the exit test, all headless | merged (#22) |
-| M2 Kalymnos in the game | sessions at Kalymnos, travel between the two crags, sport session tactics, the `rower_swimmer` background, limestone wet rules, French grades on the screens, a grey-wall profile for the low grades | this update (§5) |
-| M3 Watching a pitch | the cartoon wall with the cliff, the rope, quickdraws, the belayer, clipping, catches and lowering ([25](25-visual-representation.md)) | — |
+| M2 Kalymnos in the game | sessions at Kalymnos, travel between the two crags, sport session tactics, the `rower_swimmer` background, limestone wet rules, French grades on the screens, a grey-wall profile for the low grades | merged (#23, the reach fix #24) |
+| M3 Watching a pitch | the cartoon wall with the cliff, the rope, quickdraws, the belayer, clipping, catches and lowering ([25 §10.8](25-visual-representation.md)) | this update (§7) |
 | M4 Content | the P1b traits and Kalymnos signature routes | — |
 
-After M2, a run can start at Kalymnos (Rower/Swimmer) or travel there from Font and climb its routes by the same week plan; the wall still plays a rope attempt with the boulder animations until M3.
+After M2, a run can start at Kalymnos (Rower/Swimmer) or travel there from Font and climb its routes by the same week plan. After M3, any rope attempt can be watched on the cartoon wall: the cliff, the bolts and quickdraws, the rope and the belayer, every clip, fall, take and lower.
 
 ## 1. Design conflicts and how they are resolved
 
@@ -174,6 +174,20 @@ Visas, seasons, luggage and pad fees, and the World Map join with P2's travel mo
 
 `pnpm harness --n 40 --days 365 --seed 7` (P1a careers on the new engine): estimate median 12.4 → 16.2 at twelve months (16.1 before), personal best median 17.2 (17.2), p90 19.0 (19.1); projecting against volume 17.5 vs 17.1 on personal best and 165 vs 933 ticks (unchanged); replay identical. Data version `p1b-1`, reducer version 4: a run saved under `p1a-13` cannot continue, because the same actions now play out differently (the form draw).
 
+## 7. Watching a pitch (M3)
+
+The wall as built is [25 §10.8](25-visual-representation.md). Neither the engine nor the data changed: no version change, and saves carry on.
+
+| Topic | Implemented | Amends |
+|---|---|---|
+| Source of the rope | rebuilt on the wall from the frames (`rope.last_clip_y` gives the bolt clipped) and the attempt log (the entries each step added, found under the log's 40-entry cap), with the engine's own `fallLength`, `reachesGround`, `bodyPoints` and `applyMove`; the last step, which has no frame, is replayed from the last frame | [25 §3](25-visual-representation.md) |
+| Pacing | a pitch is 120–340 steps, so routine moves play at 0.2 of their time without a hold, other clean static moves at 0.6, rests and chalk at 0.55; the rope's beats, dynamic and sketchy moves and slips in full | [25 §7](25-visual-representation.md): "about half a minute" for a pitch assumed 30 moves |
+| The camera | at least 2.6 × 3.4 m on a route (2.2 × 2.8 on a boulder), and the zoom goes out to the whole route | [17 §2](17-ui-ux.md), [25 §10.3](25-visual-representation.md) |
+| Scenery | the sea under limestone, Font's forest under sandstone and granite: by rock type, as the palettes already were, until crags carry a look | [25 §7](25-visual-representation.md) `Crag.look` |
+| The belayer | the 15 §1.4 stub drawn standing right of the first bolt; a catch lifts it by the fall's length, the same for every fall | [15 §1.4](15-social-reputation-events.md) |
+
+Measured (25 §10.8): a send plays in 41–79 s at 1× on the benchmarks (median about a minute; 1.5–5 minutes at the boulder pace), everything median 70 s and p90 112 s; a pitch's frame costs about 1.7 times a boulder's (3.9 against 2.3 ms in headless desktop Chromium at 1× pixel ratio, 7.8 against 4.4 at 2×). Checks: typecheck, 154 tests (15 new in `tests/pitch-wall.test.ts`), validate, calibrate `--quick` 13/13, build.
+
 ## Open questions
 
 - **The ledge term.** 05b §11's `+0.4` for any ledge in a fall's path makes every ledge a bold route, however short the fall onto it would be. A term that grows with the fall's length below the ledge top would let ledges back into the profile at a natural rate.
@@ -186,3 +200,4 @@ Visas, seasons, luggage and pad fees, and the World Map join with P2's travel mo
 - **Sector choice.** With `SECTOR_REACH = 0` the plan never sends a 6b climber into a cave to try its easiest tufas. A project day could aim one sector higher.
 - **Travel costs.** The fare is the only cost of a trip: no visa, no luggage or crash-pad fee, no jet lag. P2's travel model brings them.
 - **Bundle size.** Both benchmark sets ship in one `routes` chunk, 1.75 MB since lines got denser at `p1b-3` (1.56 MB before); Workbox precaches no file over 2 MiB by default, so a third crag's set would silently drop the chunk from the offline cache. Before P2: a chunk per crag loaded on arrival, a raised `maximumFileSizeToCacheInBytes`, or a leaner route format (holds as tuples).
+- **Watching a long route.** A send plays in about a minute at 1× and a worked route with several falls in up to two (25 §10.8); whether routes default to 2×, or the playback skips to the crux and the falls, is for playtesting.

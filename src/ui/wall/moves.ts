@@ -9,11 +9,11 @@ import type { Limb, MoveClass } from '../../sim/types';
 import { add3, LIMBS, mix3, mixBody, mul3, norm3, sub3, type Body3, type RigMods, type Rock, type V3 } from './rig';
 
 export const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-const easeOut = (t: number): number => 1 - (1 - t) ** 3;
+export const easeOut = (t: number): number => 1 - (1 - t) ** 3;
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
 /** Progress through the window [a, b] of t, 0 before and 1 after. */
 export const seg = (t: number, a: number, b: number): number => clamp((t - a) / (b - a), 0, 1);
-const bump = (t: number): number => Math.sin(Math.PI * clamp(t, 0, 1));
+export const bump = (t: number): number => Math.sin(Math.PI * clamp(t, 0, 1));
 
 /** One step of the attempt log, as the wall needs it. */
 export interface StepInfo {
@@ -24,6 +24,8 @@ export interface StepInfo {
   commit?: CommitOutcome | undefined;
   /** Where the hold the move went for is (a slip goes for it and comes back). */
   target?: V3 | undefined;
+  /** A clean static move inside the auto-success margin (05b §4): on a pitch it plays quickly (25 §10.8). */
+  routine?: boolean | undefined;
 }
 
 export type Face = 'focus' | 'strain' | 'scared' | 'surprised' | 'dizzy' | 'happy' | 'calm';
@@ -57,7 +59,7 @@ export interface Animated {
   look?: V3 | undefined;
 }
 
-const calm = (): Fx => ({ strain: 0.2, wobble: 0, squash: 1, face: 'focus', stars: false, sweat: false });
+export const calm = (): Fx => ({ strain: 0.2, wobble: 0, squash: 1, face: 'focus', stars: false, sweat: false });
 
 /** How long a step plays at 1× (ms). **(tune)** */
 export function stepMs(step: StepInfo): number {
@@ -81,10 +83,10 @@ export function stepMs(step: StepInfo): number {
 }
 
 /** The face's way up (along the surface, in the y–z plane) at a height. */
-const upAlong = (rock: Rock, y: number): V3 => { const n = rock.n(y); return [0, n[2], -n[1]]; };
+export const upAlong = (rock: Rock, y: number): V3 => { const n = rock.n(y); return [0, n[2], -n[1]]; };
 
 /** A limb's end through a move: off at `t0`, on at `t1`, out from the rock in between. */
-function limbPath(from: V3, to: V3, rock: Rock, t: number, t0: number, t1: number, bulge = 1): V3 {
+export function limbPath(from: V3, to: V3, rock: Rock, t: number, t0: number, t1: number, bulge = 1): V3 {
   const u = seg(t, t0, t1);
   if (u <= 0) return from;
   if (u >= 1) return to;
@@ -105,7 +107,7 @@ export function animateStep(a: Body3, b: Body3, step: StepInfo, rock: Rock, t: n
   const mods: RigMods = {};
   if (step.kind === 'rest') return landOn(shakeOut(a, rock, t), b, t);
   if (step.kind === 'chalk') return landOn(chalkUp(a, rock, t), b, t);
-  // Rope steps (P1b) until the wall draws the rope: a clip reads as a hand going to the harness and back.
+  // Rope steps play from the pitch's plan (pitch.ts); taken alone, a clip reads as a hand to the harness and back.
   if (step.kind === 'clip') return landOn(chalkUp(a, rock, t), b, t);
   if (step.kind === 'fall' || step.kind === 'take' || step.kind === 'lower') return { body: mixBody(a, b, ease(t)), mods, fx };
   const l = step.limb;
@@ -288,7 +290,11 @@ function chalkUp(a: Body3, rock: Rock, t: number): Animated {
   return { body, mods: {}, fx };
 }
 
-export type EndingKind = 'send' | 'fall' | 'jump' | 'pumped';
+/**
+ * How an attempt ends. On a boulder: topped out, fell or pumped onto the pads, jumped off. On a route (§10.8): the
+ * chains clipped (sent or worked), a fall the rope held and then the lower, a lower off, or a fall to the ground.
+ */
+export type EndingKind = 'send' | 'fall' | 'jump' | 'pumped' | 'chains' | 'lower' | 'ground';
 
 /** Where the climber ends up: on top of the block, or on the pads. */
 export interface EndPlaces {

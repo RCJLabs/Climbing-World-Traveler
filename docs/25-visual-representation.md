@@ -216,18 +216,20 @@ Plain browser JavaScript, outside the TypeScript build and never shipped: a prot
 
 ## 10. The cartoon wall (as built)
 
-The look of the mockup the owner chose, rebuilt in TypeScript on the engine's frames: thick ink outlines, flat toon shading, a big-headed climber in a yellow shirt with a star, blue trousers, red shoes and a red headband, white chalky hands, comic lettering in bursts. Two things changed from the mockup at the owner's request: the legs (§10.4) and the rock, which is now each problem's own block (§10.2) rather than one invented dome. Code in `src/ui/wall/`: `block.ts`, `camera.ts`, `rig.ts`, `moves.ts`, `playback.ts`, `toon.ts`, `WallCanvas.tsx`; all but the last two are pure and tested (`tests/cartoon.test.ts`).
+The look of the mockup the owner chose, rebuilt in TypeScript on the engine's frames: thick ink outlines, flat toon shading, a big-headed climber in a yellow shirt with a star, blue trousers, red shoes and a red headband, white chalky hands, comic lettering in bursts. Two things changed from the mockup at the owner's request: the legs (§10.4) and the rock, which is now each problem's own block (§10.2) rather than one invented dome. Code in `src/ui/wall/`: `block.ts`, `camera.ts`, `rig.ts`, `moves.ts`, `pitch.ts`, `playback.ts`, `toon.ts`, `WallCanvas.tsx`; all but the last two are pure and tested (`tests/cartoon.test.ts`, and for routes `tests/pitch-wall.test.ts`).
 
 ### 10.1 One frame
 
 | Layer, back to front | From |
 |---|---|
-| Sky, drifting clouds, two bands of hills, lollipop trees, sand; a little parallax with the camera | Seeded by the problem, so a problem keeps its scenery |
+| Sky, drifting clouds, two bands of hills, lollipop trees, sand; a little parallax with the camera. Under limestone: the sea, an island on the horizon, a dusty path with scrub and stones (§10.8) | Seeded by the problem, so a problem keeps its scenery; the look by rock type |
 | The block: its side (the profile in cross-section), its top with moss, the face in strips | `Route.wall`, the holds, the seed (§10.2) |
 | Holds by type, drawn 1.5× size; white chalk popcorn on every hold held so far; hidden holds not drawn until held (05b §13) | `Route.holds`, the frames |
+| On a route: the bolts' hangers, a quickdraw on each bolt clipped, the anchor's chains and ring | `protection`, the frames (§10.8) |
 | The hold the move goes for, ringed (dashed and moving; longer dashes for a dynamic move) until the move lands | The step |
 | The circuit's paint mark (a disc and an arrow) by the start; two pads at the pad zone | `Route.circuit`, `protection` |
-| The climber, depth-sorted part by part | §10.4 |
+| On a route: the rope bag, the rope, the belayer; the nearer of belayer and climber drawn last | §10.8 |
+| The climber, depth-sorted part by part; a harness on a route | §10.4 |
 | Effects: the word, speed lines, chalk and dust puffs, sweat, strain marks, stars | §10.5, §10.6 |
 
 ### 10.2 The block is the problem
@@ -255,9 +257,9 @@ A real problem's own outline (§3, §7) is not in the data; generated and signat
 |---|---|---|
 | View | Orthographic three-quarter from the front-left, tilted down 8°: `X = x cos ψ + z sin ψ`, `Y = y cos 8° − (−x sin ψ + z cos ψ) sin 8°` | |
 | Turn `ψ` | `clamp(24° + 0.55 × (steepest angle − 92°), 24°, 56°)`: a vertical face nearly head-on, a roof nearly in profile so the moves under it are not hidden behind the body | **(tune)** |
-| Framing | The head, shoulders, hips, hands, knees and feet and the target hold, padded 1.2 m across and 1.0 m up, at least 2.2 × 2.8 m, never wider than the whole problem at zoom 1 | **(tune)** |
+| Framing | The head, shoulders, hips, hands, knees and feet and the target hold, padded 1.2 m across and 1.0 m up, at least 2.2 × 2.8 m (2.6 × 3.4 m on a route, so the quickdraws below show), never wider than the whole problem at zoom 1 | **(tune)** |
 | Follow | Eases to the framing with a 140 ms time constant; a drag holds until the next step starts, then eases back over 500 ms; double-tap recentres | **(tune)** |
-| Zoom | 0.6–2.5× by pinch or wheel; the view is clamped to the problem | 17 §2 |
+| Zoom | 0.6–2.5× by pinch or wheel, on a route out to the whole pitch; the view is clamped to the problem | 17 §2 |
 
 ### 10.4 The body, and the knees
 
@@ -311,12 +313,62 @@ The start pose shows for 600 ms before the first move and the ending's last fram
 | Check | Where |
 |---|---|
 | Hands and feet on their holds mid-move; knees at least 8 cm off the rock; upper limbs at their lengths; every step starts and ends on the engine's poses; a dyno lifts the hips above a static move's; endings stand on top or land on the pads; the camera keeps the climber in frame at 390 × 460, 360 × 400 and 800 × 600 and the view on the problem; the block is the same every time, differs between problems, follows the wall profile and holds every hold | `tests/cartoon.test.ts`, on attempts on the signatures and every eighth benchmark |
-| By eye: every problem's block, every move of an attempt at any point through it, the endings, live playback; `skel=1` draws the bones over the picture; `bench` times a frame | `scripts/dev/cartoon/` on the dev server: `?sheet=blocks`, `moves`, `at`, `ending`, `play`, `bench` |
+| On a route (§10.8): the cliff's rows at every change of angle and no pads; the first bolt clipped from the start and the engine's clips in order; the rope from the belayer through every clipped quickdraw, in order, to the climber; every rope step starts and ends on the engine's poses; a fall drops the engine's fall length and stops short of the ground; a take and a lower; every attempt ends at the foot of the route; the camera keeps the climber and the quickdraw in frame and zooms out to the whole route; the pacing | `tests/pitch-wall.test.ts`, three attempts on every fourth Kalymnos benchmark |
+| By eye: every problem's block, every move of an attempt at any point through it, the endings, live playback; `skel=1` draws the bones over the picture; `bench` times a frame. `crag=kalymnos` puts routes on any sheet; `rope` shows every rope step and the ending (`kind=send`, `fall`, `worked`, `ground`) | `scripts/dev/cartoon/` on the dev server: `?sheet=blocks`, `moves`, `at`, `ending`, `rope`, `play`, `bench` |
 | The joints in numbers for one attempt | `npx tsx scripts/dev/cartoon/probe-rig.ts [route seed] [DI offset]` |
 
-### 10.8 Routes and walls
+### 10.8 Pitches
 
-P1a has boulders only; no sport route exists in the data yet (P1b). Nothing in §10.2–§10.6 assumes a height: the block takes its rows from the wall, the camera frames the climber with the problem as the limit, so a 30 m pitch would draw as a tall face with the climber followed up it. Not built and not tested: the rope, quickdraws, bolts and the belayer, clipping, lowering off, rests on a pitch, and a 30 m face's shading with 32 rows. Those come with P1b.
+A route climbed on a rope (`discipline: sport`) plays on the same wall: the block becomes a buttress of the cliff, and the frames and the attempt log add the rope. Code in `pitch.ts`, read by `playback.ts`; drawn by `toon.ts`. Everything is rebuilt from the frames with the engine's own functions (`fallLength`, `reachesGround`, `bodyPoints`, `applyMove`), so a fall drawn is the fall the engine took, and nothing in the engine or the data changed for it. **(tune)** throughout.
+
+**The cliff.**
+
+| On screen | Rule |
+|---|---|
+| The face | The route's wall plus a headwall of 1.8–3.2 m over the anchor at the last segment's angle; a row at every change of angle and none taller than 0.5 m (a 30 m profile keeps its creases); only the strips on the canvas drawn |
+| Its width | The holds plus 0.55–0.85 m to the left, so the buttress's side (the profile) stays next to the climber, and 1.1–1.8 m to the right; the base flares over its bottom metre |
+| Markings | As a boulder's, as many to the square metre; on limestone, `round(top / 5) + 2` streaks of orange or blue-grey 3–12 m long; a tufa column on each `tufa` segment where the line climbs it |
+| Scenery | Under limestone: the sea, its horizon 42% down the screen and sinking a little as the camera climbs, an island, the path at the foot of the rock. By rock type, not by crag (open question 10) |
+| No pads | — |
+
+**The hardware and the rope.**
+
+| Piece | Rule |
+|---|---|
+| Bolts | A hanger at each bolt, drawn larger than life like the holds |
+| Quickdraws | A sling and two karabiners, 0.22 m long, hanging straight down (lying on the rock under a slab), on each bolt from the moment the clip puts it there. The first bolt is stick-clipped (26 §2) |
+| The clipped bolts | After each frame: the bolt the rope last came tight to is found by its height (`rope.last_clip_y`), every frame; generated routes are bolted so no line passes a bolt, so the count equals the engine's `rope.next` (tested) |
+| The anchor | Two hangers, three chain links each, a ring; a quickdraw on the ring once clipped |
+| The rope | From the belayer's device up through each clipped quickdraw in the order they rise, the anchor's ring once clipped, a bight in the clipping hand while it clips, to the tie-in at the front of the harness. It sags with slack: `(1 − tight) × min(0.6 m, 0.16 × span)` per span; tight while the rope holds the climber |
+| The rope bag | A tarp and coils by the belayer, the slack end up to the brake hand |
+| The belayer | The 15 §1.4 stub, drawn: 1.63 m, teal shirt, purple trousers, standing 1.25 m right of the first bolt and 1.0 m out from the steepest of the bottom 2.2 m of rock; guide hand up the rope, brake hand low, looking at the climber; lifted off the ground up to 0.45 m by a catch (`min(0.45, 0.07 × fall + 0.08)` m); hands working while it lowers the climber |
+
+**The rope's steps.** A step that adds a rope entry to the log (it can add several: a fall, then the take) plays as a sequence of beats; the log keeps its last 40 entries, so a step's entries are found as the shortest new tail (`freshOf`).
+
+| Beat | ms at 1× | What it looks like | Word |
+|---|---|---|---|
+| Clip | 1200 | A hand to the gear loop, a quickdraw up onto the hanger, the hand down to the tie-in for the rope and up to clip it, back to its hold. The hand on a hold the bolt is clipped from holds on (the cheaper one if both); a bolt out of reach of the other hand and the climber locks off and rises towards it, up to 0.3 m | CLIP! |
+| Try | ¾ of the move | The move that fails, as a near miss | SLAP! or NNGH! |
+| Fall | 260 + (300 + 150 × fall, to 8 m) + 700 | Hands off, peel off the rock, drop the engine's fall length towards hanging under the top quickdraw, the rope comes tight, a bounce of `min(0.35, 0.05 × fall + 0.1)` m, the belayer pulled up. The feet stop short of the ground; off the first moves the climber only sags onto the rope | WHOA! or ARGH! (pumped), WAAAH! past 2.5 m, TWANG! |
+| Hang | 700 | Sitting in the harness, hands on the rope over the knot, feet on the rock if it is in reach, a hand dropped to shake out | |
+| Back on | 700 + 90 per metre (8 m at most) | Hand over hand up the rope to under the stance, then hands and feet onto the holds the fall left | |
+| Take | 1100 | The call, then off the holds and sitting back onto the tight rope (a tight belay: the drop is `fallLength` at belay quality 100) | TAKE! |
+| Pull through | 1300 | A hand to the nearest quickdraw if it is in reach, pull up, the limb on to its hold | |
+
+**The endings.**
+
+| Ending | Beats | Word |
+|---|---|---|
+| Chains (sent) | Clip the anchor's ring; a fist in the air; sit back and lower off; land facing out, arms up, grinning | CLIP!, SENT!, LOWER! |
+| Chains (worked) | As sent, without the fist; land facing out | CLIP!, LOWER! |
+| Fall, pumped | The fall, a short hang, the lower, land facing the rock looking up at the route | as the fall |
+| Lower | Take, the lower, land | TAKE! |
+| Ground | Off the first moves (centre of mass under 1.5 m): a drop onto the feet and up. From higher: a hard landing, sitting, a dust puff, no words and no stars (open question 2) | |
+| The lower | `1300 + 75 × height` ms (3.6 s at most): sitting in the harness, past each clipped quickdraw 0.7 k under it, walking down the rock where it is in reach, to the foot of the route left of the belayer | |
+
+**Pacing.** A Kalymnos pitch is 120–340 steps, about 85% of them routine; at a boulder's pace one played for 1.5–5 minutes at 1×. On a route a routine move (clean, inside the auto-success margin, not dynamic) plays at 0.2 of its time and runs on into the next without a hold; another clean static move at 0.6 with a 100 ms hold; shake-outs and chalking at 0.55 with 80 ms; dynamic and sketchy moves, slips and the rope's beats in full (`PITCH_PACE`). Measured on 48 attempts on the benchmarks: sends 41–79 s at 1× (median about a minute), everything median 70 s, p90 112 s (worked routes with several falls).
+
+**Frame time.** Headless desktop Chromium, 390 × 470: 3.9 ms a frame on a pitch at 1× pixel ratio and 7.8 ms at 2× (1,680 frames over five routes), against 2.3 and 4.4 ms on the Font problems in the same run. The tall face is culled to the canvas (strips, marks, holds).
 
 ---
 
@@ -327,7 +379,10 @@ P1a has boulders only; no sport route exists in the data yet (P1b). Nothing in �
 3. **Real problems:** which crag and how many first; whether the owner's own photos can be the source; whether the three existing signatures get re-authored from photos. Until then the block is seeded from the data (§10.2), not traced.
 4. **The block's outline** is generated (§10.2). A real problem's own silhouette would need `Route.outline` (§3) and a source.
 5. **The engine's body model** keeps the hips 0.35 m under the middle of the hands and feet (05a §4.2), which the rig corrects for the picture (§10.4). If the reach model ever moves the hips by the legs' fold, the rig's sit-back should shrink to match.
-6. **Phone performance** is unmeasured. Headless desktop Chromium draws a 390 × 470 wall in 3.7 ms a frame at 1× pixel ratio and 7.2 ms at 2× (4,080 frames over the 12 problems of the dev gallery's `?sheet=bench`); the canvas is capped at 2× pixel ratio. A low-end Android is the test (18). If it misses 60 fps, the first saving is to draw the scenery and the block once per step instead of every frame.
-7. **Sport routes** (§10.8): the rope and the clips, and whether a 30-move pitch plays in full (about half a minute at 1×) or defaults to 2× or a summary.
+6. **Phone performance** is unmeasured. Headless desktop Chromium draws a 390 × 470 wall in 3.7 ms a frame at 1× pixel ratio and 7.2 ms at 2× (4,080 frames over the 12 problems of the dev gallery's `?sheet=bench`); a pitch costs about 1.7 times a boulder's frame (§10.8); the canvas is capped at 2× pixel ratio. A low-end Android is the test (18). If it misses 60 fps, the first saving is to draw the scenery and the block once per step instead of every frame.
+7. **A pitch's length** (§10.8). Compressed, a send plays in about a minute at 1× and a worked route with several falls in up to two; whether a route should default to 2×, or skip to the crux, is a call for playtesting. The engine's line is long (a hand or foot move per step, about 200 steps for 25 m), so pacing, not the drawing, sets the watch time.
 8. **Highlights** (24 open questions): sessions and sieges show no playback.
 9. **The rest of the app** keeps the Flat Dusk theme ([23 §4](23-move-types-and-art-direction.md)); only the Watch screen is cartoon. Whether the cartoon becomes the whole game's look is the owner's call.
+10. **Scenery by crag.** The sea is drawn under every limestone route and the forest under sandstone and granite, because P1b has one crag of each; Frankenjura or Céüse would want inland limestone. A `look` on the crag (schemas first) is the fix when a third crag arrives.
+11. **The belayer and the clipping hand** are pictures of rules the engine does not have: the belayer stub stands where the wall puts it and catches every fall the same way, and the hand that clips is the one not holding the clipping stance. When partners and belay skill arrive (15), the catch (soft or hard, how far the belayer is lifted) should come from the belayer, and the clip from the engine's choice of hand if it ever makes one.
+12. **Volumes on rock.** The generator's `volume` holds are drawn as the boulder renderer's triangles, which read as gym plastic on a limestone face; a rounded flake or blob would read as rock.
