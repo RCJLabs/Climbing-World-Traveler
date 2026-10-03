@@ -4,10 +4,15 @@ import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
 import { applyMove, prepareMove } from '../src/sim/engine';
 import { gradeRoute, referenceAthlete, sendCurve, startState } from '../src/sim/grade';
-import { cruxIndexes, generateBoulder, profileFor, routeFromSeed, routeSeed, TRACE } from '../src/sim/routes';
+import { cruxIndexes, generateBoulder, lineRobust, profileFor, routeFromSeed, routeSeed, TRACE } from '../src/sim/routes';
+import { athleteOf } from '../src/sim/attempt';
+import { PRESETS, presetSpec } from '../src/sim/presets';
+import { createRun } from '../src/sim/run';
+import type { Athlete } from '../src/sim/character';
+import type { Route } from '../src/sim/types';
 import { ProfileSchema } from '../src/data/schema';
 import { stream } from '../src/sim/rng';
-import { COMPRESSION_WIDTH, limbKind, otherHand, routeGeom, sOfY, WRONG_SIDE_M, yOfS } from '../src/sim/wall';
+import { bodyPoints, COMPRESSION_WIDTH, dist, freeState, limbKind, otherHand, reachRadius, routeGeom, sOfY, WRONG_SIDE_M, yOfS } from '../src/sim/wall';
 
 const bundle = loadBundle();
 const crag = bundle.crags.get('fontainebleau')!;
@@ -172,5 +177,64 @@ describe('signature problems (C7)', () => {
   }
   it('ships the three P1a problems', () => {
     expect([...bundle.signatures.values()].map((r) => r.name).sort()).toEqual(['La Marie-Rose', 'Le Toit du Cul de Chien', 'Rainbow Rocket']);
+  });
+});
+
+describe('reach for every body (06 §2.3, 22 §2)', () => {
+  /** Each static hand move of a line for `ath`: its relative reach, and whether static is legal for this body. */
+  function statics(r: Route, ath: Athlete): { rel: number; legal: boolean }[] | null {
+    const g = routeGeom(r);
+    let st = startState(g, ath);
+    const out: { rel: number; legal: boolean }[] = [];
+    for (const s of r.beta_line) {
+      const want = prepareMove(g, ath, st, s.limb, s.hold, s.class);
+      const p = want ?? (s.class === 'mantle' ? null : prepareMove(g, ath, st, s.limb, s.hold));
+      if (!p) return null;
+      if (limbKind(s.limb) === 'hand' && s.class === 'static') {
+        const bp = bodyPoints(g, ath, freeState(st, s.limb));
+        out.push({ rel: dist(bp.shoulder, g.holds.get(s.hold)!) / reachRadius(ath, 'hand', st.posture), legal: !!want });
+      }
+      st = applyMove(g, ath, st, s.limb, s.hold, p.cls);
+    }
+    return out;
+  }
+  const easy = ['fontainebleau', 'kalymnos'].flatMap((c) => bundle.benchmarks.get(c)!.filter((r) => r.di_target <= 12));
+
+  it(`traces lines at ${TRACE.reachScale} of the Reference Climber's reach`, () => {
+    const rel = easy.flatMap((r) => statics(r, referenceAthlete(r.di_graded))!.map((x) => x.rel));
+    expect(rel.filter((x) => x <= TRACE.reachScale + 0.02).length / rel.length).toBeGreaterThan(0.95);
+  });
+
+  it('lets every preset climb easy lines statically, the 163 cm Slab Wizard too, with no foothold out of reach', () => {
+    for (const p of PRESETS) {
+      const ath = athleteOf(createRun('reach', presetSpec(p.id), bundle), bundle);
+      const all = easy.map((r) => statics(r, ath));
+      expect(all.filter((x) => x === null).length, `${p.id}: lines it cannot finish`).toBe(0);
+      const moves = all.flatMap((x) => x ?? []);
+      expect(moves.filter((x) => !x.legal).length / moves.length, `${p.id}: static moves out of reach`).toBeLessThan(0.05);
+    }
+  });
+
+  it('rejects a finished line with a hold on the edge of the reach (lineRobust)', () => {
+    const r: Route = structuredClone(bundle.benchmarks.get('fontainebleau')!.find((x) => x.di_target === 14)!);
+    const ath = referenceAthlete(r.di_target);
+    expect(lineRobust(r, ath)).toBe(true);
+    // Move the first static hand hold out along the shoulder line until it sits 1 cm inside full reach.
+    const g = routeGeom(r);
+    let st = startState(g, ath);
+    for (const s of r.beta_line) {
+      if (limbKind(s.limb) === 'hand' && s.class === 'static') {
+        const sh = bodyPoints(g, ath, freeState(st, s.limb)).shoulder;
+        const R = reachRadius(ath, 'hand', st.posture);
+        const h = r.holds.find((x) => x.id === s.hold)!;
+        const hg = g.holds.get(s.hold)!;
+        const k = (R - 0.01) / dist(sh, hg);
+        h.x = sh.x + (hg.x - sh.x) * k;
+        h.y = yOfS(r.wall, sh.s + (hg.s - sh.s) * k);
+        break;
+      }
+      st = applyMove(g, ath, st, s.limb, s.hold, prepareMove(g, ath, st, s.limb, s.hold, s.class)!.cls);
+    }
+    expect(lineRobust(r, ath)).toBe(false);
   });
 });

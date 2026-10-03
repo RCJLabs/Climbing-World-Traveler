@@ -82,12 +82,18 @@ export const chalkTerm = (chalk: number): number => 1 + 0.216 * chalk / 100;
 
 export interface MDParts { H: number; S: number; Qh: number; A: number; Rch: number; C: number; Fe: number; O: number }
 
+/**
+ * The reach term of move difficulty (05b §4.1): `max × clamp((r − from)/(1 − from), 0, 1)^pow`, nothing at a
+ * comfortable reach, `max` at full extension; the golden tests check it against the independent calculator. **(tune)**
+ */
+export const RCH = { max: 3.0, from: 0.7, pow: 1.5 };
+
 export function moveDifficulty(m: MoveSpec, fam = 0): { MD: number; parts: MDParts } {
   const H = (m.kind === 'hand' ? H_HAND[m.type] : H_FOOT[m.type]) ?? 14;
   const S = SIZE_DI[m.size];
   const Qh = 4 * (0.5 - m.quality);
   const A = m.type === 'smear' ? 0.3 * (m.angle - 80) : m.kind === 'hand' ? 0.09 * (m.angle - 90) : 0.06 * (m.angle - 90);
-  const Rch = m.cls === 'mantle' ? 0 : 3.0 * Math.pow(Math.min(1, Math.max(0, (m.r - 0.7) / 0.3)), 1.5);
+  const Rch = m.cls === 'mantle' ? 0 : RCH.max * Math.pow(Math.min(1, Math.max(0, (m.r - RCH.from) / (1 - RCH.from))), RCH.pow);
   let C = CLASS_C[m.cls];
   if (m.cls === 'match' && (m.size === 'xs' || m.size === 's')) C = 1.0;
   const Fe = featureTerm(m.feature, m.cls === 'mantle', m.kind === 'hand');

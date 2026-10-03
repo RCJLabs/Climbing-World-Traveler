@@ -21,8 +21,8 @@ export const BOULDER_WIDTH = 2.0;
 
 /**
  * Line-tracing shape (06 §2.3). Font problems are mostly four to seven hand moves (the docs' "six-move problem"),
- * so the tracer uses most of the reach on each static move, steps feet high rather than often, and refuses
- * hand moves that gain little height until the feet have come up.
+ * so the tracer uses most of the traced reach (`reachScale` of the Reference Climber's) on each static move, steps
+ * feet high rather than often, and refuses hand moves that gain little height until the feet have come up.
  */
 export const TRACE = {
   staticReach: [0.88, 1.0] as const,
@@ -42,6 +42,14 @@ export const TRACE = {
   minHandMoves: 3,
   /** A beta move stays legal, with the same class and posture, with its hold this far (m) away across or along the rock, and keeps twice this from the wrong-side line (06 §2.3, C5). **(tune)** */
   legalMargin: 0.03,
+  /**
+   * Lines are traced for a body with this share of the Reference Climber's reach, hands and feet (06 §2.3): its
+   * reach is pinned at a lock-off and mobility most climbers do not have, and a line traced at its full reach left a
+   * 163 cm climber unable to make 93% of a route's static moves and a 168 cm one stranded on footholds 1–3 cm out of
+   * reach. The Reference Climber still grades the line; a climber with more reach climbs it with room to spare.
+   * **(tune)**
+   */
+  reachScale: 0.88,
 };
 
 /** Generator diagnostics: why attempts were discarded. Read by the probe and calibration scripts. */
@@ -259,7 +267,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
       const span = (fbp.C_hands?.s ?? fbp.hip.s + 0.9) - curF.s;
       const scale = ath.body.height_cm / 170;
       if (span < (force ? TRACE.footSpan[2] : moved === 0 ? TRACE.footSpan[0] : TRACE.footSpan[1]) * scale) continue;
-      const Rf = reachRadius(ath, 'foot', st.posture);
+      const Rf = reachRadius(ath, 'foot', st.posture) * TRACE.reachScale;
       const segAngle = segmentAt(wall, yOfS(wall, fbp.hip.s)).angle;
       const wantHeel = segAngle >= 110 && rng.bool((grammar.heel_hook ?? 0) * TRACE.heelBias);
       const wantHigh = !wantHeel && segAngle <= 130 && rng.bool((grammar.high_step ?? 0) * 1.2);
@@ -282,7 +290,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
       // Feet often go on holds the hands have left (Font footwork): reuse one near the target if legal.
       const occupied = new Set(Object.values(st.anchors));
       const reuse = geom.list
-        .filter((h) => h.feet_ok && !occupied.has(h.id) && h.s >= lo && h.s <= fs + 0.15 && Math.abs(h.x - fx) <= 0.35 && rng.bool(0.8))
+        .filter((h) => h.feet_ok && !occupied.has(h.id) && h.s >= lo && h.s <= fs + 0.15 && Math.abs(h.x - fx) <= 0.35 && dist(h, fbp.hip) <= 0.88 * Rf && rng.bool(0.8))
         .sort((a, b) => Math.hypot(a.x - fx, a.s - fs) - Math.hypot(b.x - fx, b.s - fs))[0];
       if (reuse) {
         const rp = prepareMove(geom, ath, st, foot, reuse.id);
@@ -315,7 +323,7 @@ function trace(req: GenRequest, wall: WallSegment[], height: number, ath: Athlet
   for (let iter = 0; iter < shape.maxIter; iter++) {
     const hand: Limb = iter === 0 ? lastHand : otherHand(lastHand);
     const bp = bodyPoints(geom, ath, freeState(st, hand));
-    const R = reachRadius(ath, 'hand', st.posture);
+    const R = reachRadius(ath, 'hand', st.posture) * TRACE.reachScale;
     const cur = geom.holds.get(st.anchors[hand]!)!;
     const other = geom.holds.get(st.anchors[otherHand(hand)]!)!;
     let cls: MoveClass = 'static';
@@ -653,9 +661,43 @@ function styleTags(route: Route): Route['style_tags'] {
 
 // ---------------------------------------------------------------- entry point
 
+/**
+ * Whether every move of a finished line stays legal, with its class and the posture after it, with its hold moved by
+ * the margin either way across or along the rock, and keeps twice the margin from the wrong-side line (06 §2.3, C5).
+ * The tracer checks each move as it places it, but the solver re-types holds afterwards, and a foothold's quality or a
+ * new pinch can change a later posture and so the reach of the moves after it.
+ */
+export function lineRobust(route: Route, ath: Athlete): boolean {
+  const m = TRACE.legalMargin;
+  const geom = routeGeom(route);
+  let st = startState(geom, ath);
+  for (const step of route.beta_line) {
+    if (step.class === 'mantle') break;
+    const hold = route.holds.find((h) => h.id === step.hold)!;
+    const otherId = st.anchors[otherHand(step.limb)];
+    if (otherId && otherId !== hold.id) {
+      const other = route.holds.find((h) => h.id === otherId)!;
+      const lim = WRONG_SIDE_M[limbKind(step.limb)];
+      const room = step.limb === 'RH' || step.limb === 'RF' ? hold.x - (other.x - lim) : other.x + lim - hold.x;
+      if (room < 2 * m - 1e-9) return false;
+    }
+    const after = applyMove(geom, ath, st, step.limb, step.hold, step.class).posture;
+    const s = sOfY(route.wall, hold.y);
+    for (const [dx, ds] of [[m, 0], [-m, 0], [0, m], [0, -m]] as const) {
+      const g = withHold(geom, { ...hold, x: hold.x + dx, y: yOfS(route.wall, s + ds) });
+      if (!prepareMove(g, ath, st, step.limb, step.hold, step.class) || applyMove(g, ath, st, step.limb, step.hold, step.class).posture !== after) return false;
+    }
+    st = applyMove(geom, ath, st, step.limb, step.hold, step.class);
+  }
+  return true;
+}
+
 export function generateBoulder(req: GenRequest): Route {
   let best: Route | null = null;
   let bestGap = Infinity;
+  // A problem whose finished line sits on a legality edge (lineRobust) is kept only if no other candidate is found.
+  let fragile: Route | null = null;
+  let fragileGap = Infinity;
   const ath = referenceAthlete(req.di_target);
   for (let attempt = 0; attempt < 12; attempt++) {
     const seed = attempt === 0 ? req.seed : `${req.seed}:retry${attempt}`;
@@ -684,10 +726,16 @@ export function generateBoulder(req: GenRequest): Route {
     route.danger = g.danger;
     route.components = g.components;
     const gap = Math.abs(g.di - req.di_target);
+    if (!lineRobust(route, ath)) {
+      note('fragile');
+      if (gap < fragileGap) { fragile = route; fragileGap = gap; }
+      continue;
+    }
     if (gap < bestGap) { best = route; bestGap = gap; }
     if (gap <= 1.0) break;
     note('off_target');
   }
+  best ??= fragile;
   if (!best) throw new Error(`generator failed for ${req.seed}`);
   best.seed = req.seed;
   best.id = routeIdFor(req.seed);
