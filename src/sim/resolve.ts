@@ -215,7 +215,7 @@ export function evaluate(ath: Athlete, m: MoveSpec, st: MoveState, cond: Conditi
     S_cell, M_trait, M_body, Q, M_cond, M_state, S_eff, ES, MD, parts, margin, T,
     pump_cost: pumpCost(ath, m, margin, T, st.overgrip),
     power_cost: power_cost || (m.cls !== 'mantle' && margin < 0.5 * T ? 3 : 0),
-    skin_cost: skinCost(ath, m, st),
+    skin_cost: skinCost(ath, m, st, margin, T),
     time: m.kind === 'foot' && m.cls === 'static' ? FOOT_STATIC_TIME : MOVE_TIME[m.cls],
     hesitation, legal: true,
   };
@@ -283,10 +283,17 @@ export function pumpCost(ath: Athlete, m: MoveSpec, margin: number, T: number, o
   return c;
 }
 
-export function skinCost(ath: Athlete, m: MoveSpec, st: Pick<MoveState, 'skin' | 'overgrip'>): number {
+/**
+ * How hard the climber pulls on a hold, for skin wear (P1b, docs/26): full at a margin of 0 or less, a quarter at
+ * three roll bands or more. A route's hundred moves are mostly well inside the climber's level, and at the boulder
+ * rate one pitch cost a quarter of the day's skin. **(tune)**
+ */
+export const skinForce = (margin: number, T: number): number => Math.min(1, Math.max(0.25, 1 - 0.25 * margin / T));
+
+export function skinCost(ath: Athlete, m: MoveSpec, st: Pick<MoveState, 'skin' | 'overgrip'>, margin = 0, T = 1): number {
   if (m.kind === 'foot') return 0;
   const body = ath.body.skin_thickness === 'thin' ? 1.3 : ath.body.skin_thickness === 'thick' ? 0.8 : 1.0;
-  let c = 0.8 * m.sharpness * SK[m.type] * body * (1.3 - 0.6 * ath.a.skin_durability / 100) * (1 + 0.3 * st.overgrip);
+  let c = 0.8 * m.sharpness * SK[m.type] * body * (1.3 - 0.6 * ath.a.skin_durability / 100) * (1 + 0.3 * st.overgrip) * skinForce(margin, T);
   if (st.skin < 30) c *= 2;
   if (m.cls === 'match') c *= 0.5;
   return c;

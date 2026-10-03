@@ -6,7 +6,7 @@ import { athleteOf, isVisible, liveFear, routeEntry } from '../../sim/attempt';
 import { izof, powerPool } from '../../sim/resolve';
 import type { RunState } from '../../sim/state';
 import { Circuit, Meter, Seg } from '../components';
-import { grade } from '../format';
+import { gradeOf } from '../format';
 import { data, goto, playback, saveSettings, settings } from '../store';
 import { playbackOf } from '../wall/playback';
 import { WallCanvas } from '../wall/WallCanvas';
@@ -52,7 +52,7 @@ export function Watch({ run }: { run: RunState }) {
       <div class="top" style={{ paddingBottom: '8px' }}>
         <div class="top-row">
           <div class="col" style={{ gap: '2px', minWidth: 0 }}>
-            <span class="card-title one-line">{route.name} · {grade(route.di_graded)}</span>
+            <span class="card-title one-line">{route.name} · {gradeOf(route)}</span>
             <span class="tiny row"><Circuit c={route.circuit} />{MODE_LABEL[at.mode]} · attempt {at.attempt_index + 1} · move {at.moves} · line {progress}/{route.beta_line.length}</span>
           </div>
           <button class="chip-btn" onClick={() => goto({ name: 'result' })}>Skip</button>

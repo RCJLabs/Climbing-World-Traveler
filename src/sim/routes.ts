@@ -14,7 +14,7 @@ import type {
   BetaStep, CircuitColour, Crag, CragStyleProfile, DataBundle, Hold, HoldType, Limb, MoveClass, Route, Sector, SizeClass, WallSegment,
 } from './types';
 import {
-  bodyPoints, COMPRESSION_WIDTH, dist, freeState, HIGH_STEP_ABOVE_HIP, limbKind, otherHand, reachRadius, routeGeom, segmentAt, sOfY, withHold, WRONG_SIDE_M, yOfS, type ClimbState,
+  bodyPoints, COMPRESSION_WIDTH, dist, freeState, HIGH_STEP_ABOVE_HIP, limbKind, otherHand, reachRadius, refreshHold, routeGeom, segmentAt, sOfY, withHold, WRONG_SIDE_M, yOfS, type ClimbState,
 } from './wall';
 
 export const BOULDER_WIDTH = 2.0;
@@ -524,7 +524,7 @@ function solveAll(route: Route, traced: Traced, ath: Athlete, req: GenRequest, r
         ? req.di_target + targets.foot
         : req.di_target + (crux.has(i) ? targets.crux : targets.base) - 0.05 + (dynamic ? -0.4 : 0);
       solveHold(hold, prep.spec, target, req.profile, rng, kind, hold.id === route.finish_hold, targets.directional);
-      geom = routeGeom(route);
+      refreshHold(geom, hold);
       const again = prepareMove(geom, ath, st, step.limb, step.hold, prep.cls) ?? prepareMove(geom, ath, st, step.limb, step.hold);
       if (again) { st = applyMove(geom, ath, st, step.limb, step.hold, again.cls); step.class = again.cls; }
     } else {
@@ -586,29 +586,68 @@ export function circuitFor(sector: Sector, di: number): CircuitColour | undefine
   return bestGap <= 0.6 ? best : undefined;
 }
 
+/** Hold families a route can be tagged with (schemas §2): the pocket sizes are one family. */
+const FAMILY_TAG: Partial<Record<HoldType, Route['style_tags'][number]>> = {
+  sloper: 'sloper', crimp: 'crimp', pinch: 'pinch', jug: 'jug', edge: 'edge', pocket1: 'pocket', pocket2: 'pocket', pocket3: 'pocket',
+};
+const angleTag = (angle: number): Route['style_tags'][number] => (angle > 130 ? 'roof' : angle > 95 ? 'overhang' : angle < 85 ? 'slab' : 'vertical');
+
+/**
+ * What a pitch is tagged by (05c §2, P1b). Fifty hand moves hold a bit of everything, so a route is tagged by shares,
+ * not by what it has at all: its main hold family, the angle most of its length climbs at, and whether the hardest move
+ * makes the grade (power) or the pump does (endurance). **(tune)**
+ */
+export const ROUTE_TAGS = { family: 0.3, dynamic: 0.12, highStep: 0.12, heel: 0.03, power: -0.5, endurance: -1.5 };
+
+/**
+ * Style tags (05c §2). A boulder is tagged by what it has at all: one dyno makes it dynamic, its steepest segment sets
+ * the terrain. A route by shares (`ROUTE_TAGS`).
+ */
 function styleTags(route: Route): Route['style_tags'] {
-  const counts = new Map<string, number>();
+  // Hand holds by family (a type without a family tag counts as itself), and the dynamic hand moves.
+  const fam = new Map<string, number>();
+  let hands = 0;
+  let dynamic = 0;
   for (const s of route.beta_line) {
     if (limbKind(s.limb) !== 'hand') continue;
-    const h = route.holds.find((x) => x.id === s.hold)!;
-    counts.set(h.type, (counts.get(h.type) ?? 0) + 1);
-    if (s.class === 'deadpoint' || s.class === 'dyno') counts.set('dynamic', (counts.get('dynamic') ?? 0) + 1);
+    const type = route.holds.find((x) => x.id === s.hold)!.type;
+    const key = FAMILY_TAG[type] ?? type;
+    hands++;
+    fam.set(key, (fam.get(key) ?? 0) + 1);
+    if (s.class === 'deadpoint' || s.class === 'dyno') dynamic++;
   }
+  const [topKey, topN] = [...fam.entries()].sort((a, b) => b[1] - a[1])[0] ?? ['', 0];
+  const top = Object.values(FAMILY_TAG).find((t) => t === topKey);
+  const steps = (cls: MoveClass): number => route.beta_line.filter((s) => s.class === cls).length;
   const tags: Route['style_tags'] = [];
-  const top = [...counts.entries()].filter(([k]) => k !== 'dynamic').sort((a, b) => b[1] - a[1])[0]?.[0];
-  if (top === 'sloper' || top === 'crimp' || top === 'pinch' || top === 'jug' || top === 'edge') tags.push(top);
-  if ((counts.get('dynamic') ?? 0) > 0) tags.push('dynamic');
-  const maxAngle = Math.max(...route.wall.map((w) => w.angle));
-  tags.push(maxAngle > 130 ? 'roof' : maxAngle > 95 ? 'overhang' : maxAngle < 85 ? 'slab' : 'vertical');
-  if (route.beta_line.some((s) => s.class === 'high_step')) tags.push('footwork');
-  if (route.beta_line.some((s) => s.class === 'heel_hook')) tags.push('flexibility');
-  if (route.wall.some((w) => w.feature === 'arete')) tags.push('arete');
   if (route.discipline === 'sport') {
+    const t = ROUTE_TAGS;
+    if (top && topN >= t.family * hands) tags.push(top);
+    // The angle most of the pitch climbs at: segments weighted by their length on the wall.
+    let len = 0;
+    let sum = 0;
+    for (const w of route.wall) {
+      const l = (w.y1 - w.y0) / Math.max(0.2, Math.sin((w.angle * Math.PI) / 180));
+      len += l;
+      sum += l * w.angle;
+    }
+    tags.push(angleTag(sum / Math.max(1e-9, len)));
+    const hardest = (route.components?.hardest_move ?? -Infinity) - route.di_graded;
+    if (hardest >= t.power) tags.push('power');
+    else if (hardest <= t.endurance) tags.push('endurance');
+    if (dynamic >= t.dynamic * hands) tags.push('dynamic');
+    if (steps('high_step') >= t.highStep * route.beta_line.length) tags.push('footwork');
+    if (steps('heel_hook') >= t.heel * route.beta_line.length) tags.push('flexibility');
     tags.push('sport');
-    const pump = route.components?.pump_peak ?? 0;
-    if (pump >= 60) tags.push('endurance');
-    else if (pump < 30) tags.push('power');
-  } else if (route.length_m > 4.2) tags.push('highball');
+    return tags;
+  }
+  if (top) tags.push(top);
+  if (dynamic > 0) tags.push('dynamic');
+  tags.push(angleTag(Math.max(...route.wall.map((w) => w.angle))));
+  if (steps('high_step') > 0) tags.push('footwork');
+  if (steps('heel_hook') > 0) tags.push('flexibility');
+  if (route.wall.some((w) => w.feature === 'arete')) tags.push('arete');
+  if (route.length_m > 4.2) tags.push('highball');
   return tags;
 }
 
@@ -907,7 +946,9 @@ export function routeFromSeed(seed: string, bundle: DataBundle): Route {
 
 /**
  * The style profile for a problem (06 §2.1): one of the sector's profiles that can be built to `di` (its `di_max`,
- * if any, at or above it). If none can, the one that reaches highest: a slab sector's hardest problems stay soft.
+ * if any, at or above it, and its `di_min`, if any, at or below it). If none can: below every floor, the one that
+ * reaches lowest (a cave's easiest routes are steep jug ladders); otherwise the one that reaches highest (a slab
+ * sector's hardest problems stay soft).
  */
 export function profileFor(sector: Sector, di: number, bundle: Pick<DataBundle, 'profiles'>, rng: Rng): CragStyleProfile {
   const all = sector.style_profiles.map((id) => {
@@ -915,9 +956,18 @@ export function profileFor(sector: Sector, di: number, bundle: Pick<DataBundle, 
     if (!p) throw new Error(`unknown profile ${id}`);
     return p;
   });
-  const able = all.filter((p) => (p.di_max ?? Infinity) >= di);
+  const able = all.filter((p) => (p.di_max ?? Infinity) >= di && (p.di_min ?? -Infinity) <= di);
   if (able.length) return rng.pick(able);
+  if (all.every((p) => (p.di_min ?? -Infinity) > di)) return all.reduce((a, b) => ((b.di_min ?? -Infinity) < (a.di_min ?? -Infinity) ? b : a));
   return all.reduce((a, b) => ((b.di_max ?? Infinity) > (a.di_max ?? Infinity) ? b : a));
+}
+
+/**
+ * The easiest DI a sector has routes at (06 §2.1, P1b): the lowest floor among its styles, or none (`-Infinity`) when
+ * any of them has no floor. A tufa cave starts where its tufas do; a grey wall goes down to the crag's easiest grade.
+ */
+export function sectorFloor(sector: Sector, bundle: Pick<DataBundle, 'profiles'>): number {
+  return Math.min(...sector.style_profiles.map((id) => bundle.profiles.get(id)?.di_min ?? -Infinity));
 }
 
 /** Distance helper for UIs and tests. */

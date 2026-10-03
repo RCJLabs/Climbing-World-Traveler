@@ -46,7 +46,9 @@ Applied in this order to each block the plan asks for. **(tune)**
 | Wet | Every sector is shut ([10](10-weather-and-conditions.md)) | A climbing block is the plan's `wet_day` block |
 | Cannot start | Not enough energy, skin or money for the block | A first block is rest; a second is dropped |
 
-A climbing block goes to a sector not yet visited this week if one is dry, rotating by day (the novelty rule of [12](12-training-and-adaptation.md) §7).
+A climbing block goes to a sector with routes within the climber's reach if one is dry (its floor at or below the estimate, `SECTOR_REACH = 0`: a tufa cave starting at 6b+ is left to a climber who can warm up there, P1b **(tune)**), then to one not yet visited this week, rotating by day (the novelty rule of [12](12-training-and-adaptation.md) §7).
+
+The plan never travels: a trip to another crag is the player's decision, taken on the Crag screen before the day's first block (`{ t: 'travel', to }`, [09 §7b.3](09-world-atlas.md)). The days on the move pass by themselves; the plan resumes at the destination.
 
 ### 2.2 The default week
 
@@ -107,6 +109,8 @@ Every roll comes from `stream(run_seed, route, attempt, move)` as before, so the
 | Project (`project`) | known, project, push, signature, mid, warm-up | above estimate + 4.5 | 5 (warm-up 1) |
 
 A problem is left once it goes this session, or once it is sent for good (warm-ups excepted). The session ends when the climber is tired: energy < 22 or skin < 12. **(tune)** A first try is a flash on a signature problem (there is beta to watch) and an onsight elsewhere; later tries are redpoints.
+
+On routes (P1b) a pitch costs about a fifth of a day's energy (`6 + 0.25 × metres climbed + 1 per fall`, [26 §5](26-p1b-implementation-notes.md)), so the tables change in one column: Project gives a route 3 attempts (warm-up 1), Mileage 1. A Project route more than 1.5 DI above the estimate that has never been tried gets a working first go (`work`, hanging on the rope to learn it, `WORK_FIRST_ABOVE`) instead of an onsight; later goes are redpoints. A session at a sport crag offers six routes (warm-up, two mid, two push, one project) instead of eight problems **(tune)**.
 
 ### 3.3 By hand
 

@@ -1,6 +1,6 @@
-// Daily weather and climbing conditions (docs/10). P1a runs this for Fontainebleau only: a seeded Markov
-// chain per crag and day, a sending-temperature friction term, a small seeded daily friction scalar, and the
-// Font no-damp rule that closes sectors after rain.
+// Daily weather and climbing conditions (docs/10): a seeded Markov chain per crag and day, a sending-temperature
+// friction term, a small seeded daily friction scalar, and the wet-rock rules that close sectors after rain (Font's
+// no-damp sandstone; limestone that dries in hours but seeps in its caves).
 
 import type { Athlete } from './character';
 import { chalkTerm, type Conditions } from './resolve';
@@ -82,11 +82,19 @@ function draw(sky: Sky, m: ClimateMonth, day: number, rng: ReturnType<typeof str
 
 /** Weather on day 0, drawn from the month's stationary distribution. */
 export function firstWeather(runSeed: string, crag: Crag, month: number, difficulty: Difficulty): DayWeather {
+  return freshWeather(runSeed, crag, 0, month, difficulty);
+}
+
+/**
+ * Weather on `day` from the month's stationary distribution, with no yesterday to follow: the start of a run, and the
+ * first day at a crag after travel (yesterday's sky was somewhere else).
+ */
+export function freshWeather(runSeed: string, crag: Crag, day: number, month: number, difficulty: Difficulty): DayWeather {
   const m = crag.climate[month]!;
-  const rng = stream('weather', runSeed, crag.id, 0);
+  const rng = stream('weather', runSeed, crag.id, day);
   const pi = stationary(m, month, difficulty);
   const sky = SKIES[weightedIndex(pi, rng.next())]!;
-  return draw(sky, m, 0, rng);
+  return draw(sky, m, day, rng);
 }
 
 /** Weather on `day` given yesterday's weather. Depends only on the seed, never on the player's actions. */
@@ -125,13 +133,29 @@ export function dryLag(sector: Sector, today: DayWeather): number {
 
 export type SectorStatus = { open: true } | { open: false; reason: string };
 
-export function sectorStatus(sector: Sector, today: DayWeather, lastRain: RainMark | null): SectorStatus {
-  if (today.sky === 'rain' || today.sky === 'storm') return { open: false, reason: 'Raining. Font sandstone is never climbed wet.' };
-  if (today.rh > 90) return { open: false, reason: 'Damp air: the sandstone is soft and the holds will break.' };
-  if (lastRain) {
-    const since = today.day - lastRain.day;
-    const lag = dryLag(sector, today) + (lastRain.mm > 15 ? 1 : 0);
-    if (since < lag) return { open: false, reason: `Still drying after rain (${since} of ${Math.ceil(lag)} days).` };
+/** Rain heavy enough to soak sandstone a day longer and set the tufas seeping (10 §4). **(tune)** */
+export const HEAVY_RAIN_MM = 15;
+
+/**
+ * Whether a sector can be climbed today (10 §4), by the crag's rock. Sandstone (Font) is never climbed damp: shut in
+ * rain, in damp air, and until it has dried. Limestone dries in hours: shut only while it rains, except the tufa caves
+ * (`seep_lag_days`), which seep for days after heavy rain.
+ */
+export function sectorStatus(crag: Pick<Crag, 'rock'>, sector: Sector, today: DayWeather, lastRain: RainMark | null): SectorStatus {
+  const since = lastRain ? today.day - lastRain.day : Infinity;
+  if (crag.rock.startsWith('sandstone')) {
+    if (today.sky === 'rain' || today.sky === 'storm') return { open: false, reason: 'Raining. Font sandstone is never climbed wet.' };
+    if (today.rh > 90) return { open: false, reason: 'Damp air: the sandstone is soft and the holds will break.' };
+    if (lastRain) {
+      const lag = dryLag(sector, today) + (lastRain.mm > HEAVY_RAIN_MM ? 1 : 0);
+      if (since < lag) return { open: false, reason: `Still drying after rain (${since} of ${Math.ceil(lag)} days).` };
+    }
+    return { open: true };
+  }
+  if (today.sky === 'rain' || today.sky === 'storm') return { open: false, reason: 'Raining.' };
+  if (lastRain && since < sector.dry_lag_days) return { open: false, reason: 'Still wet from the rain.' };
+  if (lastRain && sector.seep_lag_days && lastRain.mm > HEAVY_RAIN_MM && since < sector.seep_lag_days) {
+    return { open: false, reason: `The tufas are seeping after heavy rain (${since} of ${sector.seep_lag_days} days).` };
   }
   return { open: true };
 }

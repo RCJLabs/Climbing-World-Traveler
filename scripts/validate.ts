@@ -4,6 +4,7 @@ import { loadBundle } from '../src/data/bundle';
 import { phaseLive, validateCreation } from '../src/sim/character';
 import { gradeRoute } from '../src/sim/grade';
 import { PRESETS, presetSpec } from '../src/sim/presets';
+import { travelGraphErrors } from '../src/sim/travel';
 import { ALL_ATTRS, HOLD_TYPES } from '../src/sim/types';
 
 const errors: string[] = [];
@@ -56,7 +57,7 @@ for (const c of bundle.crags.values()) {
     }
   }
   const bench = bundle.benchmarks.get(c.id);
-  if (c.phase === 'P1a' && (!bench || bench.length < 12)) err(`crag ${c.id}: benchmark set missing or short (run scripts/build-benchmarks.ts)`);
+  if (phaseLive(c.phase) && (!bench || bench.length < 12)) err(`crag ${c.id}: benchmark set missing or short (run pnpm benchmarks)`);
 }
 
 // Crags and profiles agree on the discipline (06 §2.6): a sport crag's sectors use bolted profiles, a bouldering
@@ -86,6 +87,14 @@ for (const r of bundle.signatures.values()) {
   if (g.di === null) err(`signature ${r.id}: ungradeable`);
   else if (Math.abs(g.di - r.di_target) > 1.0) err(`signature ${r.id}: grades ${g.di.toFixed(2)}, canonical ${r.di_target}`);
   else if (Math.abs(g.di - r.di_graded) > 0.05) warn(`signature ${r.id}: stored di_graded ${r.di_graded} but engine gives ${g.di.toFixed(2)}; rebuild`);
+}
+
+// The travel graph: edges join real crags and hubs, and every live crag can reach every other (09 §8).
+for (const e of travelGraphErrors(bundle)) err(e);
+// A live background starts at a live crag.
+for (const b of bundle.backgrounds.values()) {
+  const c = bundle.crags.get(b.start_crag);
+  if (phaseLive(b.phase) && c && !phaseLive(c.phase)) err(`background ${b.id}: starts at ${c.id}, which is not live in this phase`);
 }
 
 // Presets are valid builds with every unlock held.

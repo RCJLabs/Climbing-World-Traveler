@@ -151,7 +151,8 @@ const tS = performance.now();
 for (const profile of [...bundle.profiles.values()].filter((p) => p.protection?.kind === 'bolt')) {
   const sectors = kal.sectors.filter((s) => s.style_profiles.includes(profile.id));
   if (!sectors.length) continue;
-  for (let di = 14; di <= Math.min(26, profile.di_max ?? 26); di += S.s1step) {
+  // Each style across its own grades: the tufas from their floor, the grey walls from DI 10 (DI 8 is the grid's floor).
+  for (let di = Math.max(10, profile.di_min ?? 10); di <= Math.min(26, profile.di_max ?? 26); di += S.s1step) {
     for (let k = 0; k < S.s1n; k++) {
       const sector = sectors[(di + k) % sectors.length]!;
       try {

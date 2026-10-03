@@ -1,5 +1,6 @@
 // Headless career simulator (docs/19 §1–§2) over forked worker processes.
-//   pnpm harness --n 40 --days 365 --seed 7 --policy both --out reports
+//   pnpm harness --n 40 --days 365 --seed 7 --policy both --crag fontainebleau --out reports
+// `--crag` keeps to the backgrounds that start there: fontainebleau (P1a boulders, the default) or kalymnos (routes).
 // Writes <out>/harness-<seed>.md and .json and prints the report.
 import { fork } from 'node:child_process';
 import { cpus } from 'node:os';
@@ -8,7 +9,7 @@ import { loadBundle } from '../src/data/bundle';
 import { runCareer, type CareerConfig, type CareerResult } from '../src/harness/career';
 import { sampleBuild } from '../src/harness/sampler';
 import { mean, quantile } from '../src/harness/sim';
-import { fontGrade } from '../src/sim/grades';
+import { fontGrade, frenchGrade } from '../src/sim/grades';
 import { DEFAULT_OPTIONS } from '../src/sim/presets';
 import { stream } from '../src/sim/rng';
 
@@ -33,12 +34,13 @@ async function main(): Promise<void> {
   const policyArg = opt('policy', 'both');
   const workers = Math.max(1, Math.min(Number(opt('workers', String(cpus().length))), n));
   const out = opt('out', '');
+  const crag = opt('crag', 'fontainebleau');
   const bundle = loadBundle();
 
   const jobs: Job[] = [];
   for (let i = 0; i < n; i++) {
     const rng = stream('harness-build', seed, i);
-    const spec = sampleBuild(rng, bundle, DEFAULT_OPTIONS, `H${i}`);
+    const spec = sampleBuild(rng, bundle, DEFAULT_OPTIONS, `H${i}`, crag);
     const policy = policyArg === 'both' ? (i % 2 ? 'volume' : 'project') : (policyArg as 'project' | 'volume');
     jobs.push({ index: i, cfg: { seed: `h${seed}-${i}`, spec, days, policy, checkReplay: i < 2 } });
   }
@@ -57,21 +59,23 @@ async function main(): Promise<void> {
     child.send({ jobs: mine });
   })));
   process.stderr.write('\n');
-  const report = buildReport(results, { n, days, seed, policy: policyArg, secs: (performance.now() - t0) / 1000, workers });
+  const report = buildReport(results, { n, days, seed, policy: policyArg, secs: (performance.now() - t0) / 1000, workers, crag });
   console.log(report);
   if (out) {
     const { mkdirSync, writeFileSync } = await import('node:fs');
     mkdirSync(out, { recursive: true });
-    writeFileSync(`${out}/harness-${seed}.md`, report + '\n');
-    writeFileSync(`${out}/harness-${seed}.json`, JSON.stringify(results, null, 1) + '\n');
+    const tag = crag === 'fontainebleau' ? seed : `${crag}-${seed}`;
+    writeFileSync(`${out}/harness-${tag}.md`, report + '\n');
+    writeFileSync(`${out}/harness-${tag}.json`, JSON.stringify(results, null, 1) + '\n');
   }
 }
 
-function buildReport(rs: CareerResult[], meta: { n: number; days: number; seed: string; policy: string; secs: number; workers: number }): string {
+function buildReport(rs: CareerResult[], meta: { n: number; days: number; seed: string; policy: string; secs: number; workers: number; crag: string }): string {
   const L: string[] = [];
   const f = (x: number) => x.toFixed(1);
-  const g = (di: number) => (di > 0 ? fontGrade(di) : '—');
-  L.push(`# Harness report · seed ${meta.seed}`);
+  const sport = rs.some((r) => r.sport);
+  const g = (di: number) => (di > 0 ? (sport ? frenchGrade(di) : fontGrade(di)) : '—');
+  L.push(`# Harness report · seed ${meta.seed} · ${meta.crag} (${sport ? 'routes, French grades' : 'boulders, Font grades'})`);
   L.push('');
   L.push(`${meta.n} careers × ${meta.days} days · policy ${meta.policy} · ${meta.secs.toFixed(0)} s on ${meta.workers} workers · ${Math.round(mean(rs.map((r) => r.actions)))} actions per career`);
   L.push('');
@@ -98,14 +102,14 @@ function buildReport(rs: CareerResult[], meta: { n: number; days: number; seed: 
   for (const b of bgs) {
     const s = rs.filter((r) => r.background === b);
     const last = s.map((r) => r.months[r.months.length - 1]);
-    L.push(`| ${b} | ${s.length} | ${f(mean(s.map((r) => r.E0)))} | ${f(mean(last.map((x) => x?.E ?? 0)))} | ${f(mean(s.map((r) => r.summary.hardest)))} | ${Math.round(mean(s.map((r) => r.summary.ticks)))} | ${Math.round(mean(last.map((x) => x?.money ?? 0)))} |`);
+    L.push(`| ${b} | ${s.length} | ${f(mean(s.map((r) => r.E0)))} | ${f(mean(last.map((x) => x?.E ?? 0)))} | ${f(mean(s.map((r) => r.hardest)))} | ${Math.round(mean(s.map((r) => r.summary.ticks)))} | ${Math.round(mean(last.map((x) => x?.money ?? 0)))} |`);
   }
   L.push('');
   L.push('## Policies');
   L.push('');
   for (const p of [...new Set(rs.map((r) => r.policy))]) {
     const s = rs.filter((r) => r.policy === p);
-    L.push(`- **${p}:** PB ${f(mean(s.map((r) => r.summary.hardest)))}, hardest flash ${f(mean(s.map((r) => r.summary.hardest_flash)))}, ticks ${Math.round(mean(s.map((r) => r.summary.ticks)))}, E gain ${f(mean(s.map((r) => (r.months[r.months.length - 1]?.E ?? r.E0) - r.E0)))}, climbing days ${Math.round(mean(s.map((r) => r.climb_days)))}.`);
+    L.push(`- **${p}:** PB ${f(mean(s.map((r) => r.hardest)))}, hardest ${sport ? 'onsight' : 'flash'} ${f(mean(s.map((r) => r.hardest_onsight)))}, ticks ${Math.round(mean(s.map((r) => r.summary.ticks)))}, E gain ${f(mean(s.map((r) => (r.months[r.months.length - 1]?.E ?? r.E0) - r.E0)))}, climbing days ${Math.round(mean(s.map((r) => r.climb_days)))}.`);
   }
   L.push('');
   L.push('## Run ends, money and stress');
@@ -128,7 +132,7 @@ function buildReport(rs: CareerResult[], meta: { n: number; days: number; seed: 
   const rows = traits.map((t) => {
     const yes = rs.filter((r) => r.traits.includes(t));
     const no = rs.filter((r) => !r.traits.includes(t));
-    return { t, n: yes.length, dpb: mean(yes.map((r) => r.summary.hardest)) - mean(no.map((r) => r.summary.hardest)), dg: mean(yes.map(gain)) - mean(no.map(gain)), dt: mean(yes.map((r) => r.summary.ticks)) - mean(no.map((r) => r.summary.ticks)) };
+    return { t, n: yes.length, dpb: mean(yes.map((r) => r.hardest)) - mean(no.map((r) => r.hardest)), dg: mean(yes.map(gain)) - mean(no.map(gain)), dt: mean(yes.map((r) => r.summary.ticks)) - mean(no.map((r) => r.summary.ticks)) };
   }).filter((x) => x.n >= 3).sort((a, b) => b.dpb - a.dpb);
   for (const x of rows) L.push(`| ${x.t} | ${x.n} | ${x.dpb >= 0 ? '+' : ''}${f(x.dpb)} | ${x.dg >= 0 ? '+' : ''}${f(x.dg)} | ${x.dt >= 0 ? '+' : ''}${Math.round(x.dt)} |`);
   L.push('');

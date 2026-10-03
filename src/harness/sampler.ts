@@ -42,8 +42,9 @@ function sampleAlloc(rng: Rng, total: number): Partial<Record<AttrId, number>> {
   return out;
 }
 
-export function sampleBuild(rng: Rng, bundle: DataBundle, options: RunOptions = DEFAULT_OPTIONS, name = 'Climber'): NewRunSpec {
-  const backgrounds = [...bundle.backgrounds.values()].filter((b) => phaseLive(b.phase));
+/** A random valid build (19 §1). `startCrag` keeps to the backgrounds that start there, e.g. P1a careers at Font. */
+export function sampleBuild(rng: Rng, bundle: DataBundle, options: RunOptions = DEFAULT_OPTIONS, name = 'Climber', startCrag?: string): NewRunSpec {
+  const backgrounds = [...bundle.backgrounds.values()].filter((b) => phaseLive(b.phase) && (!startCrag || b.start_crag === startCrag));
   const unlocked = new Set(backgrounds.map((b) => b.unlock).filter((x): x is string => !!x));
   const traits = [...bundle.traits.values()].filter((t) => phaseLive(t.phase) && (t.kind === 'creation' || t.kind === 'evolving'));
   for (let tries = 0; tries < 400; tries++) {

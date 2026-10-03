@@ -3,10 +3,11 @@ import { routeEntry } from '../../sim/attempt';
 import type { RunState } from '../../sim/state';
 import { tired } from '../../sim/tactics';
 import { Top } from '../components';
-import { band, bandColour, CLASS_LABEL, grade, pct, signed } from '../format';
+import { band, bandColour, CLASS_LABEL, gradeOf, pct, signed } from '../format';
+import { isRoped } from '../../sim/rope';
 import { busy, data, goto, siege, tryProblem } from '../store';
 
-const HEAD: Record<string, string> = { sent: 'Sent', fell: 'Off', jumped: 'Jumped off', pumped: 'Pumped off' };
+const HEAD: Record<string, string> = { sent: 'Sent', fell: 'Off', jumped: 'Jumped off', pumped: 'Pumped off', worked: 'Worked to the top' };
 
 export function Result({ run }: { run: RunState }) {
   const r = run.last_attempt;
@@ -16,15 +17,17 @@ export function Result({ run }: { run: RunState }) {
   const moves = r.log.filter((m) => m.kind === 'move' && m.outcome);
   const fail = [...moves].reverse().find((m) => m.outcome === 'fall' || m.outcome === 'slip_recovered' || m.outcome === 'pumped');
   const inSession = run.block?.kind === 'climb';
-  const head = r.outcome === 'sent' ? (r.tick ? `${r.tick.style[0]!.toUpperCase()}${r.tick.style.slice(1)}!` : 'Topped out') : `${HEAD[r.outcome]} at ${pct(r.progress)}`;
+  const roped = isRoped(route);
+  const head = r.outcome === 'sent' ? (r.tick ? `${r.tick.style[0]!.toUpperCase()}${r.tick.style.slice(1)}!` : 'Topped out')
+    : r.outcome === 'worked' ? HEAD.worked! : `${roped && r.outcome === 'jumped' ? 'Lowered off' : HEAD[r.outcome]} at ${pct(r.progress)}`;
 
   return (
     <div class="screen">
-      <Top kicker={`${route.name} · ${grade(route.di_graded)} · attempt ${project?.attempts ?? 1}`} title={head}>
-        <span class="small muted">{r.text}{r.outcome !== 'sent' && r.kappa > 0.15 ? ' A heavy landing.' : ''}</span>
+      <Top kicker={`${route.name} · ${gradeOf(route)} · attempt ${project?.attempts ?? 1}`} title={head}>
+        <span class="small muted">{r.text}{r.outcome !== 'sent' && r.kappa > 0.15 ? (roped ? ' A nasty fall.' : ' A heavy landing.') : ''}</span>
       </Top>
       <div class="scroll">
-        <span class="kicker">The line, move by move</span>
+        <span class="kicker">The line, move by move{roped && r.log.length >= 40 ? ' (the last stretch)' : ''}</span>
         <div class="log">
           {moves.map((m, i) => (
             <div key={i} class="row between">
@@ -48,7 +51,7 @@ export function Result({ run }: { run: RunState }) {
         <p class="tiny muted">Energy {Math.round(run.res.energy)} · skin {Math.round(run.res.skin)}</p>
       </div>
       <div class="cta-bar">
-        <button class="cta secondary" onClick={() => goto({ name: inSession ? 'routes' : 'planner' })}>Problems</button>
+        <button class="cta secondary" onClick={() => goto({ name: inSession ? 'routes' : 'planner' })}>{roped ? 'Routes' : 'Problems'}</button>
         {inSession && !project?.sent && (
           <button class="cta secondary" disabled={busy.value || tired(run)} onClick={() => void siege(r.route_seed, 'redpoint')}>Siege</button>
         )}

@@ -102,9 +102,11 @@ export function evWalk(geom: RouteGeom, ath: Athlete, opts: WalkOptions = {}): W
   const comY = (s: ClimbState): number => yOfS(route.wall, bodyPoints(geom, ath, s).CoM.s);
   for (let i = 0; i < route.beta_line.length; i++) {
     const step = route.beta_line[i]!;
+    // The climber's height where it stands before this step: clipping and fall consequence both read it.
+    const y = roped ? comY(st) : 0;
     if (roped) {
       for (let bolt = bolts[next]; bolt; bolt = bolts[next]) {
-        const urgent = ropeKappa(route, comY(st), lastClipY, GRADE_BELAY_QUALITY, skipped) >= URGENT_KAPPA;
+        const urgent = ropeKappa(route, y, lastClipY, GRADE_BELAY_QUALITY, skipped) >= URGENT_KAPPA;
         const from = clipFrom(geom, st, bolt, i, urgent);
         if (from) {
           const c = clipCost(ath, from.type, from.angle);
@@ -140,7 +142,7 @@ export function evWalk(geom: RouteGeom, ath: Athlete, opts: WalkOptions = {}): W
     const chosen = prepareMove(geom, ath, st, step.limb, step.hold, step.class)
       ?? (step.class === 'mantle' ? null : prepareMove(geom, ath, st, step.limb, step.hold));
     if (!chosen) { out.ungradeable = true; out.p_send = 0; return out; }
-    out.kappa_max = Math.max(out.kappa_max, roped ? ropeKappa(route, comY(st), lastClipY, GRADE_BELAY_QUALITY, skipped) : boulderKappa(geom, ath, st, spot));
+    out.kappa_max = Math.max(out.kappa_max, roped ? ropeKappa(route, y, lastClipY, GRADE_BELAY_QUALITY, skipped) : boulderKappa(geom, ath, st, spot));
     const condNow = roped ? { ...cond, chalk_term: chalkTerm(chalk) } : cond;
     const e = evaluate(ath, chosen.spec, ms, condNow);
     const dynamic = chosen.cls === 'deadpoint' || chosen.cls === 'dyno';
@@ -203,7 +205,43 @@ export interface GradeResult {
 const grid = (i: number): number => DI_MIN + i * STEP;
 const GRID_N = Math.round((DI_MAX - DI_MIN) / STEP);
 
-/** Grade a route (05c §2): DI where the Reference Climber's send probability crosses X_SEND. */
+/**
+ * The grid bracket where a route's send curve crosses X_SEND, searched outward from `start`: steps of 1, 2, 4… grid
+ * points until the curve is bracketed, then bisection. On a non-decreasing curve (C3) it is the bracket a bisection
+ * of the whole grid finds, in three or four walks instead of nine when `start` is near the grade. 'top': no DI on the
+ * grid sends it; 'bottom': the easiest does.
+ */
+function bracketFrom(ok: (i: number) => boolean, start: number): { lo: number; hi: number } | 'top' | 'bottom' {
+  let lo: number;
+  let hi: number;
+  if (ok(start)) {
+    hi = start;
+    for (let step = 1; ; step *= 2) {
+      if (hi === 0) return 'bottom';
+      lo = Math.max(0, hi - step);
+      if (!ok(lo)) break;
+      hi = lo;
+    }
+  } else {
+    lo = start;
+    for (let step = 1; ; step *= 2) {
+      if (lo === GRID_N) return 'top';
+      hi = Math.min(GRID_N, lo + step);
+      if (ok(hi)) break;
+      lo = hi;
+    }
+  }
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (ok(mid)) hi = mid; else lo = mid;
+  }
+  return { lo, hi };
+}
+
+/**
+ * Grade a route (05c §2): DI where the Reference Climber's send probability crosses X_SEND. A boulder bisects the
+ * whole grid; a route, a hundred-odd moves a walk, searches outward from its target (P1b, docs/26).
+ */
 export function gradeRoute(route: Route, geom: RouteGeom = routeGeom(route)): GradeResult {
   const cache = new Map<number, WalkResult>();
   const walk = (i: number): WalkResult => {
@@ -212,21 +250,35 @@ export function gradeRoute(route: Route, geom: RouteGeom = routeGeom(route)): Gr
     return w;
   };
   let di: number | null = null;
-  const top = walk(GRID_N);
-  if (top.p_send < X_SEND) di = null;
-  else if (walk(0).p_send >= X_SEND) di = DI_MIN;
-  else {
-    let lo = 0;
-    let hi = GRID_N;
-    while (hi - lo > 1) {
-      const mid = (lo + hi) >> 1;
-      if (walk(mid).p_send >= X_SEND) hi = mid; else lo = mid;
+  let top: WalkResult | null = null;
+  if (isRoped(route)) {
+    const start = Math.min(GRID_N, Math.max(0, Math.round((route.di_target - DI_MIN) / STEP)));
+    const b = bracketFrom((i) => walk(i).p_send >= X_SEND, start);
+    if (b === 'bottom') di = DI_MIN;
+    else if (b !== 'top') {
+      const pa = walk(b.lo).p_send;
+      const pb = walk(b.hi).p_send;
+      di = grid(b.lo) + ((X_SEND - pa) / Math.max(1e-9, pb - pa)) * STEP;
     }
-    const a = walk(lo).p_send;
-    const b = walk(hi).p_send;
-    di = grid(lo) + ((X_SEND - a) / Math.max(1e-9, b - a)) * STEP;
+  } else {
+    top = walk(GRID_N);
+    if (top.p_send < X_SEND) di = null;
+    else if (walk(0).p_send >= X_SEND) di = DI_MIN;
+    else {
+      let lo = 0;
+      let hi = GRID_N;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (walk(mid).p_send >= X_SEND) hi = mid; else lo = mid;
+      }
+      const a = walk(lo).p_send;
+      const b = walk(hi).p_send;
+      di = grid(lo) + ((X_SEND - a) / Math.max(1e-9, b - a)) * STEP;
+    }
   }
-  const at = di === null ? top : walk(Math.min(GRID_N, Math.max(0, Math.round((di - DI_MIN) / STEP))));
+  // An illegal move is illegal at every DI: the reference body never changes (05c §1.1), so any walk tells.
+  const ungradeable = [...cache.values()].some((w) => w.ungradeable);
+  const at = di === null ? (top ??= walk(GRID_N)) : walk(Math.min(GRID_N, Math.max(0, Math.round((di - DI_MIN) / STEP))));
   const T = 0.9;
   const kappa = at.kappa_max;
   const danger: Route['danger'] = kappa < 0.15 ? 'safe' : kappa < 0.4 ? 'spicy' : kappa < 0.75 ? 'bold' : 'deadly';
@@ -238,7 +290,7 @@ export function gradeRoute(route: Route, geom: RouteGeom = routeGeom(route)): Gr
     dynamic_share: at.hand_moves ? at.dynamic_moves / at.hand_moves : 0,
   };
   const curve = [...cache.entries()].sort((x, y) => x[0] - y[0]).map(([i, w]) => [grid(i), w.p_send] as [number, number]);
-  return { di, ungradeable: top.ungradeable, danger, components, curve };
+  return { di, ungradeable, danger, components, curve };
 }
 
 /** Full P_send curve for tests and tuning (C3 monotonicity). */

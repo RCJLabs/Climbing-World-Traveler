@@ -6,7 +6,7 @@ Related: [05a Wall and Kinematics](05a-wall-and-kinematics.md) · [05b Move Reso
 
 > **Simulated play ([24](24-simulation-game.md)):** the wall plays attempts back and takes no input. Limb selection, previews, *Go*, the commit-window bar and the auto-climb toggle (§2–§4) are gone; what stays from §2–§3 is the camera, the rig, the HUD meters and the fear sources. The screen map gains the training week and simulate controls on the Planner, a Watch screen and a Report screen ([24](24-simulation-game.md) §2–§5).
 
-> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason.
+> **P1a:** where the Fontainebleau slice implements this document differently, [22 · P1a Implementation Notes](22-p1a-implementation-notes.md) records the change and the reason. **P1b** has no World Map yet: the Crag screen lists the other live crags as travel cards (fare, days, legs, why a trip cannot start now), each sector card shows the grade its routes start from, and route grades are French on sport crags ([26 §5](26-p1b-implementation-notes.md)).
 
 ---
 

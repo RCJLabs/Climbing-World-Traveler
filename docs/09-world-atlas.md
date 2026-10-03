@@ -50,7 +50,7 @@ DI conversions use [08](08-grades.md): French 6a = 11, 7a = 17, 8a = 23, 9a = 29
 | 14 | `peak_district_grit` | Peak District gritstone | UK | Derbyshire / Yorkshire edges | 53.30, −1.65 | 300–450 | `sandstone_grit` | trad, boulder | [3, 29] | Mod–E10, Font 3–8B | `hub_london` | P2 (boulder), P3 (trad) |
 | 15 | `frankenjura` | Frankenjura | DE | Bavaria | 49.70, 11.35 | 400–600 | `limestone` | sport | [8, 29] | 5–9a | `hub_munich` | P2 |
 | 16 | `ceuse` | Céüse | FR | Hautes-Alpes | 44.50, 5.94 | 1,800–2,000 | `limestone` | sport | [11, 31] | 6a–9b | `hub_geneva` | P2 |
-| 17 | `kalymnos` | Kalymnos | GR | Dodecanese | 36.98, 26.97 | 0–300 | `limestone` | sport | [8, 29] | 5a–9a | `hub_athens` | P1b |
+| 17 | `kalymnos` | Kalymnos | GR | Dodecanese | 36.98, 26.97 | 0–300 | `limestone` | sport | [7, 29] | 5a–9a (game floor 4c, §7b) | `hub_athens` | P1b |
 | 18 | `siurana` | Siurana | ES | Catalonia (Priorat) | 41.26, 0.93 | 700 | `limestone` | sport | [11, 31] | 6a–9b | `hub_barcelona` | P2 |
 | 19 | `margalef` | Margalef | ES | Catalonia (Priorat) | 41.29, 0.75 | 500 | `conglomerate` | sport | [11, 31] | 6a–9b | `hub_barcelona` | P2 |
 | 20 | `oliana` | Oliana | ES | Catalonia (Alt Urgell) | 42.07, 1.31 | 600 | `limestone` | sport | [13, 31] | 6b–9b | `hub_barcelona` | P2 |
@@ -468,6 +468,44 @@ Each area is a sector of the `fontainebleau` crag record (proposed `Crag.sectors
 - **Procedural pool:** style profiles `font_sloper_slab` (slopers 0.35, smear 0.15, edge 0.15, pinch 0.1, crimp 0.1, jug 0.1, volume 0.05; angles 75–100°; `mantle` finish always) and `font_roof` (sloper 0.3, jug 0.2, pinch 0.15, heel_hook grammar high; angles 110–160°); `friction_base` 1.16; `sharpness` 0.2; `polish` 0.6 at Bas Cuvier, 0.2 elsewhere; `seep_susceptibility` 0.
 - **Conditions:** Font's wet rule ([10 §4](10-weather-and-conditions.md)) and the sending window make the forest's October–April season the first lesson in reading weather; the sand-on-rubber penalty (−8% until wiped, [07 §1.4](07-disciplines.md)) is a Font-only mechanic.
 - **Community:** `huge`; NPC pool `local_legend`, `dirtbag_lifer`, `weekend_warrior`, `rookie`, `international_pro`, `photographer`; the P1a default spotter stub stands in for all of them ([15 §1.4](15-social-reputation-events.md)).
+
+## 7b. Kalymnos deep-dive (P1b)
+
+P1b brings a second crag and the first trip between two. Kalymnos is the sport counterpart to the forest: long bolted pitches where the pump, not one move, makes the grade ([07 §2](07-disciplines.md), [26](26-p1b-implementation-notes.md)).
+
+### 7b.1 Sectors
+
+| Sector | Profiles | Shade | Dry / seep | Routes from | Character |
+|---|---|---|---|---|---|
+| **Grande Grotta** | tufa | sunny | 0.5 d / 7 d | 6b+ | A cathedral of tufas above Masouri: steep, pumpy, the island's classic cave |
+| **Odyssey** | tufa, grey | sunny | 0.5 d | 4c | The biggest crag on the island: long orange and grey walls at every grade |
+| **Sikati Cave** | tufa | shaded | 0.5 d / 7 d | 6b+ | A collapsed cave you walk down into: tufas in the shade all day |
+| **Arginonta Valley** | grey, tufa | sunny | 0.5 d | 4c | Grey walls and pockets up a quiet valley, kinder angles |
+| **Spartacus** | tufa, grey | sunny | 0.5 d | 4c | Orange overhangs and tufa pinches above the coast road |
+| **Panorama** | grey, tufa | sunny | 0.5 d | 4c | Red and grey walls high above Masouri, with the best view on the island |
+
+"Routes from" is the sector's floor ([06 §1](06-procedural-routes.md)): the caves hold only their tufas. The crag's own floor is DI 7, so session slots start at DI 8 (4c): the real island's easiest routes are mostly 5s, and the game lowers its floor one step so that a beginner's session has a warm-up below its level **(tune)**. Sector names are real places; their routes are procedural until M4's signature routes.
+
+### 7b.2 Style profiles
+
+| Profile | Grades | Angles (weight) | Length | Main holds | Features | Bolts / rests |
+|---|---|---|---|---|---|---|
+| `kalymnos_tufa_sport` | DI 14 (6b+) up | 92° .15 · 100° .3 · 110° .3 · 125° .2 · 145° .05 | 15–28–40 m | pinch .2, jug .2, sloper .12, edge .12, pockets .14 | tufa .35, corner .1, ledge .01 | 2.8 m / 7 m |
+| `kalymnos_grey_vertical` | up to DI 21 (7c) | 80° .15 · 88° .3 · 95° .3 · 102° .2 · 110° .05 | 15–25–35 m | edge .22, pockets .26, crimp .12, sidepull .1, jug .1 | corner .15, tufa .08, ledge .01 | 3.0 m / 8 m |
+
+These are the implemented forms of §6's `limestone_tufa_cave` and `limestone_crimp_vertical`. Between DI 14 and 21 a two-profile sector picks either; below 14 only grey, above 21 only tufa.
+
+### 7b.3 Getting there
+
+The P1b graph is the subset of §8 that joins the two live crags, in `data/travel.json`:
+
+| Leg | Mode | Cost | Days |
+|---|---|---|---|
+| `fontainebleau` ↔ `hub_paris` | train (§8.3, 1 h) | 45 | 0 |
+| `hub_paris` ↔ `hub_athens` | fly (§8.2) | 160 | 1 |
+| `hub_athens` ↔ `kalymnos` | fly (§8.3, via Kos) | 75 | 1 |
+
+Font to Kalymnos is $280 and two days each way. A trip pays the fare up front, the days pass with living costs and no blocks, and the climber wakes up at the destination under its own weather ([26 §5](26-p1b-implementation-notes.md)). Visas, seasons and luggage fees join with P2's travel model.
 
 ---
 

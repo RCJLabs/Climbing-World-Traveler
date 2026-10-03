@@ -10,14 +10,14 @@ import {
   autoCommitPApex, climbClear, evaluate, fearEffects, izof, powerPool, probs, pumpForm, recoveryChance, reserveStart,
   type CommitOutcome, type Conditions, type MoveState, type Probs,
 } from './resolve';
-import { fontGrade } from './grades';
+import { gradeFor } from './grades';
 import { routeFromSeed } from './routes';
 import { stream } from './rng';
 import type { AttemptResult, AttemptState, MoveReport, ProjectState, RunState } from './state';
 import { matrixCell, isDynamic } from './tables';
 import {
   anchorOf, atAnchor, BELAY_QUALITY, belayerFear, boltPassed, boltsOf, clipCost, clipFrom, fallLength, HANG, isRoped, leadFear,
-  ropeHeightFear, ropeKappa, URGENT_KAPPA,
+  reachesGround, ropeHeightFear, ropeKappa, URGENT_KAPPA,
 } from './rope';
 import { novelty, nudge, techniqueXp } from './training';
 import type { AttemptMode, AttrId, DataBundle, Limb, MoveClass, Route, Sector, Tick } from './types';
@@ -163,11 +163,13 @@ function revealScan(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athle
 // ---------------------------------------------------------------- start
 
 export function newProject(route: Route, day: number): ProjectState {
-  return {
+  const p: ProjectState = {
     seed: route.seed ?? route.id, id: route.id, name: route.name, area: route.area, di: route.di_graded,
     signature: route.signature, attempts: 0, attempt_eq: 0, sessions: 0, first_day: day, last_day: -1,
     sent: false, best: 0, fall_fear: 0, revealed: [],
   };
+  if (isRoped(route)) p.discipline = route.discipline;
+  return p;
 }
 
 /**
@@ -433,6 +435,9 @@ function pay(run: RunState, at: AttemptState, time: number, pump: number): void 
   at.aerobic_reserve = Math.max(0, at.aerobic_reserve - time / 10);
 }
 
+/** Energy a route attempt costs (07 §2.3): a base, the metres climbed, and each fall the rope holds. **(tune)** */
+export const ROUTE_ENERGY = { base: 6, perMetre: 0.25, perFall: 1 };
+
 /** Most falls the climber takes in one attempt before lowering off. **(tune)** */
 export const MAX_ROPE_FALLS = 6;
 
@@ -451,10 +456,16 @@ function ropeFall(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athlete
   rope.weighted = true;
   run.counters.rope_falls_logged = (run.counters.rope_falls_logged ?? 0) + 1;
   addFear(at, ath, 'last fall', 8);
+  const ground = reachesGround(comY, rope.last_clip_y, BELAY_QUALITY);
   const len = rope.last_clip_y === null ? comY : fallLength(comY, rope.last_clip_y, BELAY_QUALITY);
-  report(at, { kind: 'fall', pump_delta: 0, text: rope.last_clip_y === null || kappa >= 1 ? `A ground fall from ${comY.toFixed(0)} m.` : `The rope holds a ${len.toFixed(1)} m fall.` });
+  report(at, { kind: 'fall', pump_delta: 0, text: ground ? (comY < 1.5 ? 'Off the first moves, back on the ground.' : `A ground fall from ${comY.toFixed(0)} m.`) : `The rope holds a ${len.toFixed(1)} m fall.` });
+  // A ground fall ends the attempt where it lands; otherwise the climber lowers off when spent or after too many falls.
+  if (ground) {
+    finishAttempt(run, at, geom, ath, cause, bundle);
+    return;
+  }
   const spent = run.res.energy < 15 || run.res.skin < 12;
-  if (kappa >= 1 || spent || rope.falls >= MAX_ROPE_FALLS) {
+  if (spent || rope.falls >= MAX_ROPE_FALLS) {
     lowerOff(run, at, geom, ath, cause, bundle);
     return;
   }
@@ -605,7 +616,12 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
   const session = run.block!.session!;
   const project = run.projects[at.route_id]!;
   const progress = outcome === 'sent' || outcome === 'worked' ? 1 : Math.max(at.rope?.high ?? 0, progressOf(geom, at.climb));
-  const energy = 1.5 + 0.1 * at.moves;
+  // A boulder costs by its moves (05b §12.3); a route by the metres climbed and the falls held (07 §2.3, docs/26).
+  const energy = at.rope
+    ? ROUTE_ENERGY.base + ROUTE_ENERGY.perMetre * progress * route.length_m + ROUTE_ENERGY.perFall * at.rope.falls
+    : 1.5 + 0.1 * at.moves;
+  const roped = !!at.rope;
+  const pb = roped ? run.pb_route : run.pb;
   run.res.energy = Math.max(0, run.res.energy - energy);
   session.energy_spent += energy;
   session.attempts++;
@@ -613,7 +629,7 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
   tried.n++;
   if (outcome === 'sent') tried.sent = true;
   session.di_sum += route.di_graded;
-  session.load += 0.3 * clamp(route.di_graded - run.pb + 2, 0.5, 3);
+  session.load += 0.3 * clamp(route.di_graded - pb + 2, 0.5, 3);
   run.counters.attempts++;
   if (progress > project.best + 0.1 || outcome === 'sent') session.progress_made = true;
   const firstTry = project.attempts === 0;
@@ -637,19 +653,21 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
       di: route.di_graded, area: route.area,
     };
     if (route.circuit) tick.circuit = route.circuit;
+    if (roped) tick.discipline = route.discipline;
     run.ticks.push(tick);
     session.sends++;
     run.counters.sends++;
-    const atPb = route.di_graded >= run.pb - 0.25;
+    const atPb = route.di_graded >= pb - 0.25;
     if (style !== 'repeat') {
       const step = String(Math.round(route.di_graded));
-      run.counters.pyramid[step] = (run.counters.pyramid[step] ?? 0) + 1;
+      const pyramid = roped ? run.counters.pyramid_route : run.counters.pyramid;
+      pyramid[step] = (pyramid[step] ?? 0) + 1;
       if (atPb) nudge(run.attrs, 'confidence', 1);
       run.res.stoke = clamp(run.res.stoke + (atPb ? 5 : 1), 0, 100);
     }
-    if (route.di_graded > run.pb) {
-      run.journal.push({ day: run.day, text: `New hardest send: ${route.name}, ${fontGrade(route.di_graded)} (${style}).`, tone: 'good' });
-      run.pb = route.di_graded;
+    if (route.di_graded > pb) {
+      run.journal.push({ day: run.day, text: `New hardest ${roped ? 'route' : 'send'}: ${route.name}, ${gradeFor(route.di_graded, route.discipline)} (${style}).`, tone: 'good' });
+      if (roped) run.pb_route = route.di_graded; else run.pb = route.di_graded;
     } else if (style !== 'repeat' && (project.sessions >= 3 || route.signature)) {
       run.journal.push({ day: run.day, text: `${route.name}, ${style}${project.sessions >= 3 ? ` after ${project.sessions} sessions` : ''}.`, tone: 'good' });
     }

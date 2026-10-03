@@ -1,5 +1,5 @@
-// A session at a sector (06 §5, docs/24 §3): today's problems with the climber's odds on each. Pick what to try and
-// how: one attempt (watched or not), a siege, or the rest of the session by a tactic. Every attempt is simulated.
+// A session at a sector (06 §5, docs/24 §3): today's problems or routes with the climber's odds on each. Pick what to
+// try and how: one attempt (watched or not), a siege, or the rest of the session by a tactic. Every attempt is simulated.
 import { useMemo, useState } from 'preact/hooks';
 import { athleteOf, conditionsOf, effectiveMode, familiarity, newProject, routeEntry, showsExactOdds } from '../../sim/attempt';
 import { evWalk } from '../../sim/grade';
@@ -7,7 +7,8 @@ import type { RouteSlot, RunState } from '../../sim/state';
 import { tired } from '../../sim/tactics';
 import type { AttemptMode } from '../../sim/types';
 import { Circuit, TabBar, Top } from '../components';
-import { band, bandColour, grade, pct } from '../format';
+import { band, bandColour, gradeOf, isSportCrag, pct } from '../format';
+import { boltsOf, isRoped } from '../../sim/rope';
 import { act, busy, data, finishSession, goto, siege, tryProblem } from '../store';
 
 const MODE_LABEL: Record<AttemptMode, string> = { onsight: 'Onsight', flash: 'Flash', redpoint: 'Redpoint', work: 'Work' };
@@ -15,7 +16,7 @@ const MODE_NOTE: Record<AttemptMode, string> = {
   onsight: 'Onsight: no beta. Hidden holds stay hidden until the climber finds them.',
   flash: 'Flash: the climber has watched others on it and knows the line.',
   redpoint: 'Redpoint: the climber knows what it has touched.',
-  work: 'Work: learn the moves faster. Topping out does not count as a tick.',
+  work: 'Work: learn the moves faster, hanging on the rope where needed. Reaching the top does not count as a tick.',
 };
 
 export function Routes({ run }: { run: RunState }) {
@@ -40,8 +41,10 @@ export function Routes({ run }: { run: RunState }) {
   if (!session) {
     return <div class="screen"><div class="scroll"><p>No session in progress.</p><button class="btn" onClick={() => goto({ name: 'planner' })}>Planner</button></div></div>;
   }
-  const sector = data.crags.get(run.crag)!.sectors.find((s) => s.id === session.sector)!;
+  const crag = data.crags.get(run.crag)!;
+  const sector = crag.sectors.find((s) => s.id === session.sector)!;
   const spent = tired(run);
+  const sport = isSportCrag(crag);
 
   return (
     <div class="screen">
@@ -53,11 +56,11 @@ export function Routes({ run }: { run: RunState }) {
           <span class="kicker">Let {run.name} climb</span>
           <span class="small soft">Plays the rest of the session the way the climber would, then ends it.</span>
           <div class="row">
-            <button class="btn grow" disabled={busy.value} onClick={() => void finishSession('volume')}><div>Mileage</div><div class="tiny muted">many problems, two tries each</div></button>
-            <button class="btn grow" disabled={busy.value} onClick={() => void finishSession('project')}><div>Project</div><div class="tiny muted">the hard ones, five tries each</div></button>
+            <button class="btn grow" disabled={busy.value} onClick={() => void finishSession('volume')}><div>Mileage</div><div class="tiny muted">{sport ? 'many routes, one go each' : 'many problems, two tries each'}</div></button>
+            <button class="btn grow" disabled={busy.value} onClick={() => void finishSession('project')}><div>Project</div><div class="tiny muted">{sport ? 'the hard ones, three goes each' : 'the hard ones, five tries each'}</div></button>
           </div>
         </div>
-        <span class="kicker">Or pick a problem</span>
+        <span class="kicker">Or pick a {sport ? 'route' : 'problem'}</span>
         {rows.map(({ slot, route, project, p, hand, fam, today }) => {
           const isOpen = open === slot.seed;
           const proj = project ?? newProject(route, run.day);
@@ -68,7 +71,7 @@ export function Routes({ run }: { run: RunState }) {
             <div key={slot.seed} class={`card ${isOpen ? 'selected' : ''}`}>
               <button class="row between" style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left' }} onClick={() => { setOpen(isOpen ? null : slot.seed); setMode(null); }}>
                 <div class="row" style={{ alignItems: 'baseline' }}>
-                  <span class="mono" style={{ fontSize: '20px', fontWeight: 600, minWidth: '44px' }}>{grade(route.di_graded)}</span>
+                  <span class="mono" style={{ fontSize: '20px', fontWeight: 600, minWidth: '44px' }}>{gradeOf(route)}</span>
                   <div class="col" style={{ gap: '2px' }}>
                     <span class="card-title">{route.name}{route.signature ? <span class="tiny accent"> · SIGNATURE</span> : null}</span>
                     <span class="tiny muted row"><Circuit c={route.circuit} />{route.style_tags.slice(0, 3).join(', ')}</span>
@@ -81,7 +84,7 @@ export function Routes({ run }: { run: RunState }) {
               </button>
               {isOpen && (
                 <>
-                  <span class="small soft">{hand} hand moves · {route.wall[route.wall.length - 1]!.y1.toFixed(1)} m · danger {route.danger} · {status}</span>
+                  <span class="small soft">{isRoped(route) ? `${route.length_m.toFixed(0)} m · ${boltsOf(route).length} bolts · ${hand} hand moves` : `${hand} hand moves · ${route.wall[route.wall.length - 1]!.y1.toFixed(1)} m`} · danger {route.danger} · {status}</span>
                   {route.fa_note && <span class="tiny muted">{route.fa_note}</span>}
                   <div class="row wrap">
                     {allowed.map((m) => <button key={m} class="chip-btn" aria-pressed={chosen === m} onClick={() => setMode(m)}>{MODE_LABEL[m]}</button>)}
@@ -96,7 +99,7 @@ export function Routes({ run }: { run: RunState }) {
             </div>
           );
         })}
-        <p class="tiny muted">An attempt costs about 2–4 energy and some skin. Below 22 energy or 12 skin the climber calls it a day.</p>
+        <p class="tiny muted">{sport ? 'A pitch costs about 10–15 energy, more with falls.' : 'An attempt costs about 2–4 energy and some skin.'} Below 22 energy or 12 skin the climber calls it a day.</p>
       </div>
       <div class="cta-bar">
         <button class="cta secondary" disabled={busy.value} onClick={async () => { if (await act({ t: 'block_end' })) goto({ name: 'planner' }); }}>End session</button>

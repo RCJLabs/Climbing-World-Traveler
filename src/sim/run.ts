@@ -1,11 +1,11 @@
 // The run reducer (docs/11, 12, 14, 16, 18 §5). A run is its `new_run` action plus every later action; the
 // state is a cache. `applyAction` mutates a draft in place (replay, harness); `reduce` clones first (UI).
 
-import { ageMoneyBonus, buildAttributes, ceilingFor, clamp, validateCreation, type Athlete } from './character';
+import { ageMoneyBonus, buildAttributes, ceilingFor, clamp, phaseLive, validateCreation, type Athlete } from './character';
 import { ageOf, athleteOf, doWallAction, InvalidAction, modsOf, routeEntry, sectorOf, simulateAttempt } from './attempt';
 import { estimateBoulderDI } from './estimate';
 import { cyrb53, stream } from './rng';
-import { routeSeed } from './routes';
+import { routeSeed, sectorFloor } from './routes';
 import { REDUCER_VERSION, type Counters, type DaySummary, type RouteSlot, type RunState, type SessionState, type WeekPoint } from './state';
 import {
   activityById, acwr, applyStimulus, applyTechniqueXp, dailyAdaptation, nutritionMult, sleepMult, type GainContext,
@@ -13,7 +13,8 @@ import {
 import {
   ALL_ATTRS, type Action, type AttrId, type BlockKind, type DataBundle, type Difficulty, type NewRunSpec, type PlanBlock, type RunSummary, type WeekPlan,
 } from './types';
-import { calendarDate, firstWeather, formatDate, nextWeather, sectorStatus } from './weather';
+import { calendarDate, firstWeather, formatDate, freshWeather, nextWeather, sectorStatus } from './weather';
+import { tripTo } from './travel';
 
 export { InvalidAction };
 
@@ -46,7 +47,7 @@ function emptyCounters(): Counters {
   return {
     neg_money_days: 0, failure_streak: 0, monotony_weeks: 0, week_sectors: [], prev_week_sectors: [], loads: [],
     forced_break_until: -1, burnout_hits: { season: -1, hits: 0 }, climb_days: 0, rest_days: 0, attempts: 0, sends: 0,
-    work_blocks: 0, train_blocks: 0, pyramid: {}, new_sectors_today: 0, rope_falls_logged: 0,
+    work_blocks: 0, train_blocks: 0, pyramid: {}, new_sectors_today: 0, rope_falls_logged: 0, pyramid_route: {},
   };
 }
 
@@ -90,7 +91,7 @@ export function planError(plan: WeekPlan): string | null {
 function weekPoint(run: RunState): WeekPoint {
   const attrs: WeekPoint['attrs'] = {};
   for (const id of ALL_ATTRS) attrs[id] = Math.round(run.attrs[id].value * 10) / 10;
-  return { day: run.day, E: run.est, pb: run.pb, ticks: run.ticks.filter((t) => t.style !== 'repeat').length, attrs };
+  return { day: run.day, E: run.est, crag: run.crag, pb: run.pb, pb_route: run.pb_route, ticks: run.ticks.filter((t) => t.style !== 'repeat').length, attrs };
 }
 
 export function energyCap(run: Pick<RunState, 'attrs' | 'res'>): number {
@@ -119,8 +120,8 @@ export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle): R
     start_month: START_MONTH, start_dom: START_DOM, day: 0,
     weather: firstWeather(seed, crag, START_MONTH, spec.options.difficulty), last_rain: null,
     res: { energy: 0, skin: 100, stoke: 70, burnout: 0, money: Math.round(money), health: 100 },
-    blocks_today: [], block: null, attempt: null, last_attempt: null, projects: {}, ticks: [], pb: 0,
-    journal: [{ day: 0, text: `${spec.name} arrives in Fontainebleau with $${Math.round(money).toLocaleString('en-US')} and a crash pad.`, tone: 'info' }],
+    blocks_today: [], block: null, attempt: null, last_attempt: null, projects: {}, ticks: [], pb: 0, pb_route: 0, visited: [crag.id],
+    journal: [{ day: 0, text: `${spec.name} arrives in ${crag.name} with $${Math.round(money).toLocaleString('en-US')} and ${crag.disciplines.includes('boulder') ? 'a crash pad' : 'a rope and a rack of quickdraws'}.`, tone: 'info' }],
     today: emptyDay(0), yesterday: null, counters: emptyCounters(), load_today: 0, ended: null, actions: 1,
     plan: structuredClone(DEFAULT_PLAN), est: null, history: [],
   };
@@ -140,14 +141,26 @@ const SLOT_BANDS: [kind: RouteSlot['kind'], lo: number, hi: number][] = [
   ['warmup', -4, -3], ['mid', -2, 0], ['mid', -2, 0], ['mid', -2, 0], ['push', 0, 2], ['push', 0, 2], ['push', 0, 2], ['project', 3, 4],
 ];
 
-/** Route list for a session at a sector: 8 procedural slots around E, signatures, and known projects. */
+/**
+ * A sport sector's day (P1b, docs/26): fewer routes than a boulder sector's problems, since a session climbs three to
+ * five pitches and each route takes far longer to build. **(tune)**
+ */
+const ROUTE_SLOT_BANDS: typeof SLOT_BANDS = [
+  ['warmup', -4, -3], ['mid', -2, 0], ['mid', -2, 0], ['push', 0, 2], ['push', 0, 2], ['project', 3, 4],
+];
+
+/**
+ * Route list for a session at a sector: procedural slots around E (8 problems, 6 routes), signatures, and known
+ * projects. Slots stay inside the crag's grades and above the sector's floor: a cave has no easy routes.
+ */
 export function sessionSlots(run: RunState, sectorId: string, E: number, bundle: DataBundle): RouteSlot[] {
   const crag = bundle.crags.get(run.crag)!;
   const sector = sectorOf(run, bundle, sectorId);
   const rng = stream('slots', run.seed, crag.id, sectorId, run.day);
   const out: RouteSlot[] = [];
-  SLOT_BANDS.forEach(([kind, lo, hi], i) => {
-    const di = clamp(Math.round(rng.range(E + lo, E + hi) * 2) / 2, crag.di_range[0] + 1, crag.di_range[1]);
+  const floor = Math.max(crag.di_range[0] + 1, sectorFloor(sector, bundle));
+  (crag.disciplines.includes('boulder') ? SLOT_BANDS : ROUTE_SLOT_BANDS).forEach(([kind, lo, hi], i) => {
+    const di = clamp(Math.round(rng.range(E + lo, E + hi) * 2) / 2, floor, crag.di_range[1]);
     const slot = cyrb53(`${run.seed}|${i}`) % 100000;
     out.push({ seed: routeSeed(crag.id, sectorId, run.day, slot, di), kind, di_target: di });
   });
@@ -240,7 +253,7 @@ export function canStartBlock(run: RunState, kind: BlockKind, target: string | u
   if (kind === 'climb') {
     if (onBreak) return { ok: false, reason: 'Forced break: burnout. Rest, work or recover.' };
     if (!target) return { ok: false, reason: 'Pick a sector.' };
-    const status = sectorStatus(sectorOf(run, bundle, target), run.weather, run.last_rain);
+    const status = sectorStatus(bundle.crags.get(run.crag)!, sectorOf(run, bundle, target), run.weather, run.last_rain);
     if (!status.open) return { ok: false, reason: status.reason };
     if (run.res.energy < CLIMB_BLOCK_BASE_ENERGY + 10) return { ok: false, reason: 'Too tired to climb.' };
     if (run.res.skin < 5) return { ok: false, reason: 'No skin left. Tomorrow.' };
@@ -322,7 +335,9 @@ function endDay(run: RunState, bundle: DataBundle): void {
   const crag = bundle.crags.get(run.crag)!;
   const c = run.counters;
   const day = run.day;
-  const restDay = isRestDay(run.blocks_today);
+  // A travel day is neither rest nor a day lost to the weather.
+  const travelling = run.today.travel !== undefined;
+  const restDay = !travelling && isRestDay(run.blocks_today);
   const climbed = run.blocks_today.includes('climb');
   if (climbed) c.climb_days++;
   if (restDay) c.rest_days++;
@@ -338,8 +353,8 @@ function endDay(run: RunState, bundle: DataBundle): void {
   const resilience = run.attrs.resilience.value;
   if (restDay) run.res.stoke = clamp(run.res.stoke + 0.1 * resilience * (run.res.burnout > 50 ? 0.5 : 1), 0, 100);
   run.res.stoke += 0.03 * (60 - run.res.stoke); // drifts back toward a neutral 60
-  const anyOpen = crag.sectors.some((s) => sectorStatus(s, run.weather, run.last_rain).open);
-  if (!anyOpen && !climbed) run.res.stoke = clamp(run.res.stoke - 1, 0, 100);
+  const anyOpen = crag.sectors.some((s) => sectorStatus(crag, s, run.weather, run.last_rain).open);
+  if (!anyOpen && !climbed && !travelling) run.res.stoke = clamp(run.res.stoke - 1, 0, 100);
 
   // Load and ACWR (12 §5).
   c.loads.push(Math.round(run.load_today * 10) / 10);
@@ -377,7 +392,11 @@ function endDay(run: RunState, bundle: DataBundle): void {
   run.today = emptyDay(run.day);
   run.blocks_today = [];
   const date = calendarDate(run.start_month, run.start_dom, run.day);
-  run.weather = nextWeather(run.seed, crag, run.weather, run.day, date.month, run.options.difficulty);
+  // The night a trip arrives (run.crag is already the destination), the weather starts afresh there.
+  const arriving = run.yesterday.travel === run.crag;
+  run.weather = arriving
+    ? freshWeather(run.seed, crag, run.day, date.month, run.options.difficulty)
+    : nextWeather(run.seed, crag, run.weather, run.day, date.month, run.options.difficulty);
   if (run.weather.sky === 'rain' || run.weather.sky === 'storm') run.last_rain = { day: run.day, mm: run.weather.precip_mm };
   run.res.energy = energyCap(run);
   if (run.day % 7 === 0) run.history.push(weekPoint(run));
@@ -401,30 +420,81 @@ function endDay(run: RunState, bundle: DataBundle): void {
   }
 }
 
+// ---------------------------------------------------------------- travel (09 §8, 11 §1; P1b, docs/26)
+
+/** Why the climber cannot set off for crag `to` now, or null if it can. */
+export function travelBlock(run: RunState, to: string, bundle: DataBundle): string | null {
+  if (run.ended) return 'The run is over.';
+  if (run.block || run.blocks_today.length) return 'Travel takes whole days: set off before the day\'s first block.';
+  const crag = bundle.crags.get(to);
+  if (!crag || !phaseLive(crag.phase)) return 'Nowhere to go.';
+  const trip = tripTo(run.crag, to, bundle);
+  if (!trip) return `No way to ${crag.name} from here.`;
+  if (run.res.money < trip.cost) return `The trip costs $${trip.cost}.`;
+  return null;
+}
+
+/**
+ * Travel to another crag: the trip is paid up front, then each travel day passes with no blocks (living costs,
+ * adaptation and the calendar run as usual), and the climber wakes up at the destination under its weather.
+ */
+function travel(run: RunState, to: string, bundle: DataBundle): void {
+  const reason = travelBlock(run, to, bundle);
+  if (reason) throw new InvalidAction(reason);
+  const trip = tripTo(run.crag, to, bundle)!;
+  const dest = bundle.crags.get(to)!;
+  run.res.money -= trip.cost;
+  run.today.money_delta -= trip.cost;
+  run.journal.push({ day: run.day, text: `Off to ${dest.name}: ${trip.days} ${trip.days === 1 ? 'day' : 'days'} on the way, $${trip.cost}.`, tone: 'info' });
+  for (let d = 0; d < trip.days && !run.ended; d++) {
+    run.today.travel = to;
+    run.today.notes.push(d === 0 ? `Travelling to ${dest.name}.` : 'Still travelling.');
+    if (d === trip.days - 1) {
+      // The climber arrives overnight: tomorrow's weather is the destination's, and its rock has not been rained on.
+      run.crag = to;
+      run.last_rain = null;
+      if (!run.visited.includes(to)) run.visited.push(to);
+    }
+    endDay(run, bundle);
+  }
+  if (!run.ended) run.est = estimateDI(run, bundle);
+}
+
 // ---------------------------------------------------------------- run end, score, unlocks (11 §4–§5, 16 §4, §6)
 
-export function summarise(run: RunState, reason: RunSummary['end_reason']): RunSummary {
+export function summarise(run: RunState, reason: RunSummary['end_reason'], bundle: DataBundle): RunSummary {
   const sends = run.ticks.filter((t) => t.style !== 'repeat');
+  const boulders = sends.filter((t) => !t.discipline);
+  const routes = sends.filter((t) => t.discipline);
   const max = (xs: number[]) => (xs.length ? Math.max(...xs) : 0);
-  const hardest = max(sends.map((t) => t.di));
+  const hardest = max(boulders.map((t) => t.di));
+  const hardestRoute = max(routes.map((t) => t.di));
   const circuits: RunSummary['circuits'] = {};
   for (const t of sends) if (t.circuit) circuits[t.circuit] = (circuits[t.circuit] ?? 0) + 1;
-  const score = (10 * hardest + 0.6 * Math.sqrt(sends.length) + 3 * 1 + 0.02 * run.day) * SCORE_MULT[run.options.difficulty];
+  const countries = new Set(run.visited.map((id) => bundle.crags.get(id)?.country ?? id)).size;
+  // 16 §6: the best discipline in full, a second at 4 per DI, countries at 3 each.
+  const second = hardest > 0 && hardestRoute > 0 ? Math.min(hardest, hardestRoute) : 0;
+  const score = (10 * Math.max(hardest, hardestRoute) + 4 * second + 0.6 * Math.sqrt(sends.length) + 3 * countries + 0.02 * run.day)
+    * SCORE_MULT[run.options.difficulty];
   const unsent = Object.values(run.projects).filter((p) => !p.sent).sort((a, b) => b.sessions - a.sessions || b.di - a.di)[0];
   const out: RunSummary = {
     climber: run.name, background: run.background, days: run.day, age_end: Math.floor(ageOf(run)), end_reason: reason,
-    hardest, hardest_onsight: max(sends.filter((t) => t.style === 'onsight').map((t) => t.di)),
-    hardest_flash: max(sends.filter((t) => t.style === 'onsight' || t.style === 'flash').map((t) => t.di)),
+    hardest, hardest_onsight: max(boulders.filter((t) => t.style === 'onsight').map((t) => t.di)),
+    hardest_flash: max(boulders.filter((t) => t.style === 'onsight' || t.style === 'flash').map((t) => t.di)),
+    hardest_route: hardestRoute, hardest_route_onsight: max(routes.filter((t) => t.style === 'onsight').map((t) => t.di)), countries,
     ticks: sends.length, circuits, score: Math.round(score * 10) / 10, unlocks: ['p1a:second_background'], seed: run.seed,
-    pyramid: { ...run.counters.pyramid },
+    pyramid: { ...run.counters.pyramid }, pyramid_route: { ...run.counters.pyramid_route },
   };
-  if (unsent && unsent.sessions >= 2) out.got_away = { name: unsent.name, sessions: unsent.sessions, di: unsent.di };
+  if (unsent && unsent.sessions >= 2) {
+    out.got_away = { name: unsent.name, sessions: unsent.sessions, di: unsent.di };
+    if (unsent.discipline) out.got_away.discipline = unsent.discipline;
+  }
   return out;
 }
 
 function endRun(run: RunState, reason: RunSummary['end_reason'], bundle: DataBundle): void {
   if (run.block) endBlock(run, bundle);
-  run.ended = summarise(run, reason);
+  run.ended = summarise(run, reason, bundle);
   const line = {
     retired: `${run.name} hung up the shoes.`, bankrupt: `${run.name} ran out of money and went home.`,
     burnout: `${run.name} quit. The forest will still be there.`, forced_injury: `${run.name} was forced to stop.`, death: `${run.name} died climbing.`,
@@ -453,6 +523,7 @@ export function applyAction(run: RunState, a: Action, bundle: DataBundle): void 
       run.plan = structuredClone(a.plan);
       break;
     }
+    case 'travel': travel(run, a.to, bundle); break;
     case 'retire': endRun(run, 'retired', bundle); break;
   }
   run.actions++;
@@ -491,7 +562,7 @@ export function dateLabel(run: RunState): string {
 export function sectorList(run: RunState, bundle: DataBundle): { id: string; name: string; open: boolean; reason?: string }[] {
   const crag = bundle.crags.get(run.crag)!;
   return crag.sectors.map((s) => {
-    const st = sectorStatus(s, run.weather, run.last_rain);
+    const st = sectorStatus(crag, s, run.weather, run.last_rain);
     return st.open ? { id: s.id, name: s.name, open: true } : { id: s.id, name: s.name, open: false, reason: st.reason };
   });
 }

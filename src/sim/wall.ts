@@ -114,6 +114,15 @@ export function routeGeom(route: Route): RouteGeom {
   return { route, holds, list, s_top: sOfY(route.wall, top) };
 }
 
+/**
+ * Bring a geometry up to date with a hold whose kind changed but not its place (type, size, quality, rest value):
+ * its entry is refreshed in place, which is what a full rebuild would produce without recomputing every other hold.
+ */
+export function refreshHold(geom: RouteGeom, h: Hold): void {
+  const g = geom.holds.get(h.id);
+  if (g) Object.assign(g, h);
+}
+
 /** The same geometry with one hold moved, without recomputing the others (the generator's margin probes). */
 export function withHold(geom: RouteGeom, h: Hold): RouteGeom {
   const g = holdGeom(geom.route.wall, h);

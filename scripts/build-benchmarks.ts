@@ -1,8 +1,8 @@
-// Builds the benchmark problem set used by the grade estimate (02 §C.3, src/sim/estimate.ts) and writes it to
-// data/routes/<crag>_benchmarks.json. Decoys are stripped: the expected-value walk only touches start and beta
-// holds. Numbers are rounded to 3 decimals, which halves the gzipped size, and each problem is regraded after
-// rounding so its stored grade matches the geometry shipped. Re-run after any change to the generator or the
-// grade engine:  pnpm benchmarks
+// Builds the benchmark problem and route sets used by the grade estimate (02 §C.3, src/sim/estimate.ts) and writes
+// them to data/routes/<crag>_benchmarks.json, for every live crag or the ones named. Decoys are stripped: the
+// expected-value walk only touches start, beta and clipping holds. Numbers are rounded to 3 decimals, which halves
+// the gzipped size, and each route is regraded after rounding so its stored grade matches the geometry shipped.
+// Re-run after any change to the generator or the grade engine:  pnpm benchmarks [crag…]
 import { writeFileSync } from 'node:fs';
 import { loadBundle } from '../src/data/bundle';
 import { generateBenchmarks } from '../src/sim/estimate';
@@ -17,10 +17,11 @@ const round = <T>(v: T): T => {
 };
 
 const bundle = loadBundle();
-for (const cragId of ['fontainebleau']) {
+const only = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+for (const cragId of only.length ? only : ['fontainebleau', 'kalymnos']) {
   let moved = 0;
   const routes = generateBenchmarks(cragId, bundle).map((r) => {
-    const keep = new Set([...Object.values(r.start), ...r.beta_line.map((s) => s.hold), r.finish_hold]);
+    const keep = new Set([...Object.values(r.start), ...r.beta_line.map((s) => s.hold), r.finish_hold, ...r.protection.flatMap((p) => p.reach_from ?? [])]);
     const { fa_note: _fa, ...rest } = r;
     const out: Route = round({ ...rest, holds: r.holds.filter((h) => keep.has(h.id)) });
     const g = gradeRoute(out);

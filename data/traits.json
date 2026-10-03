@@ -1263,5 +1263,26 @@
    "desk_jockey"
   ],
   "flavour": "Hay bales were the hangboard."
+ },
+ {
+  "id": "rower",
+  "name": "Rower",
+  "category": "history",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P1b",
+  "tags": [
+   "endurance",
+   "power",
+   "sport"
+  ],
+  "effect": {
+   "attr_add": {
+    "pull_power": 6,
+    "aerobic_capacity": 8
+   }
+  },
+  "excludes": [],
+  "flavour": "An engine looking for a wall."
  }
 ]
