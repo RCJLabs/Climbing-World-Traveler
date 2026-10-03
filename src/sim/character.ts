@@ -40,14 +40,21 @@ export interface Kinematics {
   leg_len: number;
 }
 
+const kinCache = new WeakMap<Body, { height_cm: number; ape_index: number; leg_torso: number; k: Kinematics }>();
+
+/** Limb lengths from the body (05a §4). Kept per body object while its height, ape index and leg ratio hold. */
 export function kinematics(body: Body): Kinematics {
+  const c = kinCache.get(body);
+  if (c && c.height_cm === body.height_cm && c.ape_index === body.ape_index && c.leg_torso === body.leg_torso) return c.k;
   const h = body.height_cm / 100;
-  return {
+  const k: Kinematics = {
     height_m: h,
     span_m: h * body.ape_index,
     arm_len: 0.44 * h * body.ape_index,
     leg_len: 0.47 * h * (1 + 0.03 * body.leg_torso),
   };
+  kinCache.set(body, { height_cm: body.height_cm, ape_index: body.ape_index, leg_torso: body.leg_torso, k });
+  return k;
 }
 
 // ---------------------------------------------------------------- ages (02 §E)

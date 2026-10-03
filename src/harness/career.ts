@@ -23,6 +23,12 @@ const POLICIES: Record<CareerPolicy, BotPolicy> = { project: PROJECT_POLICY, vol
 /** Where each discipline's estimate is read in a sample: the benchmark sets of the crags that define it today. */
 export const ESTIMATE_CRAGS = { boulder: 'fontainebleau', route: 'kalymnos' } as const;
 
+/**
+ * Days between samples: monthly for a year's run (the report's monthly table), every 13 weeks beyond, where the
+ * report reads years. A sample on a week's first day reuses the week's estimate (06 §5), which is the same number.
+ */
+export const SAMPLE_DAYS = { year: 30, career: 91 } as const;
+
 export interface CareerConfig {
   seed: string;
   spec: NewRunSpec;
@@ -64,7 +70,7 @@ export interface CareerResult {
   height: number;
   policy: string;
   E0: number;
-  /** A sample every 30 days of the run. */
+  /** A sample every 30 days of the run, or every 13 weeks in a career longer than a year (SAMPLE_DAYS). */
   months: CareerSample[];
   /** The career's hardest first send in its start discipline, and its hardest first go: the onsight on routes, the flash (onsight or flash) on boulders, as the P1a report had it. */
   hardest: number;
@@ -102,7 +108,8 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
   const daysAt: Record<string, number> = {};
   let trips = 0;
   let burnoutMax = 0;
-  let nextSample = 30;
+  const every = cfg.days > 365 ? SAMPLE_DAYS.career : SAMPLE_DAYS.year;
+  let nextSample = every;
   while (run.day < cfg.days && !run.ended) {
     const before = run.traits;
     const day = run.day;
@@ -119,13 +126,14 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
     }
     burnoutMax = Math.max(burnoutMax, run.res.burnout);
     if (run.day >= nextSample && !run.ended) {
-      nextSample += 30;
+      nextSample += every;
       const ath = athleteOf(run, bundle);
       const atSport = !bundle.crags.get(run.crag)!.disciplines.includes('boulder');
-      const Eb = estimateBoulderDI(ath, ESTIMATE_CRAGS.boulder, bundle);
-      const Er = estimateBoulderDI(ath, ESTIMATE_CRAGS.route, bundle);
-      // The estimate here is one of the two when the climber is at either crag (estimateDI reads the crag's benchmarks).
-      const E = run.crag === ESTIMATE_CRAGS.boulder ? Eb : run.crag === ESTIMATE_CRAGS.route ? Er : estimateDI(run, bundle);
+      // On a week's first day the week's estimate is this one (estimateDI on the same climber at the same crag), and the
+      // estimate here is one of the two disciplines' when the climber is at either crag.
+      const E = run.day % 7 === 0 && run.est !== null ? run.est : estimateDI(run, bundle);
+      const Eb = run.crag === ESTIMATE_CRAGS.boulder ? E : estimateBoulderDI(ath, ESTIMATE_CRAGS.boulder, bundle);
+      const Er = run.crag === ESTIMATE_CRAGS.route ? E : estimateBoulderDI(ath, ESTIMATE_CRAGS.route, bundle);
       months.push({
         day: run.day, crag: run.crag, E, Eb, Er,
         pb: atSport ? run.pb_route : run.pb, pb_boulder: run.pb, pb_route: run.pb_route,

@@ -15,8 +15,17 @@ export interface Prepared {
   spec: MoveSpec;
 }
 
-const countOtherAnchors = (st: ClimbState, limb: Limb): number =>
-  (Object.entries(st.anchors) as [Limb, string][]).filter(([l]) => l !== limb && !(st.feet_cut && limbKind(l) === 'foot')).length;
+function countOtherAnchors(st: ClimbState, limb: Limb): number {
+  let n = 0;
+  for (const l in st.anchors) if (l !== limb && !(st.feet_cut && limbKind(l as Limb) === 'foot')) n++;
+  return n;
+}
+
+/** The holds the hands are on, each once, the left hand's first. */
+function handHoldIds(st: ClimbState): string[] {
+  const { LH, RH } = st.anchors;
+  return LH ? (RH && RH !== LH ? [LH, RH] : [LH]) : RH ? [RH] : [];
+}
 
 /** The mantle onto the finish: made from the mantle posture with the hand on the finish hold (05b §2). */
 export function canMantle(geom: RouteGeom, st: ClimbState): Limb | null {
@@ -70,7 +79,7 @@ export function applyMove(geom: RouteGeom, ath: Athlete, st: ClimbState, limb: L
  * reads, and the number the grade engine walks.
  */
 export function stanceRest(geom: RouteGeom, ath: Athlete, st: ClimbState, shakeIndex: number, reserve: number, overgrip: number): number {
-  const ids = [...new Set((['LH', 'RH'] as Limb[]).map((l) => st.anchors[l]).filter((x): x is string => !!x))];
+  const ids = handHoldIds(st);
   if (ids.length === 0) return 0;
   let sum = 0;
   for (const id of ids) {
@@ -82,7 +91,7 @@ export function stanceRest(geom: RouteGeom, ath: Athlete, st: ClimbState, shakeI
 
 /** Pump cost of holding the stance for 10 s (05b §6), averaged over the holds the hands are on. */
 export function stanceHoldCost(geom: RouteGeom, st: ClimbState): number {
-  const ids = [...new Set((['LH', 'RH'] as Limb[]).map((l) => st.anchors[l]).filter((x): x is string => !!x))];
+  const ids = handHoldIds(st);
   if (ids.length === 0) return 0;
   let sum = 0;
   for (const id of ids) {

@@ -191,14 +191,15 @@ export interface BodyPoints {
   handsOn: number;
 }
 
-const centroid = (pts: Pt[]): Pt | null =>
-  pts.length === 0 ? null : { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, s: pts.reduce((s, p) => s + p.s, 0) / pts.length };
-
-/** The state with one limb released: reach is measured for a free limb (05a §5.1). */
+/**
+ * The state with one limb released: reach is measured for a free limb (05a §5.1); a hand stays on when the other
+ * hand is off. Built without `delete`, which leaves an object slow to read, in the same key order.
+ */
 export function freeState(st: ClimbState, limb: Limb): ClimbState {
-  const anchors = { ...st.anchors };
-  const otherOfKind = limbKind(limb) === 'hand' ? anchors[otherHand(limb)] : anchors[otherHand(limb)];
-  if (otherOfKind || limbKind(limb) === 'foot') delete anchors[limb];
+  const release = limbKind(limb) === 'foot' || !!st.anchors[otherHand(limb)];
+  if (!release) return { ...st, anchors: { ...st.anchors } };
+  const anchors: ClimbState['anchors'] = {};
+  for (const l in st.anchors) if (l !== limb) anchors[l as Limb] = st.anchors[l as Limb]!;
   return { ...st, anchors };
 }
 
@@ -218,20 +219,29 @@ export function lockDepth(ath: Athlete): number {
   return LOCKOFF.depth[0] + (LOCKOFF.depth[1] - LOCKOFF.depth[0]) * lo;
 }
 
+const LIMB_ORDER: readonly Limb[] = ['LH', 'RH', 'LF', 'RF'];
+
 export function bodyPoints(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyPoints {
   const k = kinematics(ath.body);
   const scale = k.height_m / 1.7;
-  const hands: Pt[] = [];
-  const feet: Pt[] = [];
-  for (const limb of ['LH', 'RH', 'LF', 'RF'] as Limb[]) {
-    const id = st.anchors[limb];
+  // The hands' and the feet's centroids, summed in limb order from zero exactly as a reduce over the anchored holds
+  // did, without building the arrays: this runs several times a move.
+  let hn = 0; let hx = 0; let hs = 0; let h0s = 0;
+  let fn = 0; let fx = 0; let fs = 0;
+  for (let i = 0; i < 4; i++) {
+    const id = st.anchors[LIMB_ORDER[i]!];
     if (!id) continue;
     const h = geom.holds.get(id);
     if (!h) continue;
-    (limbKind(limb) === 'hand' ? hands : feet).push({ x: h.x, s: h.s });
+    if (i < 2) {
+      if (hn === 0) h0s = h.s;
+      hn++; hx += h.x; hs += h.s;
+    } else {
+      fn++; fx += h.x; fs += h.s;
+    }
   }
-  const C_hands = centroid(hands);
-  const C_feet = st.feet_cut ? null : centroid(feet);
+  const C_hands: Pt | null = hn ? { x: hx / hn, s: hs / hn } : null;
+  const C_feet: Pt | null = st.feet_cut || !fn ? null : { x: fx / fn, s: fs / fn };
   let C: Pt;
   if (C_hands && C_feet) C = { x: 0.5 * C_hands.x + 0.5 * C_feet.x, s: 0.5 * C_hands.s + 0.5 * C_feet.s };
   else if (C_hands) C = { x: C_hands.x, s: C_hands.s - 0.45 * scale };
@@ -247,15 +257,15 @@ export function bodyPoints(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyP
   }
   const shoulder = { x: C.x + side * off.sh[0] * scale, s: C.s + off.sh[1] * scale };
   const hip = { x: C.x + side * off.hip[0] * scale, s: C.s + off.hip[1] * scale };
-  if (hands.length === 1 && C_feet) {
+  if (hn === 1 && C_feet) {
     const torso = k.height_m - k.leg_len - 0.13 * k.height_m;
-    shoulder.s = Math.max(shoulder.s, Math.min(hands[0]!.s - lockDepth(ath) * scale, C_feet.s + LOCKOFF.stand * (k.leg_len + torso)));
+    shoulder.s = Math.max(shoulder.s, Math.min(h0s - lockDepth(ath) * scale, C_feet.s + LOCKOFF.stand * (k.leg_len + torso)));
   }
   return {
     C, C_hands, shoulder, hip,
     CoM: { x: hip.x, s: hip.s + 0.1 * scale },
-    feetOn: st.feet_cut ? 0 : feet.length,
-    handsOn: hands.length,
+    feetOn: st.feet_cut ? 0 : fn,
+    handsOn: hn,
   };
 }
 
