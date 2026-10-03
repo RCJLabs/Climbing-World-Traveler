@@ -1,12 +1,13 @@
-// Trait re-costing (docs/19 §4): what each live creation trait is worth over whole careers. Paired careers: each
-// sampled base build plays once as sampled and once with the trait added (or taken away, when the base carries it),
-// from the same seed, so the pair shares its weather and its first dice. A trait's impact is the mean change in career
-// score (16 §6) over its pairs, in units of what +5 on one physical attribute is worth on the same bases (the mean
-// over the twelve). A base that cannot take the trait (an exclusion, a trait its background locks or forces) is left
-// out of that trait's pairs. Then 19 §4's proposal, cost = round(impact) within ±2..±10, made only where the interval
-// clearly excludes today's cost; no-op flags; pick rates under a greedy builder; the caps check; the diff.
-// Careers stream to <out>/recost-<crag>-<seed>.jsonl, so a long run resumes where it stopped.
-//   pnpm tsx scripts/recost.ts --n 12 --days 365 --seed 7 [--crag fontainebleau] [--traits a,b] [--workers 4] [--out dir]
+// Trait re-costing (docs/19 §4, docs/26 §10): what each live creation trait is worth over whole careers. Paired
+// careers: each sampled base build plays once as sampled and once with the trait added (or taken away, when the base
+// carries it), from the same seed, so the pair shares its weather and its first dice. A trait's impact is the mean
+// change in career score (16 §6) over its pairs, in trait points at today's price level (priceSlope); 19 §4's own
+// yardstick, +5 on one physical attribute, is played and reported beside it. A base that cannot take the trait (an
+// exclusion, a trait its background locks or forces) is left out of that trait's pairs. Then the verdict per trait (a
+// proposal on its own side, clear only outside the noise; no-op and sign flags), pick rates under a greedy builder,
+// the caps check and the diff. Careers stream to <out>/recost-<crag>-<seed>.jsonl, so a long run resumes where it
+// stopped, and a finished one re-reads in seconds.
+//   pnpm recost --n 24 --days 365 --seed 7 [--crag fontainebleau] [--traits a,b] [--workers 4] [--out dir]
 import { fork } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';

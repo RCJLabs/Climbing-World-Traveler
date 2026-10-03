@@ -1,9 +1,10 @@
 // Evolving traits (03 §1.7, docs/26 §10): what each evolution counts, the evolutions with their week clocks (one
 // stage a day; a gained stage's attribute adds apply once), the bot's weekly fall practice while a trait evolves by
-// it, and the content rules (schemas §9 rule 17).
+// it, the harness's record of evolutions, and the content rules (schemas §9 rule 17).
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
 import { TraitSchema } from '../src/data/schema';
+import { runCareer } from '../src/harness/career';
 import { atRoute, syntheticRun } from '../src/harness/sim';
 import { climberStep, doMove, doWallAction, registerRoute, simulateAttempt, startAttempt } from '../src/sim/attempt';
 import { BotDriver, PROJECT_POLICY } from '../src/sim/bot';
@@ -163,6 +164,15 @@ describe('the bot and the content rules', () => {
     expect(afraid.sessions).toBeLessThanOrEqual(4);
     expect(afraid.n).toBe(afraid.sessions * PRACTICE_FALLS_PER_SESSION);
     expect(practised([]).sessions).toBe(0);
+  });
+
+  it('a harness career keeps its creation traits and records each evolution on the day it happens', () => {
+    const spec = { ...presetSpec('dirtbag', DEFAULT_OPTIONS), traits: ['dirtbag', 'topout_terror'] };
+    const r = runCareer({ seed: 'evolve-career', spec, days: 60, policy: 'volume' }, bundle);
+    expect(r.traits).toContain('topout_terror');
+    const ev = r.evolved.find((x) => x.from === 'topout_terror');
+    expect(ev).toMatchObject({ to: null });
+    expect(ev!.day).toBeGreaterThanOrEqual(27);
   });
 
   it('wants evolutions on evolving traits only, with known counters and stages that exist', () => {

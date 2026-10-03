@@ -22,7 +22,9 @@ export interface CareerResult {
   crag: string;
   sport: boolean;
   background: string;
+  /** The traits at creation; `evolved` lists what evolution made of them (03 §1.7), in order. */
   traits: string[];
+  evolved: { day: number; from: string; to: string | null }[];
   age: number;
   height: number;
   policy: string;
@@ -52,9 +54,19 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
   const E0 = estimateDI(run, bundle);
   const sport = !bundle.crags.get(run.crag)!.disciplines.includes('boulder');
   const months: CareerResult['months'] = [];
+  const traits = [...run.traits];
+  const evolved: CareerResult['evolved'] = [];
   let burnoutMax = 0;
   for (let d = 0; d < cfg.days && !run.ended; d++) {
+    const before = run.traits;
     bot.day();
+    // Only an evolution replaces the trait list (evolve.ts); a stage goes to the trait its evolution names, or nowhere.
+    if (run.traits !== before) {
+      for (const from of before.filter((t) => !run.traits.includes(t))) {
+        const next = new Set(bundle.traits.get(from)?.evolves_to?.map((e) => e.trait));
+        evolved.push({ day: d, from, to: run.traits.find((t) => !before.includes(t) && next.has(t)) ?? null });
+      }
+    }
     burnoutMax = Math.max(burnoutMax, run.res.burnout);
     if ((d + 1) % 30 === 0 && !run.ended) {
       months.push({ day: run.day, E: estimateDI(run, bundle), pb: sport ? run.pb_route : run.pb, money: run.res.money, stoke: run.res.stoke, burnout: run.res.burnout });
@@ -67,7 +79,7 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
     replayOk = cyrb53(JSON.stringify(replay(log, bundle))) === cyrb53(JSON.stringify(run));
   }
   return {
-    seed: cfg.seed, crag: run.crag, sport, background: spec.background, traits: run.traits, age: spec.body.age_start, height: spec.body.height_cm,
+    seed: cfg.seed, crag: run.crag, sport, background: spec.background, traits, evolved, age: spec.body.age_start, height: spec.body.height_cm,
     policy: cfg.policy, E0, months, summary: run.ended!, climb_days: run.counters.climb_days,
     hardest: sport ? run.ended!.hardest_route : run.ended!.hardest,
     hardest_onsight: sport ? run.ended!.hardest_route_onsight : run.ended!.hardest_flash,
