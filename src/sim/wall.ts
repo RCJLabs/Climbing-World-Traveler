@@ -28,6 +28,45 @@ export interface RouteGeom {
   s_top: number;
 }
 
+/**
+ * A profile's per-segment terms, computed once per wall array: the sines, the lean terms and the running sums of
+ * surface length and lean, each summed in segment order exactly as the loops below once summed them on every call,
+ * so every coordinate comes out bit for bit the same. Walls are never mutated once built (the generator makes a new
+ * array for each profile it tries), which is what makes a cache keyed by the array safe.
+ */
+interface WallTable { sin: number[]; len: number[]; zfull: number[]; cot: number[]; s0: number[]; z0: number[] }
+const wallTables = new WeakMap<readonly WallSegment[], WallTable>();
+
+function tableOf(wall: readonly WallSegment[]): WallTable {
+  let t = wallTables.get(wall);
+  if (t) return t;
+  t = { sin: [], len: [], zfull: [], cot: [], s0: [], z0: [] };
+  let s = 0;
+  let z = 0;
+  for (const seg of wall) {
+    const sin = Math.sin(rad(seg.angle));
+    const cot = Math.cos(rad(seg.angle)) / Math.sin(rad(seg.angle));
+    t.sin.push(sin);
+    t.cot.push(cot);
+    t.len.push((seg.y1 - seg.y0) / sin);
+    t.zfull.push(-(seg.y1 - seg.y0) * cot);
+    t.s0.push(s);
+    t.z0.push(z);
+    s += (seg.y1 - seg.y0) / sin;
+    z += -(seg.y1 - seg.y0) * cot;
+  }
+  t.s0.push(s);
+  t.z0.push(z);
+  wallTables.set(wall, t);
+  return t;
+}
+
+/** Index of the first segment whose top is above y, or `wall.length` when y is at or above the top of the wall. */
+function segIndex(wall: readonly WallSegment[], y: number): number {
+  for (let i = 0; i < wall.length; i++) if (!(y >= wall[i]!.y1)) return i;
+  return wall.length;
+}
+
 export function segmentAt(wall: readonly WallSegment[], y: number): WallSegment {
   for (const seg of wall) if (y >= seg.y0 && y < seg.y1) return seg;
   return wall[wall.length - 1]!;
@@ -35,43 +74,28 @@ export function segmentAt(wall: readonly WallSegment[], y: number): WallSegment 
 
 /** Arc length up the profile to height y (05a §1.1). */
 export function sOfY(wall: readonly WallSegment[], y: number): number {
-  let s = 0;
-  for (const seg of wall) {
-    const sin = Math.sin(rad(seg.angle));
-    if (y >= seg.y1) s += (seg.y1 - seg.y0) / sin;
-    else {
-      s += Math.max(0, y - seg.y0) / sin;
-      break;
-    }
-  }
-  return s;
+  const t = tableOf(wall);
+  const i = segIndex(wall, y);
+  if (i === wall.length) return t.s0[i]!;
+  return t.s0[i]! + Math.max(0, y - wall[i]!.y0) / t.sin[i]!;
 }
 
 /** Horizontal offset of the wall face at height y (05a §1.1); positive leans out towards the climber. */
 export function zOfY(wall: readonly WallSegment[], y: number): number {
-  let z = 0;
-  for (const seg of wall) {
-    const cot = Math.cos(rad(seg.angle)) / Math.sin(rad(seg.angle));
-    if (y >= seg.y1) z += -(seg.y1 - seg.y0) * cot;
-    else {
-      z += -Math.max(0, y - seg.y0) * cot;
-      break;
-    }
-  }
-  return z;
+  const t = tableOf(wall);
+  const i = segIndex(wall, y);
+  if (i === wall.length) return t.z0[i]!;
+  return t.z0[i]! + -Math.max(0, y - wall[i]!.y0) * t.cot[i]!;
 }
 
 /** Inverse of sOfY: height for a surface coordinate. */
 export function yOfS(wall: readonly WallSegment[], s: number): number {
-  let acc = 0;
-  for (const seg of wall) {
-    const sin = Math.sin(rad(seg.angle));
-    const len = (seg.y1 - seg.y0) / sin;
-    if (s <= acc + len) return seg.y0 + (s - acc) * sin;
-    acc += len;
+  const t = tableOf(wall);
+  for (let i = 0; i < wall.length; i++) {
+    if (s <= t.s0[i]! + t.len[i]!) return wall[i]!.y0 + (s - t.s0[i]!) * t.sin[i]!;
   }
   const last = wall[wall.length - 1]!;
-  return last.y1 + (s - acc) * Math.sin(rad(last.angle));
+  return last.y1 + (s - t.s0[wall.length]!) * t.sin[wall.length - 1]!;
 }
 
 /** Rock does not kink at a hold's scale: within this distance of a segment boundary, along the surface, a hold's angle blends between the two segments (05a §1.2). **(tune)** */
@@ -79,11 +103,12 @@ export const ANGLE_BLEND_M = 0.10;
 
 /** Wall angle at height y, blended linearly across segment boundaries over ±ANGLE_BLEND_M of surface (05a §1.2). */
 export function angleAt(wall: readonly WallSegment[], y: number): number {
+  const t = tableOf(wall);
   const s = sOfY(wall, y);
-  let acc = 0;
   for (let i = 0; i < wall.length; i++) {
     const seg = wall[i]!;
-    const end = acc + (seg.y1 - seg.y0) / Math.sin(rad(seg.angle));
+    const acc = t.s0[i]!;
+    const end = acc + t.len[i]!;
     if (s < end || i === wall.length - 1) {
       const prev = wall[i - 1];
       const next = wall[i + 1];
@@ -92,14 +117,29 @@ export function angleAt(wall: readonly WallSegment[], y: number): number {
       if (next && end - s < ANGLE_BLEND_M) return next.angle + (seg.angle - next.angle) * (0.5 + 0.5 * (end - s) / ANGLE_BLEND_M);
       return seg.angle;
     }
-    acc = end;
   }
   return wall[wall.length - 1]!.angle;
 }
 
+/** A hold's place on a wall depends only on its height: computed once per wall and height. */
+interface PlaceG { s: number; z: number; angle: number; feature: Feature }
+const placeCache = new WeakMap<readonly WallSegment[], Map<number, PlaceG>>();
+
+function placeOf(wall: readonly WallSegment[], y: number): PlaceG {
+  let m = placeCache.get(wall);
+  if (!m) { m = new Map(); placeCache.set(wall, m); }
+  let p = m.get(y);
+  if (!p) {
+    p = { s: sOfY(wall, y), z: zOfY(wall, y), angle: angleAt(wall, y), feature: segmentAt(wall, y).feature };
+    m.set(y, p);
+  }
+  return p;
+}
+
 /** One hold's place on the wall: surface distance, lean, blended angle and feature (05a §1). */
 export function holdGeom(wall: readonly WallSegment[], h: Hold): HoldG {
-  return { ...h, s: sOfY(wall, h.y), z: zOfY(wall, h.y), angle: angleAt(wall, h.y), feature: segmentAt(wall, h.y).feature };
+  const p = placeOf(wall, h.y);
+  return { ...h, s: p.s, z: p.z, angle: p.angle, feature: p.feature };
 }
 
 export function routeGeom(route: Route): RouteGeom {

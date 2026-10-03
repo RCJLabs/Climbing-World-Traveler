@@ -22,8 +22,8 @@ import {
 } from './rope';
 import { novelty, nudge, techniqueXp } from './training';
 import type { AttemptMode, AttrId, DataBundle, Limb, MoveClass, Route, Sector, Tick } from './types';
-import { TECHNIQUE_ATTRS } from './types';
-import { bodyPoints, freeState, judgeOption, routeGeom, yOfS, type ClimbState, type RouteGeom } from './wall';
+import { ALL_ATTRS, TECHNIQUE_ATTRS } from './types';
+import { bodyPoints, dist, freeState, judgeOption, limbKind, reachRadius, routeGeom, yOfS, type ClimbState, type RouteGeom } from './wall';
 import { sessionConditions } from './weather';
 
 export class InvalidAction extends Error {}
@@ -38,8 +38,26 @@ export function modsOf(run: Pick<RunState, 'traits'>, bundle: DataBundle): Mods 
   return m;
 }
 
+/**
+ * The athlete is asked for several times a move, and its attributes change only now and then (a nudge to commitment
+ * after a dyno, a day's training): the last one built is handed back while every attribute still has the value it was
+ * built from. Athletes are never mutated, so handing one back is the same as building it again.
+ */
+let lastAthlete: { run: RunState; mods: Mods; values: number[]; ath: Athlete } | null = null;
+
 export function athleteOf(run: RunState, bundle: DataBundle): Athlete {
-  return athleteFrom(run.body, run.attrs, modsOf(run, bundle), run.rock_knowledge);
+  const mods = modsOf(run, bundle);
+  const c = lastAthlete;
+  if (c && c.run === run && c.mods === mods && c.ath.body === run.body && c.ath.rock_knowledge === run.rock_knowledge) {
+    let same = true;
+    for (let i = 0; i < ALL_ATTRS.length; i++) {
+      if (run.attrs[ALL_ATTRS[i]!].value !== c.values[i]) { same = false; break; }
+    }
+    if (same) return c.ath;
+  }
+  const ath = athleteFrom(run.body, run.attrs, mods, run.rock_knowledge);
+  lastAthlete = { run, mods, values: ALL_ATTRS.map((id) => ath.a[id]), ath };
+  return ath;
 }
 
 interface RouteEntry { route: Route; geom: RouteGeom }
@@ -157,12 +175,21 @@ function revealScan(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athle
   const project = run.projects[at.route_id];
   if (!project) return;
   const rr = run.attrs.route_reading.value;
+  // Each limb's body points and reach are the same for every hold the scan looks at, so they are worked out once. A
+  // hold past a limb's longest reach has no legal move for it whatever else judgeOption would say, so the scan only
+  // asks judgeOption about holds within it.
+  const reach = (['LH', 'RH', 'LF', 'RF'] as Limb[]).map((l) => {
+    const bp = bodyPoints(geom, ath, freeState(at.climb, l));
+    const hand = limbKind(l) === 'hand';
+    return { l, bp, root: hand ? bp.shoulder : bp.hip, max: reachRadius(ath, limbKind(l), at.climb.posture) * (hand ? 1.5 : 1.0) };
+  });
   for (const h of geom.route.holds) {
     if (!h.hidden || project.revealed.includes(h.id)) continue;
-    const inReach = (['LH', 'RH', 'LF', 'RF'] as Limb[]).some((l) => {
+    const g = geom.holds.get(h.id)!;
+    const inReach = reach.some(({ l, bp, root, max }) => {
       if (at.climb.anchors[l] === h.id) return true;
-      const bp = bodyPoints(geom, ath, freeState(at.climb, l));
-      return judgeOption(geom, ath, at.climb, bp, l, geom.holds.get(h.id)!).classes.length > 0;
+      if (dist(root, g) > max) return false;
+      return judgeOption(geom, ath, at.climb, bp, l, g).classes.length > 0;
     });
     if (!inReach) continue;
     if (lookAround || stream(run.seed, at.route_id, 'reveal', h.id).next() < rr / 100 * 0.6) project.revealed.push(h.id);
