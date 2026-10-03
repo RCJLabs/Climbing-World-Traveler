@@ -102,7 +102,7 @@ record('C5 geometric stability', stable / Math.max(1, c5set.length) >= 0.95, `${
 
 // ---------------------------------------------------------------- C7 signatures
 const sig = [...bundle.signatures.values()].map((r) => ({ r, g: gradeRoute(r).di }));
-record('C7 signature problems', sig.every((s) => s.g !== null && Math.abs(s.g - s.r.di_target) <= 1),
+record('C7 signatures', sig.every((s) => s.g !== null && Math.abs(s.g - s.r.di_target) <= 1),
   sig.map((s) => `${s.r.name} ${s.g?.toFixed(2)} (canon ${s.r.di_target})`).join(', '));
 
 // ---------------------------------------------------------------- C2 reference self-consistency (dice through the play loop)

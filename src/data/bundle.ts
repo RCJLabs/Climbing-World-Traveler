@@ -6,7 +6,8 @@ import cragsJson from '../../data/crags.json';
 import profilesJson from '../../data/style_profiles.json';
 import namesJson from '../../data/names.json';
 import travelJson from '../../data/travel.json';
-import signaturesJson from '../../data/routes/fontainebleau_signatures.json';
+import fontSignaturesJson from '../../data/routes/fontainebleau_signatures.json';
+import kalymnosSignaturesJson from '../../data/routes/kalymnos_signatures.json';
 import fontBenchmarksJson from '../../data/routes/fontainebleau_benchmarks.json';
 import kalymnosBenchmarksJson from '../../data/routes/kalymnos_benchmarks.json';
 import { BackgroundSchema, CragSchema, NamesSchema, ProfileSchema, RouteSchema, TraitSchema, TravelSchema } from './schema';
@@ -28,11 +29,12 @@ export function loadBundle(validate = true): DataBundle {
     ProfileSchema.array().parse(profilesJson);
     NamesSchema.parse(namesJson);
     TravelSchema.parse(travelJson);
-    RouteSchema.array().parse(signaturesJson);
+    RouteSchema.array().parse(fontSignaturesJson);
+    RouteSchema.array().parse(kalymnosSignaturesJson);
     RouteSchema.array().parse(fontBenchmarksJson);
     RouteSchema.array().parse(kalymnosBenchmarksJson);
   }
-  const signatures = (signaturesJson as unknown as Route[]);
+  const signatures = [...fontSignaturesJson, ...kalymnosSignaturesJson] as unknown as Route[];
   return {
     traits: byId(traitsJson as unknown as Trait[]),
     backgrounds: byId(backgroundsJson as unknown as Background[]),

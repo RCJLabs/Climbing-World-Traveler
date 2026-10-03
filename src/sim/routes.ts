@@ -68,6 +68,8 @@ export interface GenRequest {
   bundle: Pick<DataBundle, 'names'>;
   /** A route of this height (m) instead of one drawn from the profile: the harness's 35 m pitches. */
   length_m?: number;
+  /** An authored wall instead of one drawn from the profile: a signature route's shape (06 §4, docs/26 §8). */
+  wall?: WallSegment[];
 }
 
 /**
@@ -924,7 +926,7 @@ export function generateSport(req: GenRequest): Route {
   const ath = referenceAthlete(req.di_target);
   for (let attempt = 0; attempt < 12; attempt++) {
     const seed = attempt === 0 ? req.seed : `${req.seed}:retry${attempt}`;
-    const { wall, height } = buildSportWall(req.profile, stream(seed, 'wall'), req.di_target, req.length_m);
+    const { wall, height } = req.wall ? { wall: req.wall, height: req.wall[req.wall.length - 1]!.y1 } : buildSportWall(req.profile, stream(seed, 'wall'), req.di_target, req.length_m);
     const traced = trace(req, wall, height, ath, stream(seed, 'line'), SPORT_SHAPE);
     if (!traced) continue;
     const route = traced.route;

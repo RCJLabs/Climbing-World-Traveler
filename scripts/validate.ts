@@ -1,6 +1,9 @@
 // Content validator (docs/20 §4, schemas §9): Zod shapes plus cross-references, trait economy rules, presets
 // and signature grades (05c C7). Exits non-zero on any error so CI can gate on it.  pnpm validate
+import realNamesJson from '../data/real_names.json';
 import { loadBundle } from '../src/data/bundle';
+import { contentOf, realNameHits } from '../src/data/realnames';
+import { RealNamesSchema } from '../src/data/schema';
 import { phaseLive, traitEffectErrors, validateCreation } from '../src/sim/character';
 import { gradeRoute } from '../src/sim/grade';
 import { PRESETS, presetSpec } from '../src/sim/presets';
@@ -89,6 +92,11 @@ for (const r of bundle.signatures.values()) {
   else if (Math.abs(g.di - r.di_target) > 1.0) err(`signature ${r.id}: grades ${g.di.toFixed(2)}, canonical ${r.di_target}`);
   else if (Math.abs(g.di - r.di_graded) > 0.05) warn(`signature ${r.id}: stored di_graded ${r.di_graded} but engine gives ${g.di.toFixed(2)}; rebuild`);
 }
+
+// Real people (schemas §9 rule 8): no string anywhere in the content names someone on the list.
+const realNames = RealNamesSchema.safeParse(realNamesJson);
+if (!realNames.success) err(`real_names.json: ${realNames.error.message}`);
+else for (const m of realNameHits(contentOf(bundle), realNames.data)) err(m);
 
 // The travel graph: edges join real crags and hubs, and every live crag can reach every other (09 §8).
 for (const e of travelGraphErrors(bundle)) err(e);

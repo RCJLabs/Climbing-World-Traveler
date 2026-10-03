@@ -176,7 +176,8 @@ describe('signature problems (C7)', () => {
     });
   }
   it('ships the three P1a problems', () => {
-    expect([...bundle.signatures.values()].map((r) => r.name).sort()).toEqual(['La Marie-Rose', 'Le Toit du Cul de Chien', 'Rainbow Rocket']);
+    const font = [...bundle.signatures.values()].filter((r) => r.crag === 'fontainebleau');
+    expect(font.map((r) => r.name).sort()).toEqual(['La Marie-Rose', 'Le Toit du Cul de Chien', 'Rainbow Rocket']);
   });
 });
 

@@ -18,7 +18,7 @@ import { momentAt, playbackOf, touchedAt, type Playback } from '../src/ui/wall/p
 import { dot3, KNEE_CLEAR, len3, LIMBS, mixBody, solve, STRETCH, sub3, type Body3, type Rock, type V3 } from '../src/ui/wall/rig';
 
 const bundle = loadBundle();
-const sigs = [...bundle.signatures.values()];
+const sigs = [...bundle.signatures.values()].filter((r) => r.crag === 'fontainebleau');
 const bench = bundle.benchmarks.get('fontainebleau')!;
 /** The signatures and every eighth benchmark: slabs, vertical walls, arêtes, overhangs and roofs. */
 const routes: Route[] = [...sigs, ...bench.filter((_, i) => i % 8 === 0)];

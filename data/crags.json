@@ -143,7 +143,7 @@
         "dry_lag_days": 0.5, "seep_lag_days": 7,
         "shade": false,
         "style_profiles": ["kalymnos_tufa_sport"],
-        "signature_routes": []
+        "signature_routes": ["sig_priapos", "sig_dna", "sig_aegialis"]
       },
       {
         "id": "odyssey",

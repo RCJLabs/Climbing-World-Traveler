@@ -23,8 +23,8 @@ import { bodyOf, len3, LIMBS, sub3, type Body3, type V3 } from '../src/ui/wall/r
 const bundle = loadBundle();
 const bench = bundle.benchmarks.get('kalymnos')!;
 for (const r of bench) registerRoute(r);
-/** Every fourth benchmark: slabby, vertical and steep routes, tufas and corners, 5a to 8b. */
-const routes: Route[] = bench.filter((_, i) => i % 4 === 0);
+/** The three signature pitches and every fourth benchmark: slabby, vertical and steep routes, tufas and corners, 5a to 8c. */
+const routes: Route[] = [...[...bundle.signatures.values()].filter((r) => r.discipline === 'sport'), ...bench.filter((_, i) => i % 4 === 0)];
 
 interface Play { route: Route; geom: RouteGeom; ath: Athlete; pb: Playback; frames: AttemptState[] }
 
