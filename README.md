@@ -56,8 +56,9 @@ Read in this order for a first pass: 00 → 01 → 24 → 02 → 05b → 03.
 | 20 | [Content Pipeline](docs/20-content-pipeline.md) | How to add crags, traits, backgrounds, events, routes; validation |
 | 21 | [Glossary](docs/21-glossary.md) | Climbing and game terms |
 | 22 | [P1a Implementation Notes](docs/22-p1a-implementation-notes.md) | Where the Fontainebleau slice departs from the design, why, and the measured harness results |
-| 23 | [Move Types and Art Direction](docs/23-move-types-and-art-direction.md) | Flat Dusk, the art direction; the per-move controls it also describes are retired (24) |
+| 23 | [Move Types and Art Direction](docs/23-move-types-and-art-direction.md) | Flat Dusk, the art direction of the app's screens (the wall is the cartoon, 25); the per-move controls it also describes are retired (24) |
 | 24 | [The Simulation Game](docs/24-simulation-game.md) | How the game is played: the week plan, the climber's own tactics, simulated days, reports, watching an attempt |
+| 25 | [Watching the Simulation](docs/25-visual-representation.md) | The cartoon wall (chosen 2026-10-03): each problem drawn as its own block, natural legs, every move class animated; and the ten styles it was chosen from |
 
 ## Conventions
 

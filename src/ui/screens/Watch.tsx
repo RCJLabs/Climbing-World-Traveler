@@ -1,75 +1,76 @@
-// Watching an attempt (docs/24 §5): the simulated attempt played back on the wall, step by step, with the meters and
-// the climber's running commentary. Nothing here changes the climb: it was decided before the playback started.
-import { useEffect, useState } from 'preact/hooks';
+// Watching an attempt (docs/24 §5, 25 §10): the simulated attempt played back on the cartoon wall move by move, with
+// the meters and the climber's running commentary. Nothing here changes the climb: it was decided before the
+// playback started.
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { athleteOf, isVisible, liveFear, routeEntry } from '../../sim/attempt';
 import { izof, powerPool } from '../../sim/resolve';
 import type { RunState } from '../../sim/state';
 import { Circuit, Meter, Seg } from '../components';
 import { grade } from '../format';
 import { data, goto, playback, saveSettings, settings } from '../store';
-import { ENDING_MS, WallCanvas, type Ending } from '../wall/WallCanvas';
+import { playbackOf } from '../wall/playback';
+import { WallCanvas } from '../wall/WallCanvas';
 
-/** Time on each step at 1×: the move animates in 250 ms, the rest is time to read the line. (tune) */
-const STEP_MS = 750;
 const MODE_LABEL = { onsight: 'Onsight', flash: 'Flash', redpoint: 'Redpoint', work: 'Working' } as const;
 
 export function Watch({ run }: { run: RunState }) {
-  const pb = playback.value;
+  const play = playback.value;
   const [i, setI] = useState(0);
-  const [ending, setEnding] = useState<Ending>(null);
+  const [ending, setEnding] = useState(false);
   const speed = settings.value.speed;
-  const n = pb?.frames.length ?? 0;
+  const n = play?.frames.length ?? 0;
   const result = run.last_attempt;
 
-  useEffect(() => { if (!pb || n === 0 || !result) goto({ name: 'result' }); }, [pb, n, result]);
-  // Step through the frames; after the last, the attempt's ending plays, then the result.
-  useEffect(() => {
-    if (!pb || ending || n === 0) return;
-    const t = setTimeout(() => {
-      if (i < n - 1) setI(i + 1);
-      else setEnding(result?.outcome === 'sent' ? 'send' : result?.outcome === 'jumped' ? 'off' : 'fall');
-    }, STEP_MS / speed);
-    return () => clearTimeout(t);
-  }, [i, ending, speed, pb]);
-  useEffect(() => {
-    if (!ending) return;
-    const t = setTimeout(() => goto({ name: 'result' }), ENDING_MS + 450);
-    return () => clearTimeout(t);
-  }, [ending]);
+  useEffect(() => { if (!play || n === 0 || !result) goto({ name: 'result' }); }, [play, n, result]);
+  // The attempt as the wall plays it: the problem's block, the climber's body through every step, how it ends.
+  const pb = useMemo(() => {
+    if (!play || n === 0 || !result) return null;
+    const { geom } = routeEntry(play.frames[0]!.at.route_seed, data);
+    return playbackOf(geom, athleteOf(run, data), play.frames.map((f) => f.at), result);
+  }, [play]);
+  useEffect(() => { setI(0); setEnding(false); }, [pb]);
+  // Hidden holds the climber has not found stay off the wall (05b §13).
+  const hidden = useMemo(() => {
+    if (!play || n === 0) return new Set<string>();
+    const { route } = routeEntry(play.frames[0]!.at.route_seed, data);
+    const project = run.projects[route.id];
+    return new Set(route.holds.filter((h) => !isVisible(project, route, h.id)).map((h) => h.id));
+  }, [play]);
 
-  if (!pb || n === 0 || !result) return null;
-  const { at, skin } = pb.frames[Math.min(i, n - 1)]!;
+  if (!play || !pb || n === 0 || !result) return null;
+  const { at, skin } = play.frames[Math.min(i, n - 1)]!;
   const { route, geom } = routeEntry(at.route_seed, data);
   const ath = athleteOf(run, data);
-  const project = run.projects[at.route_id];
   const fear = liveFear(at, geom, ath);
   const band = izof(ath.a.composure);
-  const last = at.log[at.log.length - 1];
   // The commentary: the last few things that happened, and how it ended once the ending plays.
   const lines = [...at.log.slice(-3).map((m) => m.text), ...(ending ? [result.log[result.log.length - 1]?.text ?? result.text] : [])].slice(-3);
   const progress = route.beta_line.length ? Math.min(at.beta_ptr, route.beta_line.length) : 0;
 
   return (
-    <div class="screen attempt">
+    <div class="screen attempt toon">
       <div class="top" style={{ paddingBottom: '8px' }}>
         <div class="top-row">
-          <div class="col" style={{ gap: '2px' }}>
-            <span class="card-title">{route.name} · {grade(route.di_graded)}</span>
-            <span class="tiny muted row"><Circuit c={route.circuit} />{MODE_LABEL[at.mode]} · attempt {at.attempt_index + 1} · move {at.moves} · line {progress}/{route.beta_line.length}</span>
+          <div class="col" style={{ gap: '2px', minWidth: 0 }}>
+            <span class="card-title one-line">{route.name} · {grade(route.di_graded)}</span>
+            <span class="tiny row"><Circuit c={route.circuit} />{MODE_LABEL[at.mode]} · attempt {at.attempt_index + 1} · move {at.moves} · line {progress}/{route.beta_line.length}</span>
           </div>
           <button class="chip-btn" onClick={() => goto({ name: 'result' })}>Skip</button>
         </div>
       </div>
       <WallCanvas
-        label={`${route.name}: ${run.name} on the wall`}
-        view={{ geom, ath, climb: at.climb, visible: (id) => isVisible(project, route, id), limb: null, targets: new Map(), selected: null, feetCut: at.climb.feet_cut }}
-        motion={{ step: i, style: { limb: last?.limb, cls: last?.cls }, shake: last?.outcome === 'sketchy' || last?.outcome === 'slip_recovered', speed }}
-        ending={ending}
+        pb={pb}
+        hidden={hidden}
+        label={`${route.name}: ${run.name} on the problem`}
+        speed={speed}
         reduceMotion={settings.value.reduce_motion}
+        onStep={setI}
+        onEnding={() => setEnding(true)}
+        onDone={() => goto({ name: 'result' })}
       />
       <div class="hud">
         <div class="col commentary" aria-live="polite">
-          {lines.map((t, k) => <span key={`${i}-${k}`} class={`small one-line ${k === lines.length - 1 ? '' : 'muted'}`}>{t}</span>)}
+          {lines.map((t, k) => <span key={`${i}-${k}`} class={`small one-line ${k === lines.length - 1 ? 'now' : 'muted'}`}>{t}</span>)}
         </div>
         <div class="meters" style={{ gridTemplateColumns: 'minmax(0, 1.4fr) repeat(3, minmax(0, 1fr))' }}>
           <Meter label="Pump" value={at.pump} colour={at.pump > 70 ? 'var(--warn)' : 'var(--sky)'} />

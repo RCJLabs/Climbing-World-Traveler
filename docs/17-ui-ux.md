@@ -39,7 +39,7 @@ Other actions (match, bump, shake, chalk, clip, place gear, kneebar, downclimb, 
 
 **The rig.** Torso as a tapered capsule, head, two-bone arms and legs posed from the same body points the reach check uses ([05a §4.2](05a-wall-and-kinematics.md#42-anchors-body-centre-hips-and-shoulders)), so what is drawn is what was measured. Elbows drop and sit back off the wall; knees point into it. The far-side limbs (LH, LF) are drawn behind the torso a tone darker, the near-side limbs in front; the selected limb is amber. Hold rings, target rings and limb glyphs are drawn above the body, so the climber never hides a choice. Face segments shade darker as the rock steepens.
 
-**Motion** (all **(tune)**):
+**Motion** (all **(tune)**). Since [24](24-simulation-game.md) the wall is only watched, and since 2026-10-03 it is the cartoon of [25 §10](25-visual-representation.md): its camera (§10.3), rig (§10.4), per-move timings (§10.5) and endings (§10.6) replace the camera, rig and table below, which describe the Flat Dusk wall as it was built:
 
 | Event | Animation |
 |---|---|

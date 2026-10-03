@@ -2,7 +2,7 @@
 
 The climbing overhaul. Different moves ask different things of a climber, so they get different controls: a dyno is aimed, launched and caught; a balance move is held in balance; an ordinary reach is gripped and placed. The look moves to **Flat Dusk** on the three-quarter camera. The character builder, the career, training, the route generator and the grade engine stay; this doc says how the new controls feed the same engine.
 
-> **Retired by [24](24-simulation-game.md) (2026-10-02):** the game no longer has per-move controls; the climbing is simulated. §1–§3, §5 and §6 describe features that were built and then removed, and are kept as a record. §4, Flat Dusk, remains the art direction.
+> **Retired by [24](24-simulation-game.md) (2026-10-02):** the game no longer has per-move controls; the climbing is simulated. §1–§3, §5 and §6 describe features that were built and then removed, and are kept as a record. §4, Flat Dusk, remains the art direction for the app's screens. **On the wall it is superseded (2026-10-03)** by the cartoon of [25 §10](25-visual-representation.md); the Flat Dusk wall renderer (`render.ts`, `pose.ts`) is removed.
 
 **Status (before retirement):** steps 1–5 of §5 were built: the dyno prototype (§6), the Flat Dusk look, Swing and Catch for dynos and deadpoints (§3.3), Two-Thumb Grip for most other moves (§2.1, §3.1) and Lean for the moves the stance test flags (§2.2, §3.2). Neither Two-Thumb Grip nor Lean has been played on a phone yet. Step 6 is built too: C8 measures each move type's skill share on its own, against its own limit and the old total (§3.4).
 
@@ -185,7 +185,7 @@ The prototype (§6) used a stat-based top speed (`(2.6 + 0.024 × power) × …`
 
 **Type and HUD:** a heavy grotesque in caps for labels (the mockups use Archivo 800), bars `12 px` tall and rounded, every control `≥ 44 px`, controls in the bottom third. A move-type chip (`DYNO`, `SLAB · BALANCE`) sits under the problem name.
 
-**Mockups:** the canvas "Climbing Overhaul Mockups", page *Flat Dusk: dyno and balance* (load and aim, catch, off balance, balanced). The mechanics and the nine other visual directions are on its other pages.
+**Mockups:** the canvas "Climbing Overhaul Mockups", page *Flat Dusk: dyno and balance* (load and aim, catch, off balance, balanced). The mechanics and the nine other visual directions are on its other pages. For watching simulated climbs ([24](24-simulation-game.md)), ten styles including *Flat Dusk 2* (this direction with the mechanics drawn on the wall) are compared in [25](25-visual-representation.md).
 
 ---
 
