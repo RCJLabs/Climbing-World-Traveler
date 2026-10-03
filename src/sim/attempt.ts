@@ -43,17 +43,25 @@ export function athleteOf(run: RunState, bundle: DataBundle): Athlete {
 }
 
 interface RouteEntry { route: Route; geom: RouteGeom }
+/** Built routes by seed, least recently used first. Routes are deterministic by seed, so the cache never changes play. */
 const routeCache = new Map<string, RouteEntry>();
-const ROUTE_CACHE_MAX = 400;
+let routeCacheMax = 400;
+
+/** The harness raises the cap so paired careers on one seed share their routes (docs/19 §4; ~0.2 MB a pitch). */
+export function setRouteCacheMax(n: number): void {
+  routeCacheMax = n;
+}
 
 export function routeEntry(seed: string, bundle: DataBundle): RouteEntry {
   let e = routeCache.get(seed);
-  if (!e) {
+  if (e) {
+    routeCache.delete(seed);
+  } else {
     const route = routeFromSeed(seed, bundle);
     e = { route, geom: routeGeom(route) };
-    if (routeCache.size >= ROUTE_CACHE_MAX) routeCache.delete(routeCache.keys().next().value!);
-    routeCache.set(seed, e);
+    while (routeCache.size >= routeCacheMax) routeCache.delete(routeCache.keys().next().value!);
   }
+  routeCache.set(seed, e);
   return e;
 }
 

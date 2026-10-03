@@ -105,9 +105,13 @@ export function dailyCost(run: Pick<RunState, 'options' | 'traits'>, bundle: Dat
   return Math.round(DAILY_COST * LIVING_MULT[run.options.difficulty] * modsOf(run, bundle).cost_mult);
 }
 
-export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle): RunState {
+/**
+ * A new run from a creation spec. `unchecked` skips the creation rules (budget, caps, allocation) for the harness's
+ * paired careers (docs/19 §4: a random build plus one trait); no saved run is ever created that way.
+ */
+export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle, opts: { unchecked?: boolean } = {}): RunState {
   const ctx = { traits: bundle.traits, backgrounds: bundle.backgrounds };
-  const errs = validateCreation(spec, ctx);
+  const errs = opts.unchecked ? [] : validateCreation(spec, ctx);
   if (errs.length) throw new InvalidAction(errs.join(' '));
   const bg = bundle.backgrounds.get(spec.background)!;
   const crag = bundle.crags.get(bg.start_crag) ?? bundle.crags.get('fontainebleau');

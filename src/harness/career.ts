@@ -12,6 +12,8 @@ export interface CareerConfig {
   days: number;
   policy: 'project' | 'volume';
   checkReplay?: boolean;
+  /** Skip the creation rules: the re-costing's paired builds (docs/19 §4) may exceed the trait budget. */
+  unchecked?: boolean;
 }
 
 export interface CareerResult {
@@ -45,7 +47,7 @@ export interface CareerResult {
 export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
   const t0 = performance.now();
   const spec = cfg.spec;
-  const run = createRun(cfg.seed, spec, bundle);
+  const run = createRun(cfg.seed, spec, bundle, { unchecked: cfg.unchecked ?? false });
   const bot = new BotDriver(run, bundle, cfg.policy === 'project' ? PROJECT_POLICY : VOLUME_POLICY);
   const E0 = estimateDI(run, bundle);
   const sport = !bundle.crags.get(run.crag)!.disciplines.includes('boulder');
