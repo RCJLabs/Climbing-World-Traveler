@@ -43,13 +43,13 @@ P1a ships a curated set of **~40 traits** chosen for Fontainebleau bouldering re
 
 | Phase | System that must be live | Traits gated to it |
 |---|---|---|
-| P1b | rope, clipping, sport attempt modes, kneebars as rests, pockets as a common hold family, power-endurance | Dry Hands, Slow Twitch, Stiff Shoulders, Bellows, Springs, Noodle Legs, Pocket Fingers, Kneebar Finder, Proprioceptor, Beta Blind, Rope Gun, Resistance, Bear Hugger, Contact Catcher, Slow Hands, Jug Hauler, One-Arm Wonder, Kinesthetic Learner, Slow Learner, Overthinker, Clutch, Zen, Onsight Purist, Cool Head, Risk Blind, All In, Hesitant, Unflappable, Jittery, Vertigo, Loves Air, Visualiser, Skin Care Routine, Rower, Farm Strong, Climber Parents, Guide's Apprentice, Martial Artist, Swimmer, Runner, Weightlifter, Feral Childhood, and quirks Stubborn, Cautious, Big Hands, Small Hands, Perfectionist, Downclimber |
-| P2 | weather and temperature, injuries, training clocks, economy, travel, NPCs, events, reputation, stoke/burnout | Bendy Shoulders, Iron Tendons, Glass Pulleys, Furnace, Cold Blooded, Cold Hands, Gaston Goblin, Beta Sponge, Patient, Impatient, Competitor, Bounce Back, Brittle, every Social trait, every Lifestyle trait except Skin Care Routine, Ex-Military, Academic, Content Creator, Mountain Born, Coastal Fisher, every Health trait except Lucky/Unlucky, quirks Purist, Rival Magnet, Superstitious, Grade Sceptic, the whole hidden pool, acquired Pulley Veteran, Sandbagged, Crag Mayor, Grit Hardened, Tufa Whisperer, Injury Wise, Jaded |
+| P1b | rope, clipping, sport attempt modes, kneebars as rests, pockets as a common hold family, power-endurance | Dry Hands, Slow Twitch, Stiff Shoulders, Bellows, Springs, Noodle Legs, Pocket Fingers, Kneebar Finder, Proprioceptor, Beta Blind, Rope Gun, Resistance, Bear Hugger, Contact Catcher, Slow Hands, Jug Hauler, One-Arm Wonder, Kinesthetic Learner, Slow Learner, Overthinker, Clutch, Zen, Onsight Purist, All In, Hesitant, Unflappable, Jittery, Vertigo, Loves Air, Visualiser, Skin Care Routine, Rower, Farm Strong, Climber Parents, Guide's Apprentice, Martial Artist, Swimmer, Runner, Weightlifter, Feral Childhood, and quirks Stubborn, Cautious, Big Hands, Small Hands, Perfectionist, Downclimber |
+| P2 | weather and temperature, injuries, training clocks, economy, travel, NPCs, events, reputation, stoke/burnout | Bendy Shoulders, Iron Tendons, Glass Pulleys, Furnace, Cold Blooded, Cold Hands, Gaston Goblin, Beta Sponge, Patient, Impatient, Competitor, Bounce Back, Brittle, every Social trait, every Lifestyle trait except Skin Care Routine, Ex-Military, Academic, Content Creator, Mountain Born, Coastal Fisher, every Health trait, Cool Head, Risk Blind, quirks Purist, Rival Magnet, Superstitious, Grade Sceptic, the whole hidden pool, acquired Pulley Veteran, Sandbagged, Crag Mayor, Grit Hardened, Tufa Whisperer, Injury Wise, Jaded |
 | P3 | trad gear, competitions, DWS | Jam Hands, Gear Whisperer, Headpointer, Podium Kid, acquired Comp Yips |
 | P4 | altitude, ice, objective hazard | Altitude Native, Thin Blood, Ice Natural, Summit Fever, acquired Acclimatised, Survivor |
 | P5 | legacy | acquired Legend |
 
-Bendy Shoulders (its downside is a shoulder-injury multiplier) and Pain Tolerant (all of it is injury and pain) moved from P1b to P2 when P1b's traits shipped. As built, P1b has no kneebars and no downclimbing, so Kneebar Finder and Downclimber wait for them although their systems are listed here for P1b ([26 §8.1](26-p1b-implementation-notes.md)).
+Bendy Shoulders (its downside is a shoulder-injury multiplier) and Pain Tolerant (all of it is injury and pain) moved from P1b to P2 when P1b's traits shipped. Lucky and Unlucky (rerolls, injuries and events) and Cool Head and Risk Blind (`risk_judgement` moves nothing on the wall before the danger display) moved to P2 after the first re-costing found that they change no career ([26 §11](26-p1b-implementation-notes.md)). As built, P1b has no kneebars and no downclimbing, so Kneebar Finder and Downclimber wait for them although their systems are listed here for P1b ([26 §8.1](26-p1b-implementation-notes.md)).
 
 The plan's named examples **Nervous Flyer, Motion Sick, Chalk Allergy, Monoglot and Summit Fever** are hidden until travel (P2), travel (P2), health/illness (P2), languages and regional reputation (P2) and alpine retreat decisions (P4) respectively ship.
 
@@ -101,7 +101,7 @@ An evolving trait carries `evolves_to` with an exact threshold and a minimum ela
 | Trait | Stage 1 → | Threshold | Stage 2 → | Threshold |
 |---|---|---|---|---|
 | `afraid_of_falling` (−2) | `falls_ok` (0, neutral) | **30 practice falls over ≥ 6 weeks**; a fall-practice session counts 3 | `falls_well` (acquired) | **60 total practice falls** *and* ≥ 10 falls without injury *and* ≥ 12 weeks since the first counted practice fall |
-| `choker` (−6) | neutral (trait removed) | 5 sends with stakes (stakes = comp final, redpoint go on a route at or above personal best, or audience ≥ 3 NPCs) over ≥ 8 weeks | — | — |
+| `choker` (−6) | neutral (trait removed) | 5 sends with stakes that beat the personal best (stakes = comp final, redpoint go on a route at or above personal best, or audience ≥ 3 NPCs) over ≥ 8 weeks | — | — |
 | `topout_terror` (−3) | neutral (trait removed) | 40 clean `mantle` outcomes over ≥ 4 weeks | — | — |
 | `nervous_flyer` (−3, P2) | neutral (trait removed) | 12 flights taken | — | — |
 
@@ -111,7 +111,7 @@ What the thresholds count (`EvolveCounter`, [schemas §4.4](schemas.md)):
 |---|---|
 | `practice_falls` | a third of a fall-practice session, the gym training block ([12](12-training-and-adaptation.md)); a deliberate lead fall above a bolt would count too, but a climber's tactics never choose one |
 | `unhurt_falls` | a fall the pads or the rope take without an injury: a boulder attempt that ends in a fall or a pump-out, or a fall the rope holds (no fall injures before P2) |
-| `stakes_sends` | a send on an attempt with stakes; until comps and audiences, the redpoint clause, at or above the personal best − 0.25 ([26 §8.1](26-p1b-implementation-notes.md)) |
+| `stakes_sends` | a send on an attempt with stakes that beats the personal best; until comps and audiences, stakes are the redpoint clause, at or above the personal best − 0.25 ([26 §8.1](26-p1b-implementation-notes.md), [§11](26-p1b-implementation-notes.md)) |
 | `clean_mantles` | a topout whose mantle resolves clean |
 
 - Every climber counts from day one, evolving trait or not, and counts never reset, so a second stage counts from the first.
@@ -249,7 +249,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | clumsy_feet | Clumsy Feet | −10 | aptitude | creation | P1a | attr_add: footwork −8; adapt_rate_mult: footwork 0.90 | footwork | quiet_feet, dancer | — | Scrape, scrabble, swing. Repeat. |
 | proprioceptor | Proprioceptor | +6 | aptitude | creation | P1b | attr_add: body_position +8; adapt_rate_mult: body_position 1.10 | footwork, flow, learning | — | — | Knows where its hips are without looking. Rarer than it sounds. |
 | eagle_eye | Eagle Eye | +5 | aptitude | creation | P1a | attr_add: route_reading +10 | reading, onsight | beta_blind | — | Reads the sequence from the car. |
-| beta_blind | Beta Blind | −4 | aptitude | creation | P1b | attr_add: route_reading −8 | reading | eagle_eye | — | Discovers the foothold on attempt nine. |
+| beta_blind | Beta Blind | −2 | aptitude | creation | P1b | attr_add: route_reading −8 | reading | eagle_eye | — | Discovers the foothold on attempt nine. |
 | gaston_goblin | Gaston Goblin | +3 | aptitude | creation | P2 | attr_add: shoulder_mobility +2; hold_mult: gaston 1.08, sidepull 1.04 | vertical, comp, gym | — | — | Opens doors nobody else can see. |
 | topout_tidy | Topout Tidy | +3 | aptitude | creation | P1a | move_mult: mantle 1.10 | boulder, highball | topout_terror | — | The belly-flop is optional. |
 | topout_terror | Topout Terror | −3 | aptitude | evolving | P1a | move_mult: mantle 0.90; flags: fear_source_mult:height=1.3 (mantle only); evolves_to: neutral after 40 clean mantles over ≥ 4 weeks | boulder, highball, fear | topout_tidy | — | The hard part is over. Now the terrifying part. |
@@ -274,12 +274,12 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | overthinker | Overthinker | −4 | mental | creation | P1b | attr_add: focus −6, commitment −4, route_reading +3; flags: pre_move_time_mult=1.2 | focus, reading, patience | — | — | Has found four sequences. Is pumped on all of them. |
 | beta_sponge | Beta Sponge | +4 | mental | creation | P2 | attr_add: route_reading +3; flags: beta_mult=1.5 | reading, partner, social, learning | stubborn | — | Hears "heel there" once and never forgets it. |
 | flow_prone | Flow Prone | +2 | mental | creation | P1a | resource_mult: focus_meter 1.10; flags: flow_chance_mult=1.5 | flow, focus, boulder | — | — | Cannot remember the send. Was definitely there. |
-| choker | Choker | −6 | mental | evolving | P1a | attr_add: confidence −4; flags: stakes_mult=0.94; evolves_to: neutral after 5 sends with stakes over ≥ 8 weeks | competition, focus, redpoint, comp | clutch | — | Flawless in the warm-up. Different person in the final. |
+| choker | Choker | −6 | mental | evolving | P1a | attr_add: confidence −4; flags: stakes_mult=0.94; evolves_to: neutral after 5 sends with stakes that beat the personal best, over ≥ 8 weeks | competition, focus, redpoint, comp | clutch | — | Flawless in the warm-up. Different person in the final. |
 | clutch | Clutch | +6 | mental | creation | P1b | flags: stakes_mult=1.05 | competition, focus, redpoint, comp | choker | — | Only shows up when it counts. Annoying to train with. |
 | rage_quitter | Rage Quitter | −2 | mental | creation | P1a | attr_add: resilience −6; flags: quit_after_fails=3, quit_chance=0.3, stoke_hit=8 | patience, flow | zen | — | The shoes came off with some force. |
 | zen | Zen | +6 | mental | creation | P1b | attr_add: resilience +8, composure +6; resource_mult: stoke 1.15 | patience, fear, flow, recovery | rage_quitter | — | Falls off, smiles, re-chalks. People find it unsettling. |
 | headpointer | Headpointer | +5 | mental | creation | P3 | attr_add: composure +4; flags: rehearsed_fear_mult=0.5 | fear, trad, redpoint, risk | onsight_purist | — | Top-rope it twelve times, then lead it like a stranger. |
-| onsight_purist | Onsight Purist | +3 | mental | creation | P1b | attr_add: route_reading +6; flags: onsight_rep_mult=1.5, redpoint_stoke_penalty=2 | onsight, reading, ethics | headpointer, projector | — | A second go is an admission of something. |
+| onsight_purist | Onsight Purist | +3 | mental | creation | P1b | attr_add: route_reading +6; flags: onsight_rep_mult=1.5, redpoint_stoke_penalty=2 (each go at a sport route from the fourth) | onsight, reading, ethics | headpointer, projector | — | A second go is an admission of something. |
 | projector | Projector | +4 | mental | creation | P1a | flags: familiarity_k_mult=1.3, project_stoke_immunity | redpoint, patience, boulder, sport | onsight_purist | — | Attempt forty-one. Feels close. |
 | patient | Patient | +5 | mental | creation | P2 | attr_add: resilience +4; resource_mult: burnout 0.85; flags: monotony_mult=0.5 | patience, recovery | impatient | — | Twelve weeks of repeaters. Fine. |
 | impatient | Impatient | −4 | mental | creation | P2 | resource_mult: burnout 1.20; flags: abandon_project_after=6 | patience | patient | — | Six sessions and it is dead to you. |
@@ -288,15 +288,15 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | imposter | Imposter | −4 | mental | creation | P1a | attr_add: confidence −10 | fear | swagger | — | Sent it. Assumes it is soft. |
 | laser_focus | Laser Focus | +6 | mental | creation | P1a | attr_add: focus +10 | focus, onsight, comp | scatterbrain | — | The crag could be on fire. |
 | scatterbrain | Scatterbrain | −2 | mental | creation | P1a | attr_add: focus −10 | focus | laser_focus | — | Mid-crux, remembers the parking meter. |
-| cool_head | Cool Head | +4 | mental | creation | P1b | attr_add: risk_judgement +12 | risk, highball, trad, alpine | risk_blind, reckless | — | Knows exactly how bad it is. Climbs anyway, or doesn't. |
-| risk_blind | Risk Blind | −4 | mental | creation | P1b | attr_add: risk_judgement −12 | risk | cool_head, cautious | — | "Looks fine" is a full risk assessment. |
+| cool_head | Cool Head | +4 | mental | creation | P2 | attr_add: risk_judgement +12 | risk, highball, trad, alpine | risk_blind, reckless | — | Knows exactly how bad it is. Climbs anyway, or doesn't. |
+| risk_blind | Risk Blind | −4 | mental | creation | P2 | attr_add: risk_judgement −12 | risk | cool_head, cautious | — | "Looks fine" is a full risk assessment. |
 | all_in | All In | +4 | mental | creation | P1b | attr_add: commitment +10 | dynamic, fear | hesitant | — | Does not know how to half-jump. |
 | hesitant | Hesitant | −4 | mental | creation | P1b | attr_add: commitment −10 | dynamic, fear | all_in | — | Three false starts per dyno, then the hands open. |
 | unflappable | Unflappable | +6 | mental | creation | P1b | attr_add: composure +10 | fear, focus | jittery, ice_in_the_veins | — | Belayer is screaming. Climber is chalking up. |
 | jittery | Jittery | −2 | mental | creation | P1b | attr_add: composure −10 | fear | unflappable, ice_in_the_veins | — | Fear takes a long time to leave. It knows where you live. |
 | bounce_back | Bounce Back | +5 | mental | creation | P2 | attr_add: resilience +10 | recovery, patience | brittle | — | Injured in March, psyched by April. |
 | brittle | Brittle | −5 | mental | creation | P2 | attr_add: resilience −10 | recovery | bounce_back | — | One bad session, one bad month. |
-| vertigo | Vertigo | −6 | mental | creation | P1b | flags: fear_source_mult:height=1.6 | fear, highball, bigwall, alpine | loves_air | — | The ground has opinions about you. |
+| vertigo | Vertigo | −2 | mental | creation | P1b | flags: fear_source_mult:height=1.6 | fear, highball, bigwall, alpine | loves_air | — | The ground has opinions about you. |
 | loves_air | Loves Air | +4 | mental | creation | P1b | flags: fear_source_mult:height=0.6; resource_mult: stoke 1.05 | fear, highball, bigwall, alpine | vertigo | — | Happiest four hundred metres up a rope. |
 | summit_fever | Summit Fever | −5 | mental | creation | P4 | attr_add: risk_judgement −8; flags: alpine_only, retreat_option_penalty | risk, alpine, altitude | — | — | Turning around is for other people. The weather disagrees. |
 | visualiser | Visualiser | +4 | mental | creation | P1b | attr_add: route_reading +3; flags: visualise_action=+0.10 | reading, focus, redpoint | — | — | Climbs it twice. Once with the eyes shut. |
@@ -385,8 +385,8 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | bad_knee | Bad Knee | −5 | health | creation | P2 | move_mult: heel_hook 0.95, kneebar 0.92, high_step 0.97; flags: injury_site_mult:knee=1.5 | injury, health, footwork | — | — | Clicks on the approach. Complains on the heel hook. |
 | old_shoulder | Old Shoulder | −5 | health | creation | P2 | attr_add: lockoff −4, shoulder_mobility −6; hold_mult: gaston 0.96; flags: injury_site_mult:shoulder=1.5 | injury, health | bendy_shoulders | — | Something happened in 2014. It is still happening. |
 | asthma | Asthma | −4 | health | creation | P2 | attr_add: aerobic_capacity −6; ceiling_add: aerobic_capacity −6; condition_mult: cold 0.96, altitude 0.94 | health, endurance, cold, altitude | bellows | — | Inhaler in the chalk bag. |
-| lucky | Lucky | +5 | health | creation | P1a | injury_risk_mult: 0.90; flags: reroll_bad_outcome=0.15, good_event_mult=1.2 | health, injury, risk | unlucky | — | The foot pops. The other foot finds something. |
-| unlucky | Unlucky | −5 | health | creation | P1a | injury_risk_mult: 1.10; flags: reroll_good_outcome=0.15, bad_event_mult=1.2 | injury, risk | lucky | — | The one hold that snaps is the one you are on. |
+| lucky | Lucky | +5 | health | creation | P2 | injury_risk_mult: 0.90; flags: reroll_bad_outcome=0.15, good_event_mult=1.2 | health, injury, risk | unlucky | — | The foot pops. The other foot finds something. |
+| unlucky | Unlucky | −5 | health | creation | P2 | injury_risk_mult: 1.10; flags: reroll_good_outcome=0.15, bad_event_mult=1.2 | injury, risk | lucky | — | The one hold that snaps is the one you are on. |
 | fast_healer | Fast Healer | +6 | health | creation | P2 | recovery_mult: 1.25 | recovery, injury, health | slow_healer | — | Back on the board before the physio has finished the invoice. |
 | slow_healer | Slow Healer | −6 | health | creation | P2 | recovery_mult: 0.80 | recovery, injury | fast_healer | — | A tweak is a season. |
 | addictive_personality | Addictive Personality | −4 | health | creation | P2 | event_weights: vice_chain 2.0; flags: stoke_swing_mult=1.5, familiarity_k_mult=1.1 | health, patience, money | — | — | Obsesses beautifully. Not always about climbing. |

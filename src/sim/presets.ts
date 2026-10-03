@@ -1,7 +1,8 @@
 // Quick-build presets for P1a (17 §6, 16 §1). One per P1a background plus the unlockable Farm Kid. The first
 // two are the builds named by the P1a exit criterion (01 §4): they must play visibly differently on a 6B+. The
 // re-costing (docs/26 §10.5) took Quiet Feet and Imposter from the Slab Wizard, Core of Steel from the Compression
-// Monster and Dyno Monkey from the Power Boulderer, the least each needed to stay within budget.
+// Monster and Dyno Monkey from the Power Boulderer, the least each needed to stay within budget. Unlucky waits for P2,
+// so the Late Starter takes Tight Hips, the "hips −" of its consequences (docs/26 §11).
 
 import { deriveMass, refFat } from './character';
 import type { AttrId, Body, NewRunSpec, RunOptions } from './types';
@@ -80,7 +81,7 @@ export const PRESETS: readonly Preset[] = [
         sex: 'f', age_start: 34, height_cm: 168, ape_index: 1.01, finger_length: 0, finger_girth: 0, leg_torso: 0, body_fat_pct: 22,
         natural_hip_mobility: 45, natural_shoulder_mobility: 50, fibre_bias: 0, tendon_robustness: 45, skin_thickness: 'normal', skin_moisture: 'normal',
       }),
-      traits: ['desk_jockey', 'late_starter', 'eagle_eye', 'projector', 'unlucky'],
+      traits: ['desk_jockey', 'late_starter', 'eagle_eye', 'projector', 'tight_hips'],
       attr_alloc: alloc({ route_reading: 10, footwork: 10, finger_strength: 10, tech_slopers: 10, composure: 10 }),
     },
   },

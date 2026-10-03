@@ -200,7 +200,7 @@ Measured (25 §10.8): a send plays in 41–79 s at 1× on the benchmarks (median
 | Inert side clauses | a live trait may carry a flag of a system that is not live yet (`INERT_FLAGS`: `onsight_rep_mult`, `swim_skill`, `city_stoke`, `sponsor_appeal_mult`, the event weights, `plastic_mult`) only when the flag is not the trait's downside. Onsight Purist's reputation bonus and Swimmer's swim-out are part of their price and missing from what they give until P2–P3 | [03 §1.3](03-traits.md) |
 | `resource_mult` | read for the first time, with 03 §1.9's meanings: skin overnight and on a rest block, stoke on a send and on a rest day, burnout accrual, chalk per chalk-up, focus gains, and the aerobic reserve and power an attempt starts with. `energy` (it refills to its cap every morning) and `health` (no regeneration before P2's injuries) are refused on a live trait (`INERT_RESOURCES`) | [03 §1.9](03-traits.md), [22 §4](22-p1a-implementation-notes.md) |
 | Stakes | an attempt has stakes when it is a redpoint go on a route at or above the discipline's personal best − 0.25: the redpoint clause of 03 open question 8; comp finals and an audience come with P2–P3. `stakes_mult` adds to `M_trait` like the other multipliers (03 §1.2): Clutch `+0.05`, Choker `−0.06` | [03 open question 8](03-traits.md), [05b §4](05b-move-resolution-and-attempt-loop.md) |
-| New flags | `pre_move_time_mult` (each move's time, and with it the aerobic drain), `visualise_action` (familiarity at the start of every attempt: the free look is always taken), `redpoint_stoke_penalty` (each go at a route from the fourth), `sketchy_send_stoke` (a send with a sketchy move in it; the 03 §1.9 table does not list the flag), `mass_shift` (kg at creation) | [03 §1.9](03-traits.md) |
+| New flags | `pre_move_time_mult` (each move's time, and with it the aerobic drain), `visualise_action` (familiarity at the start of every attempt: the free look is always taken), `redpoint_stoke_penalty` (each go at a route from the fourth; on sport routes only since §11), `sketchy_send_stoke` (a send with a sketchy move in it; the 03 §1.9 table does not list the flag), `mass_shift` (kg at creation) | [03 §1.9](03-traits.md) |
 | `beta_mult` | other climbers' beta exists only on signature problems until partners come (22 §1), so the flag scales that: Stubborn's first look at a signature starts at familiarity `0.075` instead of `0.15` | [03 §1.9](03-traits.md) |
 | `split_risk_cold` | there is no split-tip event before P2's skin injuries, so Dry Hands' winter tax is skin wear `× 1.3` on a cold day | [03 §1.9](03-traits.md), [13](13-injury-and-health.md) |
 | `mass_shift` ceiling | 03 adds `+0.5` strength ceiling per kg, as 02 §A.2 does for the creation slider; neither is implemented, so the shift is mass only | [02 §A.2](02-character-model.md) |
@@ -278,7 +278,7 @@ Measured on the same six probe careers (365 days at Kalymnos, `sampleBuild`, the
 | Counters | `RunState.counters.evolve`: per `EvolveCounter`, the count and the day of the first. Every climber counts, carrying an evolving trait or not, and counts never reset, so Falls Well counts from Falls OK's first practice fall | [schemas §8](schemas.md) |
 | Practice falls | 3 per fall-practice session, the gym block P1a already had (`fall_practice`, 12 §1), which is 03 §1.7's "max 3 per session". No climber takes a deliberate lead fall: the tactics never choose one, and a fall in play is not practice | [03 §1.7](03-traits.md) |
 | Falls without injury | every boulder attempt that ends in a fall or a pump-out, and every fall the rope holds: no fall injures before P2. 03 asks for "unplanned" falls; every fall in play is unplanned | [03 §1.7](03-traits.md), [13](13-injury-and-health.md) |
-| Stakes | a send on an attempt with stakes (§8.1: a redpoint go at or above the personal best − 0.25) | [03 §1.7](03-traits.md) |
+| Stakes | a send on an attempt with stakes (§8.1: a redpoint go at or above the personal best − 0.25); since §11, only one that beats the personal best | [03 §1.7](03-traits.md) |
 | Clean mantles | a topout whose mantle resolves clean ("Topped out."); an ugly mantle still sends and does not count | [03 §1.7](03-traits.md) |
 | When | at the end of a day, after the overnight skin; one stage a day, so a climber who has met both of Afraid of Falling's thresholds becomes Falls OK one evening and Falls Well the next | — |
 | Effects | the new stage's multipliers, fear and flags replace the old stage's at once. Attribute adds are values, not live effects: the old stage's stay where training has taken them, and a gained stage's (Falls Well: composure +4) apply once, on the day it is gained, within the ceilings, which are recomputed then (they otherwise move on birthdays) | [03 §1.7](03-traits.md) |
@@ -420,6 +420,19 @@ With evolution, the 40 sampled Font careers read as the #27 baseline line for li
 `pnpm harness --n 20 --days 365 --seed 7 --crag kalymnos`, #27 in brackets: route estimate median 17.2 at twelve months (17.2), p10 15.0 (15.0), p90 17.6 (17.4); personal best 17.0 (17.1), p90 18.3 (18.3); at nine months 16.6 (17.0); project careers 86 ticks (86) with a personal best of 16.9 (17.1); Mileage 393 ticks (391); 34.7% sends (34.4%); burnout peak median 12.0 (12.5), p90 43.3 (43.3); stoke 80.1 (80.1); replay identical. The sampled builds are not #27's, since builds are drawn within the new costs, so the gaps are of the size a different draw makes.
 
 Checks: typecheck, 195 tests (19 new: 11 in `tests/evolve.test.ts`, 8 in `tests/recost.test.ts`), validate, calibrate `--quick` 13/13, build.
+
+## 11. Trait follow-ups
+
+The design calls §10 left open, decided:
+
+| Topic | Implemented | Why |
+|---|---|---|
+| Gated to P2 | Lucky, Unlucky, Cool Head and Risk Blind stay in the data at phase P2, so creation, the harness sampler and the re-costing leave them out (03 §1.3). The reroll flags Lucky and Unlucky carry move from `LIVE_FLAGS` to `INERT_FLAGS`: they were parsed and never read | none of the four changes a career at either crag (§10.3) |
+| Refunds | Beta Blind −4 → **−2**, Vertigo −6 → **−2** | both change nothing at Font, where six of seven backgrounds start, and cost about ten points at Kalymnos (§10.4). −2 is the least a negative can refund (03 §1.1), so a Font climber still gets two points for nothing |
+| Onsight Purist | its stoke penalty for each go from the fourth applies on sport routes only | a fourth go at a boulder is ordinary, and minding it cost a Font career 1.4 DI of personal best (§10.3) |
+| Choker | its evolution counts a send with stakes only when the send beats the personal best | a send at the best came so often that every Font career shed Choker within 11 weeks (§10.6) |
+| Presets | the Late Starter takes Tight Hips where it had Unlucky | its consequences already say "hips −"; the budget closes at 0 |
+| Versions | `DATA_VERSION` `p1b-6`, `REDUCER_VERSION` 8 | the gating changes which builds are valid, and the two rules how the same actions play out |
 
 ## Open questions
 

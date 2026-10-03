@@ -72,21 +72,25 @@ describe('what evolutions count (03 §1.7)', () => {
     expect(roped.counters.evolve.unhurt_falls?.n).toBe(roped.counters.rope_falls_logged);
   });
 
-  it('a send on a redpoint at the personal best counts a send with stakes', () => {
+  it('a send on a redpoint with stakes that beats the personal best counts; one at the best does not', () => {
     const climber = referenceAthlete(easy.di_graded + 4);
     const first = syntheticRun(climber, 'stakes', bundle);
     atRoute(first, easy);
     startAttempt(first, seedOf(easy), 'flash', bundle);
     doWallAction(first, 'jump_off', bundle);
-    const run = syntheticRun(climber, 'stakes', bundle);
-    atRoute(run, easy);
-    run.pb = easy.di_graded;
-    run.projects = first.projects;
-    startAttempt(run, seedOf(easy), 'redpoint', bundle);
-    expect(run.attempt!.stakes).toBe(true);
-    finish(run);
-    expect(run.last_attempt!.tick?.style).toBe('redpoint');
-    expect(run.counters.evolve.stakes_sends?.n).toBe(1);
+    const sendWithBest = (pb: number) => {
+      const run = syntheticRun(climber, 'stakes', bundle);
+      atRoute(run, easy);
+      run.pb = pb;
+      run.projects = structuredClone(first.projects);
+      startAttempt(run, seedOf(easy), 'redpoint', bundle);
+      expect(run.attempt!.stakes).toBe(true);
+      finish(run);
+      expect(run.last_attempt!.tick?.style).toBe('redpoint');
+      return run.counters.evolve.stakes_sends?.n ?? 0;
+    };
+    expect(sendWithBest(easy.di_graded - 0.2)).toBe(1);
+    expect(sendWithBest(easy.di_graded)).toBe(0);
   });
 });
 
@@ -127,7 +131,7 @@ describe('evolutions (03 §1.7)', () => {
     expect(run.traits).toContain('falls_well');
   });
 
-  it('Choker goes after five redpoints at the best over eight weeks; Topout Terror after 40 clean topouts over four', () => {
+  it('Choker goes after five redpoints that beat the best over eight weeks; Topout Terror after 40 clean topouts over four', () => {
     const choker = runWith(['choker']);
     choker.counters.evolve.stakes_sends = { n: 5, first_day: choker.day - 55 };
     applyAction(choker, { t: 'end_day' }, bundle);
@@ -135,7 +139,7 @@ describe('evolutions (03 §1.7)', () => {
     choker.counters.evolve.stakes_sends.first_day -= 7;
     applyAction(choker, { t: 'end_day' }, bundle);
     expect(choker.traits).not.toContain('choker');
-    expect(choker.journal.at(-1)!.text).toBe('Choker is gone: 5 redpoints at your best over 8 weeks.');
+    expect(choker.journal.at(-1)!.text).toBe('Choker is gone: 5 redpoints that beat your best over 8 weeks.');
     const terror = runWith(['topout_terror']);
     terror.counters.evolve.clean_mantles = { n: 40, first_day: terror.day - 28 };
     applyAction(terror, { t: 'end_day' }, bundle);

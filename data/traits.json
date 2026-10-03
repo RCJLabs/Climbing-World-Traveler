@@ -1124,7 +1124,7 @@
   "category": "health",
   "kind": "creation",
   "cost": 5,
-  "phase": "P1a",
+  "phase": "P2",
   "tags": [
    "health",
    "injury",
@@ -1148,7 +1148,7 @@
   "category": "health",
   "kind": "creation",
   "cost": -5,
-  "phase": "P1a",
+  "phase": "P2",
   "tags": [
    "injury",
    "risk"
@@ -1562,7 +1562,7 @@
   "name": "Beta Blind",
   "category": "aptitude",
   "kind": "creation",
-  "cost": -4,
+  "cost": -2,
   "phase": "P1b",
   "tags": [
    "reading"
@@ -1900,7 +1900,7 @@
   "category": "mental",
   "kind": "creation",
   "cost": 4,
-  "phase": "P1b",
+  "phase": "P2",
   "tags": [
    "risk",
    "highball",
@@ -1924,7 +1924,7 @@
   "category": "mental",
   "kind": "creation",
   "cost": -4,
-  "phase": "P1b",
+  "phase": "P2",
   "tags": [
    "risk"
   ],
@@ -2029,7 +2029,7 @@
   "name": "Vertigo",
   "category": "mental",
   "kind": "creation",
-  "cost": -6,
+  "cost": -2,
   "phase": "P1b",
   "tags": [
    "fear",

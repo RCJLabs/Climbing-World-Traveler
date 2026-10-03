@@ -211,8 +211,9 @@ export function startAttempt(run: RunState, seed: string, asked: AttemptMode, bu
   const project = run.projects[route.id] ?? (run.projects[route.id] = newProject(route, run.day));
   if (project.last_day !== run.day) { project.sessions++; project.last_day = run.day; }
   const mode = effectiveMode(project, route, asked);
-  // An onsight purist minds every go at a route from the fourth (03 §1.9 flags: `redpoint_stoke_penalty`).
-  if (project.attempts >= 3 && ath.mods.redpoint_stoke_penalty) run.res.stoke = clamp(run.res.stoke - ath.mods.redpoint_stoke_penalty, 0, 100);
+  // An onsight purist minds every go at a sport route from the fourth (03 §1.9 flags: `redpoint_stoke_penalty`); a
+  // fourth go at a boulder is ordinary, and minding it made the trait cost 1.4 DI of a Font career (docs/26 §11).
+  if (project.attempts >= 3 && ath.mods.redpoint_stoke_penalty && isRoped(route)) run.res.stoke = clamp(run.res.stoke - ath.mods.redpoint_stoke_penalty, 0, 100);
   // A free look before the attempt (Visualiser, 03 §2 flags) adds familiarity.
   const fam = Math.min(1, familiarity(route, project, ath) + ath.mods.visualise_action);
   const pool = powerPool(ath);
@@ -672,8 +673,9 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
   let text: string;
   let tick: Tick | undefined;
   if (outcome === 'sent' && at.mode !== 'work') {
-    // A send on a go that carried stakes is what Choker's evolution counts (03 §1.7).
-    if (at.stakes) countEvolve(run, 'stakes_sends');
+    // A send on a go that carried stakes and beat the personal best is what Choker's evolution counts (03 §1.7): one at
+    // the best came so often that Choker was gone from every Font career within eleven weeks (docs/26 §11).
+    if (at.stakes && route.di_graded > pb) countEvolve(run, 'stakes_sends');
     const style: Tick['style'] = project.sent ? 'repeat' : firstTry ? (at.mode === 'flash' ? 'flash' : 'onsight') : 'redpoint';
     tick = {
       route: route.id, route_seed: at.route_seed, name: route.name, day: run.day, style, attempts: project.attempts,

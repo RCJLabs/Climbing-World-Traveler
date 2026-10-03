@@ -85,7 +85,7 @@ async function main(): Promise<void> {
   if (existsSync(file)) {
     for (const line of readFileSync(file, 'utf8').split('\n').filter(Boolean)) {
       const x = JSON.parse(line) as { key: string; run: string; h?: number; lite: Lite };
-      if (x.run === tag && (x.h === undefined || x.h === hashOf.get(x.key))) done.set(x.key, x.lite);
+      if (x.run === tag && x.h === hashOf.get(x.key)) done.set(x.key, x.lite);
     }
   }
   const todo = jobs.filter((j) => !done.has(j.key));

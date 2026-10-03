@@ -9,7 +9,7 @@ import type {
 } from './types';
 
 /** Reducer version (18 §5). Bump when replaying an old log through the new reducer would change outcomes. */
-export const REDUCER_VERSION = 7;
+export const REDUCER_VERSION = 8;
 
 export interface Resources {
   energy: number;

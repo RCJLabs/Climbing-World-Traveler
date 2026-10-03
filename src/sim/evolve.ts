@@ -16,7 +16,7 @@ export const PRACTICE_FALLS_PER_SESSION = 3;
 export const EVOLVE_TEXT: Record<EvolveCounter, string> = {
   practice_falls: 'practice falls',
   unhurt_falls: 'falls without injury',
-  stakes_sends: 'redpoints at your best',
+  stakes_sends: 'redpoints that beat your best',
   clean_mantles: 'clean topouts',
 };
 
