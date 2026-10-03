@@ -61,6 +61,7 @@ Read in this order for a first pass: 00 → 01 → 24 → 02 → 05b → 03.
 | 25 | [Watching the Simulation](docs/25-visual-representation.md) | The cartoon wall (chosen 2026-10-03): each problem drawn as its own block, natural legs, every move class animated; and the ten styles it was chosen from |
 | 26 | [P1b Implementation Notes](docs/26-p1b-implementation-notes.md) | Kalymnos sport: how the engine resolves the design docs' conflicts on the rope, the endurance changes that make a route a pump game, the sport generator, Kalymnos in the game (travel, sessions, wet rules, records), and the measured calibration, careers and exit test |
 | 27 | [P2 Plan](docs/27-p2-plan.md) | How the World phase is built: where P1b leaves each system, ten milestones in two parts (P2a: the harness first, then the systems at two crags; P2b: the atlas, people and events), crags as data, save adapters, the exit test, and the conflicts between the design docs to settle first |
+| 28 | [P2 Implementation Notes](docs/28-p2-implementation-notes.md) | Where P2 departs from the design as it is built, with measured results: M0's harness at scale (speed, fixed routes per sector, the weekly estimate, whole careers that retire and travel) |
 
 ## Conventions
 
