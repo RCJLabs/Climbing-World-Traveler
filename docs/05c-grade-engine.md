@@ -88,11 +88,12 @@ grade(route):
   P = []
   for DI_trial in 8.00, 8.25, …, 33.00:
     ref   = reference_climber(DI_trial)                            §1
-    state = fresh_state(ref)                                        pump 0, power S_ref, reserve S_ref, focus_meter 50
+    state = fresh_state(ref)                                        pump 0, power S_ref, reserve 50 + S_ref/2 (26 §1), focus_meter 50
     p_send = 1
     for step in route.beta_line:                                    hand/foot moves, rests, clips in order
       if step is rest:  state.pump += Δpump_k (05b §6, EV); state.reserve −= 1; continue
-      if step is clip:  state.pump += clip cost; continue
+      if step is clip:  state.pump += clip cost; continue          on a route: the clipping tactic picks the stance (26 §2)
+      if route and chalk < 35:  re-chalk (05b §1); route moves wear 5 chalk and use chalk_term(chalk)   (26 §3)
       classes = legal_classes(ref, state, step)                     05b §2 with the reference reach
       if none: return UNGRADEABLE                                   the reference body cannot do it at any DI → generator rejects
       class  = step.class if legal else first legal
@@ -105,7 +106,9 @@ grade(route):
       p_send *= p_move
       state.pump  += cost × pump_scale × (pc + 1.5 × ps + 1.5 × psl) + psl × P_rec × 1.25 × cost_retry
       state.power -= power_cost(class, margin);  state.reserve −= time(step)/10
-      if state.pump ≥ 100: p_send = 0; break
+      if route and hand move: state.pump −= clear(move)              recovery on the move (05b §6, 26 §3)
+      if state.pump ≥ 125: p_send = 0; break                         past any day's threshold
+    p_send *= P(threshold > max state.pump)                          form on the day: threshold ~ N(100, 10) (05b §6, 26 §3)
     P.append((DI_trial, p_send))
   find the first pair (a, b) with P[a] < X ≤ P[b];  DI = a + (X − P[a]) / (P[b] − P[a]) × 0.25
   X = 0.35
@@ -169,6 +172,8 @@ All run headless in the harness ([19](19-balance-and-simulation-testing.md)), in
 | C7 | Signature routes | Every `signature: true` route | engine within `±1.0` of `di_target` ([schemas §9](schemas.md#9-validation-rules-enforced-by-the-content-validator-see-20) rule 6) |
 | C8 | Skill share per move type | Retired with player input ([24](24-simulation-game.md) §6): every move is played by the climber's tactics, so there is no player skill to measure | — |
 | C9 | Build divergence | The two builds of 05b §14.1 on 100 generated DI-16 Font problems | mean `|P_send(A) − P_send(B)| ≥ 0.3` — the P1a success criterion in numbers — and Spearman rank correlation of their `P_send` across the problems `≤ 0.5`, so the builds differ in which problems they find hard, not only in level (a stronger copy of one build scores about 0.9) |
+| C1–C4 sport | The same tests on generated routes (P1b, [26 §5](26-p1b-implementation-notes.md)): accuracy at DI 14–26; dice through the play loop at each route's own grade; monotonicity; determinism from the seed | as C1–C4; C2 within `35 % ± 10` and a warning only, since a long line's threshold tactics make single routes differ from the walk by up to about 25 points |
+| C10 | P1b exit criterion ([01 §4](01-pillars-scope-roadmap.md)) | The Reference Climber at DI 18 tilted towards power or endurance by equal attribute points, on Font problems and on 35 m Kalymnos tufa pitches of the same DI | the power build's mean `P_send` higher on the problems and the endurance build's higher on the pitches, each by `≥ 0.10` |
 
 ---
 

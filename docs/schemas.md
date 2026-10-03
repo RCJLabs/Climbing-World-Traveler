@@ -312,7 +312,7 @@ interface Protection {
   width_m?: number;                 // pad zones and water: lateral extent protected
   gear_sizes?: string[];            // 'c0.3'..'c6', 'nut1'..'nut13'
   quality: number;                  // 0..1 placement quality (gear), bolt condition
-  reach_from: string[];             // hold ids from which a clip/placement is possible
+  reach_from: string[];             // hold ids from which a clip/placement is possible; optional on pad zones and water (P1b: required on bolts and anchors, an anchor's is the finish hold)
 }
 
 interface Route {
@@ -369,7 +369,7 @@ interface CragStyleProfile {
   angle_dist: { angle: number; weight: number }[];
   length_m: { min: number; mode: number; max: number };
   hold_density_max: number;              // per m²
-  protection: { kind: ProtectionKind; spacing_m?: number; gear_sizes?: string[] };
+  protection: { kind: ProtectionKind; spacing_m?: number; gear_sizes?: string[] };   // P1b: optional; a boulder profile has none, a bolted one needs spacing_m and rest_spacing_m (§9 rule 13)
   polish: number; sharpness: number; friction_base: number;
   seep_susceptibility: number;
   crux_position: 'low' | 'mid' | 'high' | 'spread';
@@ -383,6 +383,12 @@ interface CragStyleProfile {
   name_bank?: string;               // id of the crag-flavoured name generator table
   di_max?: number;                  // hardest DI the style can be built to; above it a sector picks among its other profiles (06 §2.1)
   tags: Tag[];
+}
+
+// A crag-flavoured name bank (06 §2.9), keyed by CragStyleProfile.name_bank in data/names.json.
+interface NameBank {
+  lang?: 'fr' | 'en';               // the bank's word order: French ('{masc} {adj_masc}') or English ('{adj} {noun}'), P1b
+  masc: string[]; fem: string[]; adj_masc: string[]; adj_fem: string[]; place: string[]; suffix: string[];
 }
 
 interface Crag {
@@ -566,6 +572,12 @@ type Action =
 
 interface NewRunSpec { name: string; background: string; body: Body; traits: string[]; attr_alloc: Partial<Record<AttrId, number>>; options: RunOptions }
 
+// The result of a simulated attempt (src/sim/state.ts AttemptResult; derived, never logged). outcome is
+// 'sent' | 'fell' | 'jumped' | 'pumped', plus on a rope 'worked' (reached the anchor after the rope held the climber:
+// no tick, 07 §2.2) and falls (the falls the rope held). On a rope 'jumped' is lowering off without a fall. A move
+// pulled through on the quickdraw is logged with outcome 'aided'. The career counter rope_falls_logged (§4.6) counts
+// rope falls for the "lead" fear source (05b §9.1).
+
 // Full-game additions, not yet implemented:
 //   { t: 'travel'; edge: string } · { t: 'event_choice'; event: string; option: number }
 //   { t: 'risky_choice'; kind: 'solo' | 'dws_s3' | 'highball_reckless' | 'ignore_gear_warning' | 'alpine_commit'; route?: string }
@@ -625,6 +637,7 @@ interface RunSummary {                   // P1a shape (src/sim/types.ts); later 
 10. Hidden traits carry `point_mass`; the pool's positive and negative masses must be equal (03 §1.6).
 11. Every `scope`, `foreshadow`, `requires_age`, `expires` and `TraitEffect.flags` entry must be read by a system named in the trait's row; the validator keeps the flag registry from 03 §1.9.
 12. `deprecated` entries are excluded from new-run selection and from the harness, but must still validate.
+13. A `CragStyleProfile` with `protection.kind = 'bolt'` has `protection.spacing_m` and `rest_spacing_m`; a crag whose `disciplines` include `sport` uses bolted profiles in every sector, and any other crag uses none (P1b).
 
 ## Open questions
 

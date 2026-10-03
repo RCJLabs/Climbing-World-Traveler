@@ -398,6 +398,17 @@ Worked, reference climber at DI 20 (`aerobic_capacity 46.4`), reserve `85`, no o
 
 Properties this produces: the first shake per stance recovers most; recovery dies off geometrically so "rest forever" is impossible; sub-jug rests are net-negative after at most one shake; everything scales with `aerobic_capacity` and shrinks as the reserve drains. The **per-hold rest value** shown on hover is `Δpump_1` for that hold from the current state, e.g. "shake: −4.8" or "no rest (+0.6)".
 
+**On a route (P1b, [26 §3](26-p1b-implementation-notes.md)).** Three additions make a 30 m pitch a pump game rather than a jug count; a boulder reaches none of them.
+
+```
+reserve0      = 50 + 0.5 × aerobic_capacity                         at attempt start (02 §D had aerobic_capacity, which counted it twice in R10)   (tune)
+clear(move)   = 0.3 × aerobic_capacity/100 × (aerobic_reserve/100)^0.5 × time(move)    pump cleared per hand move on a route   (tune)
+Δpump(move)   = pump_cost − clear(move)                             a move cheaper than the clearance gives pump back (critical force)
+threshold     ~ N(100, 10), truncated at ±2.5 sd, drawn per attempt   the hands open there ("form on the day"); every pump change is scaled by 100/threshold   (tune)
+```
+
+The first two put the aerobic system to work while the climber moves: a jug ladder well inside a climber's level stops pumping them, and an endurance build pulls ahead on long routes. The third turns pump 100 from a cliff into a spread, so a route at the edge of a climber's endurance is sent some of the time rather than always or never.
+
 ---
 
 ## 7. The decision triangle
@@ -521,7 +532,7 @@ A fall produces a **consequence** `κ ∈ [0, 1]` from the `FallKind`, which [13
 | `FallKind` | Consequence | Notes |
 |---|---|---|
 | `boulder` | `h = CoM.y − pad_top`; `κ = clamp(0.03 × h² × (1 − 0.6 × coverage) × (1 − 0.3 × spot_quality/100) × landing, 0, 1)` **(tune)**; `landing = 1.0` flat, `1.5` sloping/rocky (the crag's landing field, default flat) | A 3 m Font problem (`h 2.5`, coverage `0.8`, one spotter at 50) gives `0.083` (safe); a 6 m highball onto a `0.4` pad with no spotter gives `0.69` (bold), `1.0` if the landing is rocky (deadly). `jump_off` uses `h − 0.5` and `landing × 0.7`. Indoor bouldering falls: ankle fracture 40 % of diagnoses (A2), reflected in 13's site table |
-| `rope` | `fall_len = 2 × (CoM.y − y_lastclip) + slack + 0.08 × rope_out`, `slack = 1.5 × (1.2 − 0.4 × rope_craft/100)`; `κ = clamp(0.015 × fall_len + 0.4 × [ledge in path] + 0.2 × (1 − belay_quality/100) + 0.3 × [clip skipped], 0, 1)` **(tune)**; ground contact (`CoM.y − fall_len ≤ 0`) → `κ = 1` | Bolts every 3 m: the worst fall before a clip is `7.5 m` → `0.11` (safe); a 5 m runout → `11.5 m` → `0.17` (spicy); a ledge in the path adds `0.4` (bold) |
+| `rope` | `fall_len = 2 × (CoM.y − y_lastclip) + slack + 0.08 × rope_out`, `slack = 0.3 + 1.2 × (1 − belay_quality/100)` m (the belayer's slack, [15 §2.3](15-social-reputation-events.md); [26 §1](26-p1b-implementation-notes.md)); `κ = clamp(0.015 × fall_len + 0.4 × [ledge in path] + 0.2 × (1 − belay_quality/100) + 0.3 × [clip skipped], 0, 1)` **(tune)**; ground contact (`CoM.y − fall_len ≤ 0`) → `κ = 1` | Bolts every 3 m: the worst fall before a clip is `7.5 m` → `0.11` (safe); a 5 m runout → `11.5 m` → `0.17` (spicy); a ledge in the path adds `0.4` (bold) |
 | `trad_rope` | as `rope`, but each piece between the climber and the last bolt-equivalent is tested top-down: `P_hold = placement_quality^(1 + fall_len/5)`; a rip adds its spacing to `fall_len` and cascades | placement quality from the `place_gear` roll: `clamp(Protection.quality × (0.5 + 0.5 × gear_placement/100) + N(0, 0.1), 0, 1)` |
 | `water` | `κ = clamp(0.05 × (CoM.y − water_y) × (1 − quality) + 0.3 × swell + 0.4 × [rotation: fell from a `toe_hook`/`kneebar`], 0, 1)` | S-grade display from `κ` ([08 §3](08-grades.md#3-other-systems)) |
 | `alpine` | `κ = max(rope κ, objective_hazard)` | [07](07-disciplines.md) |
