@@ -9,7 +9,7 @@ import type {
 } from './types';
 
 /** Reducer version (18 §5). Bump when replaying an old log through the new reducer would change outcomes. */
-export const REDUCER_VERSION = 3;
+export const REDUCER_VERSION = 4;
 
 export interface Resources {
   energy: number;
@@ -57,11 +57,11 @@ export interface FearEvent {
   delta: number;
 }
 
-export type MoveOutcome = 'clean' | 'sketchy' | 'slip_recovered' | 'fall' | 'pumped' | 'sent';
+export type MoveOutcome = 'clean' | 'sketchy' | 'slip_recovered' | 'fall' | 'pumped' | 'sent' | 'aided';
 
-/** What just happened on the wall, for the HUD and the move log. */
+/** What just happened on the wall, for the HUD and the move log. On a rope: clips, falls, hanging, lowering off. */
 export interface MoveReport {
-  kind: 'move' | 'rest' | 'chalk' | 'jump';
+  kind: 'move' | 'rest' | 'chalk' | 'jump' | 'clip' | 'fall' | 'take' | 'lower';
   limb?: Limb;
   hold?: string;
   cls?: MoveClass;
@@ -99,6 +99,29 @@ export interface AttemptState {
   hand_moves: number;
   fear_log: FearEvent[];
   log: MoveReport[];
+  /** On a rope (P1b): the clips, the falls and the highest point. Absent on a boulder. */
+  rope?: RopeState;
+  /** Form on the day (resolve.ts PUMP_FORM): every pump gain this attempt is multiplied by it. Absent means 1. */
+  pump_form?: number;
+}
+
+/** The rope during an attempt (05a §3, 05b §11, 07 §2). */
+export interface RopeState {
+  /** Index of the next bolt to clip: every bolt below it is clipped or was passed. */
+  next: number;
+  /** Height of the last bolt clipped (m); null before the first. */
+  last_clip_y: number | null;
+  /** A bolt was passed without a clip since the last clip (05b §11). */
+  skipped: boolean;
+  /** The rope has held the climber this attempt: a fall or a take. No send after that (07 §2.2). */
+  weighted: boolean;
+  falls: number;
+  /** Falls on the move the climber is on now. */
+  falls_here: number;
+  /** Worst fall consequence κ this attempt. */
+  kappa: number;
+  /** Highest point reached, as a fraction of the line (falls can come back down from it). */
+  high: number;
 }
 
 export interface AttemptResult {
@@ -106,11 +129,14 @@ export interface AttemptResult {
   route_id: string;
   name: string;
   di: number;
-  outcome: 'sent' | 'fell' | 'jumped' | 'pumped';
+  /** `worked`: reached the anchor after the rope had held the climber (07 §2.2), no tick. On a rope, `jumped` is lowering off without a fall. */
+  outcome: 'sent' | 'fell' | 'jumped' | 'pumped' | 'worked';
   progress: number;
   moves: number;
   day: number;
   kappa: number;
+  /** Falls the rope held in this attempt (rope attempts only; the log keeps only its last entries). */
+  falls?: number;
   tick?: Tick;
   text: string;
   /** The attempt's move log, for the result screen's move-by-move list. */
@@ -165,6 +191,8 @@ export interface Counters {
   /** Sends per DI step (rounded), for the pyramid (16 §7). */
   pyramid: Record<string, number>;
   new_sectors_today: number;
+  /** Falls held by a rope, career-long (05b §9.1 "lead" fear; schemas §4.6 counters). */
+  rope_falls_logged: number;
 }
 
 export interface JournalEntry {

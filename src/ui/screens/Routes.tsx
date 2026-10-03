@@ -1,7 +1,7 @@
 // A session at a sector (06 §5, docs/24 §3): today's problems with the climber's odds on each. Pick what to try and
 // how: one attempt (watched or not), a siege, or the rest of the session by a tactic. Every attempt is simulated.
 import { useMemo, useState } from 'preact/hooks';
-import { athleteOf, conditionsOf, effectiveMode, newProject, routeEntry, showsExactOdds } from '../../sim/attempt';
+import { athleteOf, conditionsOf, effectiveMode, familiarity, newProject, routeEntry, showsExactOdds } from '../../sim/attempt';
 import { evWalk } from '../../sim/grade';
 import type { RouteSlot, RunState } from '../../sim/state';
 import { tired } from '../../sim/tactics';
@@ -30,7 +30,7 @@ export function Routes({ run }: { run: RunState }) {
     return session.slots.map((slot: RouteSlot) => {
       const { route, geom } = routeEntry(slot.seed, data);
       const project = run.projects[route.id];
-      const fam = project ? 1 - (1 - (route.signature ? 0.15 : 0)) * Math.exp(-0.35 * ath.mods.familiarity_k_mult * project.attempt_eq) : route.signature ? 0.15 : 0;
+      const fam = familiarity(route, project, ath);
       const p = evWalk(geom, ath, { cond, fam }).p_send;
       const hand = route.beta_line.filter((s) => s.limb.endsWith('H')).length;
       return { slot, route, project, p, hand, fam, today: session.tried[slot.seed]?.n ?? 0 };

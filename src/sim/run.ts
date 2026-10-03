@@ -46,7 +46,7 @@ function emptyCounters(): Counters {
   return {
     neg_money_days: 0, failure_streak: 0, monotony_weeks: 0, week_sectors: [], prev_week_sectors: [], loads: [],
     forced_break_until: -1, burnout_hits: { season: -1, hits: 0 }, climb_days: 0, rest_days: 0, attempts: 0, sends: 0,
-    work_blocks: 0, train_blocks: 0, pyramid: {}, new_sectors_today: 0,
+    work_blocks: 0, train_blocks: 0, pyramid: {}, new_sectors_today: 0, rope_falls_logged: 0,
   };
 }
 

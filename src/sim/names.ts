@@ -4,6 +4,18 @@ import type { NameBank } from './types';
 
 export function routeName(bank: NameBank | undefined, rng: Rng): string {
   if (!bank) return `Problème ${rng.int(1, 99)}`;
+  if (bank.lang === 'en') {
+    // 06 §2.9 for Kalymnos: {Greek noun} {English noun} · {adj} {noun} · {noun} of {place} · {noun} {Direct/Extension}.
+    const greek = rng.pick(bank.masc);
+    const noun = rng.pick(bank.fem);
+    const adj = rng.pick(rng.bool(0.5) ? bank.adj_masc : bank.adj_fem);
+    switch (rng.int(0, 3)) {
+      case 0: return `${greek} ${noun}`;
+      case 1: return `${adj} ${noun}`;
+      case 2: return `${noun} of ${rng.pick(bank.place)}`;
+      default: return `${greek} ${rng.pick(bank.suffix)}`;
+    }
+  }
   const fem = rng.bool(0.45);
   const noun = fem ? rng.pick(bank.fem) : rng.pick(bank.masc);
   const art = fem ? 'La' : 'Le';

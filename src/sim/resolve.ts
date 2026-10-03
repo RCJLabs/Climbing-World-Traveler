@@ -75,6 +75,9 @@ export interface Conditions {
 
 export const REFERENCE_CONDITIONS: Conditions = { chalk_term: 1.2, temp_term: 1, wet_term: 1, humid: false, heat: false, cold: false, t_mult: 1 };
 
+/** Chalk term from the chalk on the hands, 0..100 (05a §2.3, 10 §2: chalk adds up to 21.6 % friction). */
+export const chalkTerm = (chalk: number): number => 1 + 0.216 * chalk / 100;
+
 // ---------------------------------------------------------------- difficulty (05b §4.1)
 
 export interface MDParts { H: number; S: number; Qh: number; A: number; Rch: number; C: number; Fe: number; O: number }
@@ -292,6 +295,51 @@ export function skinCost(ath: Athlete, m: MoveSpec, st: Pick<MoveState, 'skin' |
 // ---------------------------------------------------------------- rest (05b §6)
 
 export interface RestInput { restValue: number; type: HoldType; angle: number; posture: Posture; shakeIndex: number; reserve: number; overgrip: number }
+
+/**
+ * The aerobic reserve at the start of an attempt (02 §D): its size grows with `aerobic_capacity`, from half a tank.
+ * 02 §D started it at `aerobic_capacity` itself, which counted the attribute twice in `R10` and left a 7a climber's reserve
+ * empty six minutes up a 30 m route; this keeps the 05b §6 worked example's magnitude (P1b, docs/26). **(tune)**
+ */
+export const reserveStart = (ath: Athlete): number => 50 + 0.5 * ath.a.aerobic_capacity;
+
+/**
+ * Recovery on the move (P1b, docs/26): on a route the aerobic system clears pump while the climber moves, at a rate set
+ * by `aerobic_capacity` and the reserve left. This is the critical-force idea of sustained climbing: a hand move that
+ * costs less than the clearance gives pump back, so a jug ladder well inside the climber's level does not pump them,
+ * and an endurance build pulls ahead on long routes. Boulders are anaerobic (07 §1) and skip it. `clear` is pump per
+ * second of hand-move time at full capacity and reserve. **(tune)**
+ */
+export const CLIMB = { clear: 0.3 };
+export const climbClear = (ath: Athlete, time: number, reserve: number): number =>
+  CLIMB.clear * ath.a.aerobic_capacity / 100 * Math.sqrt(Math.max(0, reserve) / 100) * time;
+
+/**
+ * Form on the day (P1b, docs/26): the pump at which the hands open varies by attempt, normally around 100 with spread
+ * `sd`, truncated at `z` spreads. In play an attempt draws its threshold and gains pump at 100 / threshold; the grade
+ * engine multiplies the send probability by the chance the threshold sits above the walk's pump peak. Without it a
+ * route at the edge of a climber's endurance is a certain send or a certain pump-out a quarter grade apart. A boulder's
+ * pump peak is far below it. **(tune)**
+ */
+export const PUMP_FORM = { sd: 10, z: 2.5 };
+
+/** Standard normal CDF (Abramowitz and Stegun 7.1.26, |error| < 1.5e-7). */
+export function normCdf(x: number): number {
+  const t = 1 / (1 + 0.3275911 * Math.abs(x) / Math.SQRT2);
+  const y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x / 2);
+  return x >= 0 ? 0.5 * (1 + y) : 0.5 * (1 - y);
+}
+
+/** Chance the hands hold up to a pump peak of `peak` this attempt (PUMP_FORM). */
+export function pumpHolds(peak: number): number {
+  const { sd, z } = PUMP_FORM;
+  const lo = normCdf(-z);
+  const hi = normCdf(z);
+  return Math.min(1, Math.max(0, (hi - normCdf((peak - 100) / sd)) / (hi - lo)));
+}
+
+/** The pump-gain multiplier for an attempt from a standard-normal draw (PUMP_FORM). */
+export const pumpForm = (u: number): number => 100 / (100 + PUMP_FORM.sd * Math.min(PUMP_FORM.z, Math.max(-PUMP_FORM.z, u)));
 
 /** Pump cost of hanging on a stance for 10 s (05b §6); 0 in `rest_stance`. */
 export function holdCost(r: Pick<RestInput, 'restValue' | 'type' | 'angle' | 'posture'>): number {

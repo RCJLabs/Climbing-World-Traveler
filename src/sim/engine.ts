@@ -3,9 +3,9 @@
 
 import type { Athlete } from './character';
 import { CLASS_REACH } from './tables';
-import type { MoveSpec } from './resolve';
+import { holdCost, restDelta, type MoveSpec } from './resolve';
 import {
-  bodyPoints, choosePosture, freeState, judgeOption, limbKind, orientationTerm, positionQuality, type ClimbState, type HoldG, type Option, type RouteGeom,
+  bodyPoints, choosePosture, freeState, judgeOption, limbKind, orientationTerm, positionQuality, rawRestValue, type ClimbState, type HoldG, type Option, type RouteGeom,
 } from './wall';
 import type { Limb, MoveClass } from './types';
 
@@ -64,3 +64,49 @@ export function applyMove(geom: RouteGeom, ath: Athlete, st: ClimbState, limb: L
   if (cls === 'mantle') return { ...next, posture: 'mantle' };
   return { ...next, posture: choosePosture(geom, ath, next) };
 }
+
+/**
+ * Δpump of the next shake at a stance (05b §6), averaged over the holds the hands are on: the rest value the climber
+ * reads, and the number the grade engine walks.
+ */
+export function stanceRest(geom: RouteGeom, ath: Athlete, st: ClimbState, shakeIndex: number, reserve: number, overgrip: number): number {
+  const ids = [...new Set((['LH', 'RH'] as Limb[]).map((l) => st.anchors[l]).filter((x): x is string => !!x))];
+  if (ids.length === 0) return 0;
+  let sum = 0;
+  for (const id of ids) {
+    const h = geom.holds.get(id)!;
+    sum += restDelta(ath, { restValue: rawRestValue(h, st.posture), type: h.type, angle: h.angle, posture: st.posture, shakeIndex, reserve, overgrip });
+  }
+  return sum / ids.length;
+}
+
+/** Pump cost of holding the stance for 10 s (05b §6), averaged over the holds the hands are on. */
+export function stanceHoldCost(geom: RouteGeom, st: ClimbState): number {
+  const ids = [...new Set((['LH', 'RH'] as Limb[]).map((l) => st.anchors[l]).filter((x): x is string => !!x))];
+  if (ids.length === 0) return 0;
+  let sum = 0;
+  for (const id of ids) {
+    const h = geom.holds.get(id)!;
+    sum += holdCost({ restValue: rawRestValue(h, st.posture), type: h.type, angle: h.angle, posture: st.posture });
+  }
+  return sum / ids.length;
+}
+
+/**
+ * Chalking up (05b §1, docs/24 §3.1): when the chalk on the hands is below `below`, the climber dips a hand: `time` s,
+ * `pumpShare` of the stance's hold cost, and `gain` chalk back. Each hand move wears `wear` off. The attempt loop and, on
+ * a route, the grade engine both follow it. P1a also waited for pump under 60; on a route that left a pumped climber on
+ * dry hands for the hardest moves, and made play and grading part ways over a point or two of pump (docs/26). A boulder
+ * never wears its chalk down to `below`. **(tune)**
+ */
+export const CHALK_RULE = { below: 35, gain: 60, time: 4, pumpShare: 0.4, wear: 5 };
+export const chalkNow = (chalk: number): boolean => chalk < CHALK_RULE.below;
+
+/**
+ * The climber's shake-out rule (docs/24 §3.1): shake when pumped, on a stance that gives back at least `gain` pump,
+ * a few times at most. The attempt loop and the grade engine both follow it. **(tune)**
+ */
+export const SHAKE_RULE = { pump: 35, gain: -1.5, shakes: 3 };
+export const shakeNow = (pump: number, delta: number, shakes: number): boolean =>
+  pump >= SHAKE_RULE.pump && delta <= SHAKE_RULE.gain && shakes < SHAKE_RULE.shakes;
+
