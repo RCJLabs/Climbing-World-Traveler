@@ -273,6 +273,7 @@
     "drift_max_m": 0.9,
     "pad_coverage": 0,
     "name_bank": "kalymnos_gr",
+    "di_min": 14,
     "protection": {
       "kind": "bolt",
       "spacing_m": 2.8
@@ -287,6 +288,88 @@
       "humid",
       "polished",
       "redpoint",
+      "onsight"
+    ]
+  },
+  {
+    "id": "kalymnos_grey_vertical",
+    "rock": "limestone",
+    "hold_weights": {
+      "edge": 0.22,
+      "pocket3": 0.14,
+      "pocket2": 0.12,
+      "crimp": 0.12,
+      "sidepull": 0.1,
+      "jug": 0.1,
+      "pinch": 0.06,
+      "sloper": 0.06,
+      "undercling": 0.05
+    },
+    "angle_dist": [
+      {
+        "angle": 80,
+        "weight": 0.15
+      },
+      {
+        "angle": 88,
+        "weight": 0.3
+      },
+      {
+        "angle": 95,
+        "weight": 0.3
+      },
+      {
+        "angle": 102,
+        "weight": 0.2
+      },
+      {
+        "angle": 110,
+        "weight": 0.05
+      }
+    ],
+    "length_m": {
+      "min": 15,
+      "mode": 25,
+      "max": 35
+    },
+    "hold_density_max": 2.5,
+    "polish": 0.45,
+    "sharpness": 0.55,
+    "seep_susceptibility": 0.2,
+    "crux_position": "spread",
+    "move_grammar": {
+      "static": 0.7,
+      "match": 0.06,
+      "bump": 0.04,
+      "deadpoint": 0.05,
+      "dyno": 0,
+      "high_step": 0.1,
+      "heel_hook": 0.02,
+      "kneebar": 0.03
+    },
+    "feature_weights": {
+      "tufa": 0.08,
+      "corner": 0.15,
+      "ledge": 0.01
+    },
+    "decoy_rate": 0.5,
+    "hidden_rate": 0.08,
+    "drift_max_m": 0.9,
+    "pad_coverage": 0,
+    "name_bank": "kalymnos_gr",
+    "di_max": 21,
+    "protection": {
+      "kind": "bolt",
+      "spacing_m": 3.0
+    },
+    "rest_spacing_m": 8,
+    "tags": [
+      "sport",
+      "vertical",
+      "edge",
+      "pocket",
+      "crimp",
+      "polished",
       "onsight"
     ]
   }

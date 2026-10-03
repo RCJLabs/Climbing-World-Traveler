@@ -41,16 +41,23 @@ export function ledgeInPath(route: Pick<Route, 'wall'>, comY: number, len: numbe
   return route.wall.some((w) => w.feature === 'ledge' && w.y1 < comY - 0.3 && w.y1 > comY - len);
 }
 
+/** Whether a fall from here reaches the ground (05b §11): nothing clipped, or the rope comes tight too late. */
+export const reachesGround = (comY: number, lastClipY: number | null, belayQuality: number): boolean =>
+  lastClipY === null || comY - fallLength(comY, lastClipY, belayQuality) <= 0;
+
+/** A fall to the ground from `comY`: no pads under a route, so 05b §11's boulder row with no coverage and no spotter. */
+const groundKappa = (comY: number): number => Math.min(1, 0.03 * comY * comY);
+
 /**
- * Fall consequence κ on a rope (05b §11, 05c §3). Before the first clip the climber falls to the ground: no pads under a
- * route, so the boulder formula with no coverage and no spotter. Ground contact on the rope is κ = 1.
+ * Fall consequence κ on a rope (05b §11, 05c §3). Before the first clip the climber falls to the ground. When the rope
+ * comes tight too late the fall is a ground fall from where the climber came off, and never better than the rope fall:
+ * deadly from about 5 m up, trivial off the first moves under a stick-clipped bolt.
  */
 export function ropeKappa(route: Pick<Route, 'wall'>, comY: number, lastClipY: number | null, belayQuality: number, skipped: boolean): number {
-  if (lastClipY === null) return Math.min(1, 0.03 * comY * comY);
+  if (lastClipY === null) return groundKappa(comY);
   const len = fallLength(comY, lastClipY, belayQuality);
-  if (comY - len <= 0) return 1;
-  const k = 0.015 * len + 0.4 * (ledgeInPath(route, comY, len) ? 1 : 0) + 0.2 * (1 - belayQuality / 100) + 0.3 * (skipped ? 1 : 0);
-  return Math.min(1, Math.max(0, k));
+  const k = Math.min(1, Math.max(0, 0.015 * len + 0.4 * (ledgeInPath(route, comY, len) ? 1 : 0) + 0.2 * (1 - belayQuality / 100) + 0.3 * (skipped ? 1 : 0)));
+  return comY - len <= 0 ? Math.max(k, groundKappa(comY)) : k;
 }
 
 /** The "height" fear source on a rope (05b §9.1): +1 per metre of potential fall beyond 4 m. Unclipped, the ground source. */

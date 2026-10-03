@@ -1,7 +1,14 @@
 // Title / menu: continue a saved run, start a new climber, Hall of Fame, settings.
 import type { RunState } from '../../sim/state';
 import { Seg, Top } from '../components';
-import { grade } from '../format';
+import { grade, gradeIn } from '../format';
+import type { RunSummary } from '../../sim/types';
+
+/** A finished run's best: its hardest boulder, its hardest route, or both (P1b). Older entries have no route fields. */
+const hardestLine = (s: RunSummary): string => {
+  const parts = [s.hardest ? grade(s.hardest) : '', s.hardest_route ? gradeIn(s.hardest_route, true) : ''].filter(Boolean);
+  return parts.length ? parts.join(' · ') : '—';
+};
 import { act, continueRun, data, deleteRun, goto, meta, runs, saveSettings, settings, storageNote } from '../store';
 
 export function Title({ current }: { current: RunState | null }) {
@@ -19,7 +26,7 @@ export function Title({ current }: { current: RunState | null }) {
         {runs.value.map((r) => (
           <div key={r.id} class="card">
             <div class="row between"><span class="card-title">{r.title}</span><span class="tiny muted mono">day {r.day + 1}</span></div>
-            <span class="tiny muted">{r.summary ? `Finished · ${r.summary.end_reason} · hardest ${r.summary.hardest ? grade(r.summary.hardest) : '—'}` : `Last played ${new Date(r.last_played).toLocaleDateString()}`} · seed {r.run_seed}</span>
+            <span class="tiny muted">{r.summary ? `Finished · ${r.summary.end_reason} · hardest ${hardestLine(r.summary)}` : `Last played ${new Date(r.last_played).toLocaleDateString()}`} · seed {r.run_seed}</span>
             {r.data_version !== data.version && <span class="tiny warn">Made with an older version of the game, so it can't be continued. Its Hall of Fame entry is kept.</span>}
             <div class="row">
               <button class="btn small" disabled={r.data_version !== data.version} onClick={() => continueRun(r.id)}>{r.summary ? 'View' : 'Continue'}</button>
@@ -35,7 +42,7 @@ export function Title({ current }: { current: RunState | null }) {
         {current && !current.ended && (
           <button class="btn" onClick={() => { if (confirm(`Retire ${current.name}? The run ends and goes into the Hall of Fame.`)) void act({ t: 'retire' }).then((ok) => ok && goto({ name: 'summary' })); }}>Retire {current.name}</button>
         )}
-        <p class="tiny muted">Build a climber, plan the training, and the climbing plays out by itself. Real places, fictional people. Fontainebleau only in this version; travel and the rest of the world come later.</p>
+        <p class="tiny muted">Build a climber, plan the training, and the climbing plays out by itself. Real places, fictional people. Bouldering at Fontainebleau and sport climbing on Kalymnos in this version; the rest of the world comes later.</p>
         <p class="tiny muted mono">Version {__BUILD__.sha} · {__BUILD__.date}</p>
       </div>
     </div>
@@ -50,7 +57,7 @@ export function Hall() {
         {meta.value.hall_of_fame.map((h, i) => (
           <div key={i} class="card">
             <div class="row between"><span class="card-title">#{i + 1} {h.climber}</span><span class="mono accent">{Math.round(h.score)}</span></div>
-            <span class="tiny muted">{h.background} · {h.end_reason} · {h.days} days · hardest {h.hardest ? grade(h.hardest) : '—'} · {h.ticks} ticks</span>
+            <span class="tiny muted">{h.background} · {h.end_reason} · {h.days} days · hardest {hardestLine(h)} · {h.ticks} ticks</span>
           </div>
         ))}
       </div>

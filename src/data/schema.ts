@@ -90,6 +90,7 @@ export const CragSchema = z.object({
     circuits: z.array(z.object({ colour: circuitColour, di_range: z.tuple([z.number(), z.number()]) }).strict()),
     landing: z.enum(['flat', 'uneven', 'sloping']),
     dry_lag_days: z.number(),
+    seep_lag_days: z.number().min(1).max(30).optional(),
     shade: z.boolean(),
     style_profiles: z.array(z.string()).min(1),
     signature_routes: z.array(z.string()),
@@ -115,6 +116,7 @@ export const ProfileSchema = z.object({
   pad_coverage: z.number(),
   name_bank: z.string(),
   di_max: z.number().min(8).max(33).optional(),
+  di_min: z.number().min(6).max(33).optional(),
   protection: z.object({ kind: z.enum(['bolt', 'gear', 'none']), spacing_m: z.number().min(1).max(8).optional() }).strict().optional(),
   rest_spacing_m: z.number().min(3).max(20).optional(),
   tags: z.array(tag),
@@ -122,6 +124,9 @@ export const ProfileSchema = z.object({
   // A bolted profile is a sport profile (06 §2.6): the generator needs its bolt spacing and its rest spacing.
   if (p.protection?.kind === 'bolt' && (p.protection.spacing_m === undefined || p.rest_spacing_m === undefined)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: `profile ${p.id}: a bolted profile needs protection.spacing_m and rest_spacing_m` });
+  }
+  if (p.di_min !== undefined && p.di_max !== undefined && p.di_min >= p.di_max) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: `profile ${p.id}: di_min must be below di_max` });
   }
 });
 
@@ -158,6 +163,13 @@ export const RouteSchema = z.object({
   beta_line: z.array(z.object({ limb: z.enum(['LH', 'RH', 'LF', 'RF']), hold: z.string(), class: moveClass }).strict()).min(1),
   components: z.object({ hardest_move: z.number(), crux_density: z.number(), pump_peak: z.number(), rests: z.number(), dynamic_share: z.number() }).strict().optional(),
   fa_note: z.string().optional(),
+}).strict();
+
+export const TravelSchema = z.object({
+  hubs: z.array(z.object({ id: z.string().regex(/^hub_[a-z0-9_]+$/), name: z.string(), country: z.string().length(2), lat: z.number(), lon: z.number(), airport: z.boolean() }).strict()),
+  edges: z.array(z.object({
+    from: z.string(), to: z.string(), mode: z.enum(['fly', 'drive', 'bus', 'train', 'boat', 'trek']), cost: z.number().min(0), days: z.number().int().min(0).max(10),
+  }).strict()),
 }).strict();
 
 export const NamesSchema = z.record(z.string(), z.object({

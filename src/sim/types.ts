@@ -253,6 +253,8 @@ export interface CragStyleProfile {
   name_bank: string;
   /** Hardest DI this style can be built to (06 §2.1); above it a sector uses its other profiles. Unset = no cap. */
   di_max?: number;
+  /** Easiest DI this style is built to (06 §2.1, P1b): below it a sector uses its other profiles. Unset = no floor. */
+  di_min?: number;
   /** Fixed protection a route of this style gets (06 §2.6): bolts every `spacing_m` on sport. Unset = a boulder. */
   protection?: { kind: ProtectionKind; spacing_m?: number };
   /** A rest hold every this many metres up a route (06 §2.5). */
@@ -276,6 +278,8 @@ export interface Sector {
   circuits: { colour: CircuitColour; di_range: [number, number] }[];
   landing: 'flat' | 'uneven' | 'sloping';
   dry_lag_days: number;
+  /** Days a seeping sector (a tufa cave) stays wet after heavy rain (10 §4, P1b). Unset = it does not seep. */
+  seep_lag_days?: number;
   shade: boolean;
   style_profiles: string[];
   signature_routes: string[];
@@ -311,6 +315,12 @@ export interface NameBank {
 }
 
 /** All authored content the simulation reads. Built and validated by src/data/bundle.ts. */
+/** A city on the travel graph (09 §8.1). */
+export interface Hub { id: string; name: string; country: string; lat: number; lon: number; airport: boolean }
+
+/** A leg of travel (09 §8.2–§8.3), either way at the same cost; `from` and `to` are hub or crag ids. Its id is `${from}__${to}__${mode}`. */
+export interface TravelEdge { from: string; to: string; mode: 'fly' | 'drive' | 'bus' | 'train' | 'boat' | 'trek'; cost: number; days: number }
+
 export interface DataBundle {
   traits: ReadonlyMap<string, Trait>;
   backgrounds: ReadonlyMap<string, Background>;
@@ -320,6 +330,8 @@ export interface DataBundle {
   /** Benchmark problems per crag for the grade estimate (02 §C.3). */
   benchmarks: ReadonlyMap<string, Route[]>;
   names: Readonly<Record<string, NameBank>>;
+  /** The travel graph between the live crags (09 §8). */
+  travel: { hubs: readonly Hub[]; edges: readonly TravelEdge[] };
   /** Content version; replays pin it (schemas §8 data_version). */
   version: string;
 }
@@ -381,6 +393,7 @@ export type Action =
   | { t: 'end_day' }
   | { t: 'attempt'; route_seed: string; mode: AttemptMode }
   | { t: 'set_plan'; plan: WeekPlan }
+  | { t: 'travel'; to: string }
   | { t: 'retire' };
 
 export type TickStyle = 'onsight' | 'flash' | 'redpoint' | 'repeat';
@@ -395,6 +408,8 @@ export interface Tick {
   di: number;
   circuit?: CircuitColour;
   area: string;
+  /** A route's discipline (P1b); absent on a boulder. */
+  discipline?: Discipline;
 }
 
 export type EndReason = 'retired' | 'forced_injury' | 'death' | 'burnout' | 'bankrupt';
@@ -408,11 +423,18 @@ export interface RunSummary {
   hardest: number; // DI, boulder
   hardest_onsight: number;
   hardest_flash: number;
+  /** Routes (P1b): hardest first ascent and hardest onsight, DI; 0 when none. */
+  hardest_route: number;
+  hardest_route_onsight: number;
+  /** Countries climbed or travelled in (16 §6). */
+  countries: number;
   ticks: number;
   circuits: Partial<Record<CircuitColour, number>>;
   score: number;
   unlocks: string[];
   seed: string;
   pyramid: Record<string, number>;
-  got_away?: { name: string; sessions: number; di: number };
+  /** First route sends by rounded DI (P1b). */
+  pyramid_route: Record<string, number>;
+  got_away?: { name: string; sessions: number; di: number; discipline?: Discipline };
 }

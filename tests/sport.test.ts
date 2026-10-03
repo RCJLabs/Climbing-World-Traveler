@@ -9,7 +9,7 @@ import { chalkNow, CHALK_RULE } from '../src/sim/engine';
 import { evWalk, referenceAthlete, sendCurve, X_SEND } from '../src/sim/grade';
 import { fontGrade, frenchGrade, gradeFor, ydsGrade } from '../src/sim/grades';
 import { pumpForm, pumpHolds, reserveStart, sRef } from '../src/sim/resolve';
-import { anchorOf, boltsOf, clipCost, fallLength, ropeKappa, slackM } from '../src/sim/rope';
+import { anchorOf, boltsOf, clipCost, fallLength, reachesGround, ropeKappa, slackM } from '../src/sim/rope';
 import { generateSport, routeFromSeed, routeSeed, SPORT, sportMaxAngle } from '../src/sim/routes';
 import type { AttemptResult } from '../src/sim/state';
 import type { Route, WallSegment } from '../src/sim/types';
@@ -58,8 +58,15 @@ describe('the rope (05b §11)', () => {
     const flat = { wall: [{ y0: 0, y1: 30, angle: 100, feature: 'none' as const }] };
     // Unclipped: the ground, as an unpadded boulder.
     expect(ropeKappa(flat, 4, null, 80, false)).toBeCloseTo(0.48);
-    // 2.5 m above a clip at 1.5 m: the rope comes tight below the ground.
-    expect(ropeKappa(flat, 4, 1.5, 80, false)).toBe(1);
+    // 2.5 m above a clip at 1.5 m: the rope comes tight below the ground, so it is the same ground fall; from 6 m, deadly.
+    expect(reachesGround(4, 1.5, 80)).toBe(true);
+    expect(ropeKappa(flat, 4, 1.5, 80, false)).toBeCloseTo(0.48);
+    expect(ropeKappa(flat, 6, 3, 80, false)).toBe(1);
+    // Off the first move under a stick-clipped bolt: back on the ground from under a metre, which is nothing.
+    expect(reachesGround(0.5, 3.2, 80)).toBe(true);
+    expect(ropeKappa(flat, 0.5, 3.2, 80, false)).toBeLessThan(0.15);
+    // A skipped clip still counts when the fall reaches the ground.
+    expect(ropeKappa(flat, 0.5, 3.2, 80, true)).toBeGreaterThanOrEqual(0.3);
     // 2 m above a bolt at 18 m: a safe fall, until a ledge lies in its path or the last bolt was skipped.
     const safe = ropeKappa(flat, 20, 18, 80, false);
     expect(safe).toBeLessThan(0.15);

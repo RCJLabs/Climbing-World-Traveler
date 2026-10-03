@@ -115,7 +115,7 @@
     "altitude_m": 150,
     "rock": "limestone",
     "disciplines": ["sport"],
-    "di_range": [8, 29],
+    "di_range": [7, 29],
     "season": [1, 1, 2, 3, 3, 1, 0, 0, 3, 3, 3, 1],
     "cost_tier": 3,
     "phase": "P1b",
@@ -140,7 +140,7 @@
         "character": "A cathedral of tufas above Masouri: steep, pumpy, the island's classic cave.",
         "circuits": [],
         "landing": "flat",
-        "dry_lag_days": 0.5,
+        "dry_lag_days": 0.5, "seep_lag_days": 7,
         "shade": false,
         "style_profiles": ["kalymnos_tufa_sport"],
         "signature_routes": []
@@ -153,7 +153,7 @@
         "landing": "flat",
         "dry_lag_days": 0.5,
         "shade": false,
-        "style_profiles": ["kalymnos_tufa_sport"],
+        "style_profiles": ["kalymnos_tufa_sport", "kalymnos_grey_vertical"],
         "signature_routes": []
       },
       {
@@ -162,7 +162,7 @@
         "character": "A collapsed cave you walk down into: tufas in the shade all day.",
         "circuits": [],
         "landing": "flat",
-        "dry_lag_days": 0.5,
+        "dry_lag_days": 0.5, "seep_lag_days": 7,
         "shade": true,
         "style_profiles": ["kalymnos_tufa_sport"],
         "signature_routes": []
@@ -175,7 +175,7 @@
         "landing": "flat",
         "dry_lag_days": 0.5,
         "shade": false,
-        "style_profiles": ["kalymnos_tufa_sport"],
+        "style_profiles": ["kalymnos_grey_vertical", "kalymnos_tufa_sport"],
         "signature_routes": []
       },
       {
@@ -186,18 +186,18 @@
         "landing": "flat",
         "dry_lag_days": 0.5,
         "shade": false,
-        "style_profiles": ["kalymnos_tufa_sport"],
+        "style_profiles": ["kalymnos_tufa_sport", "kalymnos_grey_vertical"],
         "signature_routes": []
       },
       {
         "id": "panorama",
         "name": "Panorama",
-        "character": "Steep red limestone with the best view on the island.",
+        "character": "Red and grey walls high above Masouri, with the best view on the island.",
         "circuits": [],
         "landing": "flat",
         "dry_lag_days": 0.5,
         "shade": false,
-        "style_profiles": ["kalymnos_tufa_sport"],
+        "style_profiles": ["kalymnos_grey_vertical", "kalymnos_tufa_sport"],
         "signature_routes": []
       }
     ]

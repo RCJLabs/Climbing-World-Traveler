@@ -45,12 +45,12 @@ export function Planner({ run }: { run: RunState }) {
   const date = calendarDate(run.start_month, run.start_dom, run.day);
   const tomorrowDate = calendarDate(run.start_month, run.start_dom, run.day + 1);
   const tomorrow = nextWeather(run.seed, crag, run.weather, run.day + 1, tomorrowDate.month, run.options.difficulty);
-  const open = crag.sectors.filter((s) => sectorStatus(s, run.weather, run.last_rain).open).length;
+  const open = crag.sectors.filter((s) => sectorStatus(crag, s, run.weather, run.last_rain).open).length;
   const w = run.weather;
   const ratio = acwr(run.counters.loads);
   const onBreak = run.day < run.counters.forced_break_until;
   const check = (k: BlockKind, target?: string) => canStartBlock(run, k, target, data);
-  const climbCheck = open ? check('climb', crag.sectors.find((s) => sectorStatus(s, run.weather, run.last_rain).open)!.id) : { ok: false as const, reason: 'Every sector is wet.' };
+  const climbCheck = open ? check('climb', crag.sectors.find((s) => sectorStatus(crag, s, run.weather, run.last_rain).open)!.id) : { ok: false as const, reason: 'Every sector is wet.' };
   const blockNames: Record<BlockKind, string> = { climb: 'Climb', train: 'Train', rest: 'Rest', active_recovery: 'Recover', work: 'Odd job' };
   const gains = Object.entries(run.yesterday?.gains ?? {}).filter(([, v]) => (v ?? 0) >= 0.05).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0)).slice(0, 6);
   const plan = run.plan;
@@ -76,7 +76,7 @@ export function Planner({ run }: { run: RunState }) {
             <span class="pill">friction {frictionWord(run)}</span>
           </div>
           <span class="small muted">{w.rh}% humidity · wind {w.wind} m/s{w.precip_mm ? ` · ${w.precip_mm} mm` : ''}</span>
-          <span class="small">{open === crag.sectors.length ? 'Every sector is dry.' : open === 0 ? 'The forest is shut: wet sandstone breaks.' : `${open} of ${crag.sectors.length} sectors dry.`}</span>
+          <span class="small">{open === crag.sectors.length ? 'Every sector is dry.' : open === 0 ? (crag.rock.startsWith('sandstone') ? 'The forest is shut: wet sandstone breaks.' : 'Every sector is wet.') : `${open} of ${crag.sectors.length} sectors dry.`}</span>
           <span class="tiny muted">Tomorrow: {SKY[tomorrow.sky].toLowerCase()}, {Math.round(tomorrow.t_max)} °C. Season {['off', 'poor', 'fair', 'prime'][crag.season[date.month] ?? 0]} in {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][date.month]} ({DAYS_IN_MONTH[date.month]} days).</span>
         </div>
 
@@ -115,7 +115,7 @@ export function Planner({ run }: { run: RunState }) {
         <div class="list">
           <button class="card" disabled={!climbCheck.ok} onClick={() => goto({ name: 'crag' })}>
             <div class="row between"><span class="card-title">Climb</span><span class="mono tiny muted">energy −10 + attempts</span></div>
-            <span class="small soft">{climbCheck.ok ? 'Pick a sector, then the problems to try.' : climbCheck.reason}</span>
+            <span class="small soft">{climbCheck.ok ? `Pick a sector, then the ${crag.disciplines.includes('boulder') ? 'problems' : 'routes'} to try. Travel from there too.` : climbCheck.reason}</span>
           </button>
           <button class="card" disabled={onBreak || run.blocks_today.length >= 2} onClick={() => setTrain(true)}>
             <div class="row between"><span class="card-title">Train</span><span class="mono tiny muted">gym day pass $20</span></div>
@@ -151,8 +151,8 @@ export function Planner({ run }: { run: RunState }) {
         <Sheet label="Plan a day" onClose={() => setEdit(null)}>
           {edit === 'wet' ? (
             <>
-              <h2>When the forest is shut</h2>
-              <p class="tiny muted">Wet sandstone breaks, so a climbing day in the rain becomes this instead.</p>
+              <h2>When the rock is wet</h2>
+              <p class="tiny muted">A climbing day with every sector wet becomes this instead.</p>
               <Options blocks={[{ kind: 'rest' }, ...TRAINS]} value={plan.wet_day} onPick={(b) => { if (b) setPlan({ ...plan, wet_day: b }); setEdit(null); }} />
             </>
           ) : (

@@ -3,6 +3,8 @@
 // the same functions, so a harness career is a career the game would play.
 
 import { routeEntry } from './attempt';
+import { isRoped } from './rope';
+import { sectorFloor } from './routes';
 import { applyAction, canStartBlock, dailyCost, sectorList } from './run';
 import type { RouteSlot, RunState } from './state';
 import type { Action, AttemptMode, BlockKind, DataBundle, PlanBlock, SessionTactic } from './types';
@@ -21,6 +23,18 @@ export const TACTICS: Record<SessionTactic, Tactic> = {
   project: { order: ['known', 'project', 'push', 'signature', 'mid', 'warmup'], above: 4.5, tries: (s) => (s.kind === 'warmup' ? 1 : 5) },
   volume: { order: ['warmup', 'mid', 'signature', 'push', 'known', 'project'], above: 1, tries: () => 2 },
 };
+
+/**
+ * The same tactics on routes (P1b, docs/26): a pitch costs a fifth of a day's energy, so a project gets three goes (a
+ * working one first when it is well above the climber, then redpoints) and mileage onsights each route once. **(tune)**
+ */
+export const ROUTE_TACTICS: Record<SessionTactic, Tactic> = {
+  project: { order: TACTICS.project.order, above: TACTICS.project.above, tries: (s) => (s.kind === 'warmup' ? 1 : 3) },
+  volume: { order: TACTICS.volume.order, above: TACTICS.volume.above, tries: () => 1 },
+};
+
+/** A route this far above the session estimate is worked on the first go, not tried onsight (P1b). **(tune)** */
+export const WORK_FIRST_ABOVE = 1.5;
 
 /** Too tired for another attempt: the session ends (docs/24 §3). **(tune)** */
 export const tired = (run: Pick<RunState, 'res'>): boolean => run.res.energy < 22 || run.res.skin < 12;
@@ -45,24 +59,40 @@ export function firstMode(run: RunState, seed: string, bundle: DataBundle): Atte
 export function nextSessionAttempt(run: RunState, bundle: DataBundle, tactic: SessionTactic): { route_seed: string; mode: AttemptMode } | null {
   const s = run.block?.session;
   if (!s || tired(run)) return null;
-  const t = TACTICS[tactic];
+  // A sport crag's slots are all routes (sessionSlots): the table is known before any route is built.
+  const roped = !bundle.crags.get(run.crag)!.disciplines.includes('boulder');
+  const t = (roped ? ROUTE_TACTICS : TACTICS)[tactic];
   for (const slot of sessionQueue(run, tactic)) {
     if (slot.di_target > s.E + t.above) continue;
     const done = s.tried[slot.seed];
     if (done && (done.sent || done.n >= t.tries(slot))) continue;
     const { route } = routeEntry(slot.seed, bundle);
     if (run.projects[route.id]?.sent && slot.kind !== 'warmup') continue;
-    return { route_seed: slot.seed, mode: firstMode(run, slot.seed, bundle) };
+    // A route well above the climber is worked first, hanging on the rope to learn it; later goes are redpoints.
+    const work = roped && isRoped(route) && tactic === 'project' && !run.projects[route.id] && route.di_graded > s.E + WORK_FIRST_ABOVE;
+    return { route_seed: slot.seed, mode: work ? 'work' : firstMode(run, slot.seed, bundle) };
   }
   return null;
 }
 
-/** The sector a climbing day goes to: one not yet visited this week if there is one, rotating by day. Null if all are wet. */
+/**
+ * A sector whose easiest routes are more than this above the climber's estimate is left for later (P1b): a session
+ * there would have no warm-up and nothing at the climber's level. **(tune)**
+ */
+export const SECTOR_REACH = 0;
+
+/**
+ * The sector a climbing day goes to: one with routes within reach (`SECTOR_REACH`) if any is open, then one not yet
+ * visited this week if there is one, rotating by day. Null if all are wet.
+ */
 export function pickSector(run: RunState, bundle: DataBundle): string | null {
+  const crag = bundle.crags.get(run.crag)!;
   const open = sectorList(run, bundle).filter((s) => s.open);
   if (!open.length) return null;
-  const fresh = open.filter((s) => !run.counters.week_sectors.includes(s.id));
-  const pool = fresh.length ? fresh : open;
+  const near = open.filter((s) => sectorFloor(crag.sectors.find((x) => x.id === s.id)!, bundle) <= (run.est ?? Infinity) + SECTOR_REACH);
+  const pool0 = near.length ? near : open;
+  const fresh = pool0.filter((s) => !run.counters.week_sectors.includes(s.id));
+  const pool = fresh.length ? fresh : pool0;
   return pool[run.day % pool.length]!.id;
 }
 

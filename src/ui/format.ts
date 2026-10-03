@@ -1,7 +1,7 @@
 // Display helpers: names for attributes, money, grades, bands.
 
-import { fontGrade } from '../sim/grades';
-import type { AttrId, CircuitColour, MoveClass } from '../sim/types';
+import { fontGrade, frenchGrade, gradeFor } from '../sim/grades';
+import type { AttrId, CircuitColour, Crag, MoveClass, RockType, Tick } from '../sim/types';
 
 export const ATTR_LABEL: Record<AttrId, string> = {
   finger_strength: 'Finger strength', finger_endurance: 'Finger endurance', pull_power: 'Pull power', lockoff: 'Lock-off',
@@ -15,8 +15,8 @@ export const ATTR_LABEL: Record<AttrId, string> = {
   weather_sense: 'Weather sense',
 };
 
-/** Attributes that do nothing until a later phase; hidden from P1a allocation and sheets. */
-export const LATER_ATTRS: readonly AttrId[] = ['tech_cracks', 'rope_craft', 'gear_placement', 'languages', 'logistics'];
+/** Attributes that do nothing until a later phase; hidden from allocation and sheets. Rope craft is live from P1b. */
+export const LATER_ATTRS: readonly AttrId[] = ['tech_cracks', 'gear_placement', 'languages', 'logistics'];
 
 export const CLASS_LABEL: Record<MoveClass, string> = {
   static: 'static', deadpoint: 'deadpoint', dyno: 'dyno', high_step: 'high step', heel_hook: 'heel hook', toe_hook: 'toe hook',
@@ -24,7 +24,17 @@ export const CLASS_LABEL: Record<MoveClass, string> = {
 };
 
 export const money = (n: number): string => `${n < 0 ? '−' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
+/** A boulder grade (Font). */
 export const grade = (di: number): string => fontGrade(di);
+/** A grade in the system of the discipline: French on routes, Font on boulders (08 §1). */
+export const gradeIn = (di: number, sport: boolean): string => (sport ? frenchGrade(di) : fontGrade(di));
+export const gradeOf = (r: { di_graded: number; discipline: string }): string => gradeFor(r.di_graded, r.discipline);
+export const tickGrade = (t: Pick<Tick, 'di' | 'discipline'>): string => gradeIn(t.di, !!t.discipline);
+/** A crag climbed on a rope (P1b): routes, French grades. */
+export const isSportCrag = (c: Pick<Crag, 'disciplines'>): boolean => !c.disciplines.includes('boulder');
+
+export const ROCK_LABEL: Partial<Record<RockType, string>> = { sandstone_font: 'fine sandstone', limestone: 'limestone' };
+export const COUNTRY_LABEL: Record<string, string> = { FR: 'France', GR: 'Greece' };
 export const pct = (p: number): string => `${Math.round(p * 100)}%`;
 export const signed = (n: number, d = 1): string => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(d)}`;
 

@@ -5,11 +5,11 @@ import type { CommitOutcome } from './resolve';
 import type { ClimbState } from './wall';
 import type { DayWeather, RainMark } from './weather';
 import type {
-  AttemptMode, AttrId, Attributes, BlockKind, Body, Limb, MoveClass, RunOptions, RunSummary, Tick, WeekPlan,
+  AttemptMode, AttrId, Attributes, BlockKind, Body, Discipline, Limb, MoveClass, RunOptions, RunSummary, Tick, WeekPlan,
 } from './types';
 
 /** Reducer version (18 §5). Bump when replaying an old log through the new reducer would change outcomes. */
-export const REDUCER_VERSION = 4;
+export const REDUCER_VERSION = 5;
 
 export interface Resources {
   energy: number;
@@ -50,6 +50,8 @@ export interface ProjectState {
   fall_fear: number;
   /** Hidden holds found, by touch or by looking around on a rest. */
   revealed: string[];
+  /** A route's discipline (P1b); absent on a boulder. */
+  discipline?: Discipline;
 }
 
 export interface FearEvent {
@@ -193,6 +195,8 @@ export interface Counters {
   new_sectors_today: number;
   /** Falls held by a rope, career-long (05b §9.1 "lead" fear; schemas §4.6 counters). */
   rope_falls_logged: number;
+  /** First route sends by rounded DI (P1b); `pyramid` keeps the boulders. */
+  pyramid_route: Record<string, number>;
 }
 
 export interface JournalEntry {
@@ -204,9 +208,13 @@ export interface JournalEntry {
 /** A weekly point on the climber's progress (docs/24 §4), written at each week boundary. */
 export interface WeekPoint {
   day: number;
-  /** Grade estimate from the last climbing session, if there was one yet. */
+  /** Grade estimate from the last climbing session, if there was one yet: boulders or routes, by `crag`. */
   E: number | null;
+  /** Where the climber was (P1b): the estimate is a route grade at a sport crag. Absent on older points. */
+  crag?: string;
   pb: number;
+  /** Best route ticked (P1b). */
+  pb_route?: number;
   ticks: number;
   /** Every attribute's value, to one decimal. */
   attrs: Partial<Record<AttrId, number>>;
@@ -217,6 +225,8 @@ export interface DaySummary {
   money_delta: number;
   gains: Partial<Record<AttrId, number>>;
   notes: string[];
+  /** A day on the move (P1b): the crag the climber is travelling to. */
+  travel?: string;
 }
 
 export interface RunState {
@@ -247,6 +257,10 @@ export interface RunState {
   ticks: Tick[];
   /** Best boulder DI ticked so far (personal best). */
   pb: number;
+  /** Best route DI ticked so far (P1b); 0 before the first. */
+  pb_route: number;
+  /** Crags the climber has been to, in the order of first arrival (P1b travel). */
+  visited: string[];
   journal: JournalEntry[];
   today: DaySummary;
   yesterday: DaySummary | null;

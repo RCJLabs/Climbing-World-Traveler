@@ -8,7 +8,7 @@ import {
 } from './types';
 
 /** The build this code ships as. Traits and backgrounds from later phases are not selectable. */
-export const CURRENT_PHASE: Phase = 'P1a';
+export const CURRENT_PHASE: Phase = 'P1b';
 export const phaseLive = (p: Phase): boolean => PHASE_ORDER.indexOf(p) <= PHASE_ORDER.indexOf(CURRENT_PHASE);
 
 export function attrGroup(id: AttrId): AttrGroup {

@@ -6,7 +6,7 @@ import { onsightGap, estimateDI } from '../../sim/run';
 import type { RunState, WeekPoint } from '../../sim/state';
 import { LIFESTYLE_ATTRS, MENTAL_ATTRS, PHYSICAL_ATTRS, TECHNIQUE_ATTRS, type AttrId } from '../../sim/types';
 import { Meter, TabBar, Top } from '../components';
-import { ATTR_LABEL, grade, LATER_ATTRS } from '../format';
+import { ATTR_LABEL, gradeIn, isSportCrag, LATER_ATTRS, ROCK_LABEL } from '../format';
 import { data, exportCurrent } from '../store';
 
 export function Character({ run }: { run: RunState }) {
@@ -15,6 +15,16 @@ export function Character({ run }: { run: RunState }) {
   const gap = onsightGap(ath);
   const b = run.body;
   const bg = data.backgrounds.get(run.background);
+  const crag = data.crags.get(run.crag)!;
+  const sport = isSportCrag(crag);
+  const grade = (di: number) => gradeIn(di, sport);
+  const pb = sport ? run.pb_route : run.pb;
+  const otherPb = sport ? run.pb : run.pb_route;
+  // The chart keeps to this crag's discipline: a boulder estimate and a route estimate are different numbers.
+  const sportAt = (id: string | undefined): boolean => isSportCrag(data.crags.get(id ?? 'fontainebleau') ?? crag);
+  const series = [...run.history, { day: run.day, E, crag: run.crag, pb: run.pb, pb_route: run.pb_route, ticks: 0, attrs: {} }]
+    .filter((p) => sportAt(p.crag) === sport)
+    .map((p) => ({ ...p, pb: sport ? p.pb_route ?? 0 : p.pb }));
   // The change over the last four weeks, from the weekly progress points.
   const then = run.history[Math.max(0, run.history.length - 5)];
   const group = (label: string, ids: readonly AttrId[]) => (
@@ -38,17 +48,17 @@ export function Character({ run }: { run: RunState }) {
   );
   return (
     <div class="screen">
-      <Top kicker={`${bg?.name ?? run.background} · day ${run.day + 1} in the forest`} title={run.name}>
+      <Top kicker={`${bg?.name ?? run.background} · day ${run.day + 1} · ${crag.name}`} title={run.name}>
         <span class="small muted">{Math.floor(b.age_start + run.day / 365)} · {b.height_cm} cm · {b.mass_kg} kg · ape {b.ape_index.toFixed(2)} · skin {b.skin_thickness} · hands {b.skin_moisture}</span>
       </Top>
       <div class="scroll">
         <div class="card">
-          <span class="kicker">Boulder estimate</span>
+          <span class="kicker">{sport ? 'Route estimate' : 'Boulder estimate'}</span>
           <span class="mono accent" style={{ fontSize: '32px', fontWeight: 600 }}>{grade(E)}</span>
-          <span class="small soft">Onsight about {grade(E - gap)}. Personal best {run.pb ? grade(run.pb) : '—'}.</span>
-          <span class="tiny muted">The estimate is the climber's 35% line on a fixed set of Font benchmark problems.</span>
+          <span class="small soft">Onsight about {grade(E - gap)}. Personal best {pb ? grade(pb) : '—'}.{otherPb ? ` Hardest ${sport ? 'boulder' : 'route'} ${gradeIn(otherPb, !sport)}.` : ''}</span>
+          <span class="tiny muted">The estimate is the climber's 35% line on a fixed set of {crag.name} benchmark {sport ? 'routes' : 'problems'}.</span>
         </div>
-        <Progress points={[...run.history, { day: run.day, E, pb: run.pb, ticks: 0, attrs: {} }]} />
+        <Progress points={series} grade={grade} />
         <div class="meters">
           <Meter label="Energy" value={run.res.energy} colour="var(--good)" />
           <Meter label="Skin" value={run.res.skin} colour="var(--skin)" />
@@ -61,7 +71,7 @@ export function Character({ run }: { run: RunState }) {
         {group('Technique', TECHNIQUE_ATTRS)}
         {group('Mental', MENTAL_ATTRS)}
         {group('Lifestyle', LIFESTYLE_ATTRS)}
-        <p class="small soft">Sandstone knowledge {Math.round(run.rock_knowledge['sandstone_font'] ?? 0)} · {run.ticks.filter((t) => t.style !== 'repeat').length} problems ticked · {run.counters.climb_days} climbing days</p>
+        <p class="small soft">{Object.entries(run.rock_knowledge).map(([rock, v]) => `${ROCK_LABEL[rock as keyof typeof ROCK_LABEL] ?? rock} knowledge ${Math.round(v)}`).join(' · ') || 'No rock knowledge yet'} · {run.ticks.filter((t) => t.style !== 'repeat').length} ticks · {run.counters.climb_days} climbing days{run.counters.rope_falls_logged ? ` · ${run.counters.rope_falls_logged} falls on the rope` : ''}</p>
         <button class="btn" onClick={() => void exportCurrent()}>Export this run</button>
       </div>
       <TabBar />
@@ -69,8 +79,8 @@ export function Character({ run }: { run: RunState }) {
   );
 }
 
-/** Grade estimate (line) and hardest send (steps) by week (docs/24 §4). */
-function Progress({ points }: { points: WeekPoint[] }) {
+/** Grade estimate (line) and hardest send (steps) by week (docs/24 §4), in one discipline's grades. */
+function Progress({ points, grade }: { points: WeekPoint[]; grade: (di: number) => string }) {
   const pts = points.filter((p) => p.E !== null);
   if (pts.length < 2) return <p class="tiny muted">Progress shows here after the first week.</p>;
   const W = 320;

@@ -5,16 +5,18 @@ import backgroundsJson from '../../data/backgrounds.json';
 import cragsJson from '../../data/crags.json';
 import profilesJson from '../../data/style_profiles.json';
 import namesJson from '../../data/names.json';
+import travelJson from '../../data/travel.json';
 import signaturesJson from '../../data/routes/fontainebleau_signatures.json';
 import fontBenchmarksJson from '../../data/routes/fontainebleau_benchmarks.json';
-import { BackgroundSchema, CragSchema, NamesSchema, ProfileSchema, RouteSchema, TraitSchema } from './schema';
-import type { Background, Crag, CragStyleProfile, DataBundle, NameBank, Route, Trait } from '../sim/types';
+import kalymnosBenchmarksJson from '../../data/routes/kalymnos_benchmarks.json';
+import { BackgroundSchema, CragSchema, NamesSchema, ProfileSchema, RouteSchema, TraitSchema, TravelSchema } from './schema';
+import type { Background, Crag, CragStyleProfile, DataBundle, NameBank, Route, Trait, TravelEdge } from '../sim/types';
 
 /**
  * Content and rules version (18 §5). Bump when the same seed would build a different problem, or the same actions
  * would play out differently: P1a keeps no old generators or reducers, so such a run cannot be replayed.
  */
-export const DATA_VERSION = 'p1b-1';
+export const DATA_VERSION = 'p1b-2';
 
 const byId = <T extends { id: string }>(items: T[]): Map<string, T> => new Map(items.map((x) => [x.id, x]));
 
@@ -25,8 +27,10 @@ export function loadBundle(validate = true): DataBundle {
     CragSchema.array().parse(cragsJson);
     ProfileSchema.array().parse(profilesJson);
     NamesSchema.parse(namesJson);
+    TravelSchema.parse(travelJson);
     RouteSchema.array().parse(signaturesJson);
     RouteSchema.array().parse(fontBenchmarksJson);
+    RouteSchema.array().parse(kalymnosBenchmarksJson);
   }
   const signatures = (signaturesJson as unknown as Route[]);
   return {
@@ -35,8 +39,12 @@ export function loadBundle(validate = true): DataBundle {
     crags: byId(cragsJson as unknown as Crag[]),
     profiles: byId(profilesJson as unknown as CragStyleProfile[]),
     signatures: new Map(signatures.map((r) => [r.seed ?? r.id, r])),
-    benchmarks: new Map([['fontainebleau', fontBenchmarksJson as unknown as Route[]]]),
+    benchmarks: new Map([
+      ['fontainebleau', fontBenchmarksJson as unknown as Route[]],
+      ['kalymnos', kalymnosBenchmarksJson as unknown as Route[]],
+    ]),
     names: namesJson as unknown as Record<string, NameBank>,
+    travel: { hubs: travelJson.hubs, edges: travelJson.edges as TravelEdge[] },
     version: DATA_VERSION,
   };
 }

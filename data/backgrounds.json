@@ -95,5 +95,21 @@
     "locked_traits": ["trust_fund", "desk_jockey", "paper_skin"],
     "tags": ["power", "skin", "money"],
     "hook": "Hay bales, fence posts and a grip that comes from never having had a day off. Your skin does not tear and your hips do not open. The full game starts you at the Red River Gorge; in this slice the forest will have to do."
+  },
+  {
+    "id": "rower_swimmer",
+    "name": "Rower / Swimmer",
+    "phase": "P1b",
+    "point_bonus": 2,
+    "age_range": [18, 30],
+    "attr_add": { "aerobic_capacity": 8, "pull_power": 4, "shoulder_mobility": 4, "finger_endurance": 4, "hip_mobility": -4, "tech_slab": -2 },
+    "attr_points": 60,
+    "money_start": 5000,
+    "start_crag": "kalymnos",
+    "gear_start": ["shoes_moderate", "harness", "quickdraws_12", "rope_70", "chalk_bag"],
+    "forced_traits": ["rower"],
+    "locked_traits": ["asthma", "noodle_legs"],
+    "tags": ["endurance", "power", "sport", "flexibility"],
+    "hook": "An engine built for six-minute efforts and an upper body that does not know how to be tired. You cannot touch your toes. A university trip to Kalymnos put you on 35-metre tufa routes and you discovered that pump is a thing other people get. You have no idea how to stand on a foothold."
   }
 ]

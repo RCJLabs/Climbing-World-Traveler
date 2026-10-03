@@ -11,7 +11,7 @@ import {
   type AttrId, type Body, type Difficulty, type NewRunSpec, type Trait, type TraitCategory,
 } from '../../sim/types';
 import { Seg, Top } from '../components';
-import { ATTR_LABEL, grade, LATER_ATTRS, money } from '../format';
+import { ATTR_LABEL, gradeIn, isSportCrag, LATER_ATTRS, money } from '../format';
 import { data, goto, meta, startRun } from '../store';
 
 const STEPS = ['Background', 'Body', 'Allocate', 'Traits', 'Identity'];
@@ -87,6 +87,8 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
   const budget = creationBudget(spec, ctx);
   const errors = validateCreation(spec, ctx);
   const bg = data.backgrounds.get(d.background)!;
+  const startCrag = data.crags.get(bg.start_crag);
+  const startSport = !!startCrag && isSportCrag(startCrag);
   const attrs = useMemo(() => buildAttributes(spec, ctx), [spec]);
   const backgrounds = [...data.backgrounds.values()].filter((b) => phaseLive(b.phase));
   const presets = PRESETS.filter((p) => { const b = data.backgrounds.get(p.spec.background); return !b?.unlock || unlocked.has(b.unlock); });
@@ -115,7 +117,7 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
     if (step !== 4 || errors.length) return null;
     try {
       const run = createRun(d.seed, spec, data);
-      return estimateBoulderDI(athleteOf(run, data), 'fontainebleau', data);
+      return estimateBoulderDI(athleteOf(run, data), run.crag, data);
     } catch {
       return null;
     }
@@ -217,11 +219,11 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
             <label class="col small">Run seed<input class="text-input mono" value={d.seed} maxLength={24} onInput={(e) => patch({ seed: (e.target as HTMLInputElement).value.replace(/[^a-zA-Z0-9_-]/g, '') || randomSeed() })} /></label>
             <span class="tiny muted">Same seed, same choices: the same weather and the same problems.</span>
             <div class="col small">Difficulty<Seg label="Difficulty" value={d.difficulty} onChange={(v) => patch({ difficulty: v })} options={[['story', 'Story'], ['standard', 'Standard'], ['hard', 'Hard']]} /></div>
-            <span class="tiny muted">Death is off in this version: Fontainebleau boulders over pads cannot kill you.</span>
+            <span class="tiny muted">Death is off in this version: boulders over pads and bolted routes cannot kill you.</span>
             <div class="card">
               <div class="row between"><span class="card-title">{bg.name}</span><span class="mono small">{d.body.sex === 'f' ? 'F' : 'M'} · {d.body.age_start} · {d.body.height_cm} cm</span></div>
               <span class="small soft">{d.traits.map((t) => data.traits.get(t)?.name ?? t).join(' · ')}</span>
-              <span class="small">Boulder estimate: <span class="accent mono">{estimate === null ? '—' : grade(estimate)}</span> <span class="tiny muted">(Font)</span></span>
+              <span class="small">{startSport ? 'Route' : 'Boulder'} estimate: <span class="accent mono">{estimate === null ? '—' : gradeIn(estimate, startSport)}</span> <span class="tiny muted">({startCrag?.name ?? '—'})</span></span>
             </div>
           </>
         )}
