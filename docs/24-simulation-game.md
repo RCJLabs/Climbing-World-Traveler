@@ -107,6 +107,8 @@ Every roll comes from `stream(run_seed, route, attempt, move)` as before, so the
 |---|---|---|---|
 | Mileage (`volume`) | warm-up, mid, signature, push, known, project | above estimate + 1 | 2 |
 | Project (`project`) | known, project, push, signature, mid, warm-up | above estimate + 4.5 | 5 (warm-up 1) |
+| Mileage on routes ([26 §5.3](26-p1b-implementation-notes.md)) | as on boulders | above estimate + 1 | 1 |
+| Project on routes ([26 §9](26-p1b-implementation-notes.md)) | known, signature, project, push, mid, warm-up | above estimate + 4.5 | 3 (warm-up 1); a route more than 1.5 over the estimate and never tried is worked first |
 
 A problem is left once it goes this session, or once it is sent for good (warm-ups excepted). The session ends when the climber is tired: energy < 22 or skin < 12. **(tune)** A first try is a flash on a signature problem (there is beta to watch) and an onsight elsewhere; later tries are redpoints.
 
