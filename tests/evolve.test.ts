@@ -131,15 +131,15 @@ describe('evolutions (03 §1.7)', () => {
     expect(run.traits).toContain('falls_well');
   });
 
-  it('Choker goes after five redpoints that beat the best over eight weeks; Topout Terror after 40 clean topouts over four', () => {
+  it('Choker goes after ten redpoints that beat the best over sixteen weeks; Topout Terror after 40 clean topouts over four', () => {
     const choker = runWith(['choker']);
-    choker.counters.evolve.stakes_sends = { n: 5, first_day: choker.day - 55 };
+    choker.counters.evolve.stakes_sends = { n: 10, first_day: choker.day - 111 };
     applyAction(choker, { t: 'end_day' }, bundle);
     expect(choker.traits).toContain('choker');
     choker.counters.evolve.stakes_sends.first_day -= 7;
     applyAction(choker, { t: 'end_day' }, bundle);
     expect(choker.traits).not.toContain('choker');
-    expect(choker.journal.at(-1)!.text).toBe('Choker is gone: 5 redpoints that beat your best over 8 weeks.');
+    expect(choker.journal.at(-1)!.text).toBe('Choker is gone: 10 redpoints that beat your best over 16 weeks.');
     const terror = runWith(['topout_terror']);
     terror.counters.evolve.clean_mantles = { n: 40, first_day: terror.day - 28 };
     applyAction(terror, { t: 'end_day' }, bundle);
