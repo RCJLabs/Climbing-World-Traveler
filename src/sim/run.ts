@@ -16,7 +16,7 @@ import {
   ALL_ATTRS, type Action, type AttrId, type BlockKind, type DataBundle, type Difficulty, type NewRunSpec, type PlanBlock, type RunSummary, type WeekPlan,
 } from './types';
 import { calendarDate, firstWeather, formatDate, freshWeather, nextWeather, sectorStatus } from './weather';
-import { tripTo } from './travel';
+import { tripAlong, tripTo, type Trip } from './travel';
 
 export { InvalidAction };
 
@@ -501,14 +501,18 @@ function endDay(run: RunState, bundle: DataBundle): void {
 
 // ---------------------------------------------------------------- travel (09 §8, 11 §1; P1b, docs/26)
 
-/** Why the climber cannot set off for crag `to` now, or null if it can. */
-export function travelBlock(run: RunState, to: string, bundle: DataBundle): string | null {
+/** The trip a travel action takes: along its legs when it names them (27 M1), else the cheapest. */
+const tripOf = (run: RunState, to: string, legs: readonly string[] | undefined, bundle: DataBundle): Trip | null =>
+  legs ? tripAlong(run.crag, to, legs, bundle) : tripTo(run.crag, to, bundle);
+
+/** Why the climber cannot set off for crag `to` now (along `legs`, edge ids, when given), or null if it can. */
+export function travelBlock(run: RunState, to: string, bundle: DataBundle, legs?: readonly string[]): string | null {
   if (run.ended) return 'The run is over.';
   if (run.block || run.blocks_today.length) return 'Travel takes whole days: set off before the day\'s first block.';
   const crag = bundle.crags.get(to);
   if (!crag || !phaseLive(crag.phase)) return 'Nowhere to go.';
-  const trip = tripTo(run.crag, to, bundle);
-  if (!trip) return `No way to ${crag.name} from here.`;
+  const trip = tripOf(run, to, legs, bundle);
+  if (!trip) return `${legs ? 'No such way' : 'No way'} to ${crag.name} from here.`;
   if (run.res.money < trip.cost) return `The trip costs $${trip.cost}.`;
   return null;
 }
@@ -517,10 +521,10 @@ export function travelBlock(run: RunState, to: string, bundle: DataBundle): stri
  * Travel to another crag: the trip is paid up front, then each travel day passes with no blocks (living costs,
  * adaptation and the calendar run as usual), and the climber wakes up at the destination under its weather.
  */
-function travel(run: RunState, to: string, bundle: DataBundle): void {
-  const reason = travelBlock(run, to, bundle);
+function travel(run: RunState, to: string, legs: readonly string[] | undefined, bundle: DataBundle): void {
+  const reason = travelBlock(run, to, bundle, legs);
   if (reason) throw new InvalidAction(reason);
-  const trip = tripTo(run.crag, to, bundle)!;
+  const trip = tripOf(run, to, legs, bundle)!;
   const dest = bundle.crags.get(to)!;
   run.res.money -= trip.cost;
   run.today.money_delta -= trip.cost;
@@ -602,7 +606,7 @@ export function applyAction(run: RunState, a: Action, bundle: DataBundle): void 
       run.plan = structuredClone(a.plan);
       break;
     }
-    case 'travel': travel(run, a.to, bundle); break;
+    case 'travel': travel(run, a.to, a.legs, bundle); break;
     case 'retire': endRun(run, 'retired', bundle); break;
   }
   run.actions++;

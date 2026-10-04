@@ -452,7 +452,8 @@ export type Action =
   | { t: 'end_day' }
   | { t: 'attempt'; route_seed: string; mode: AttemptMode }
   | { t: 'set_plan'; plan: WeekPlan }
-  | { t: 'travel'; to: string }
+  /** `legs` is the trip's path as edge ids (travel.ts `edgeId`), so a world that grows a cheaper way replays the trip taken (27 M1); without it, the cheapest path. */
+  | { t: 'travel'; to: string; legs?: string[] }
   | { t: 'retire' };
 
 export type TickStyle = 'onsight' | 'flash' | 'redpoint' | 'repeat';

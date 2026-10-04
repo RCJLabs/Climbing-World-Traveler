@@ -1,7 +1,7 @@
 // Crag (17 §2): the crag's sectors, whether the rock is dry, and where else the climber can go (P1b travel, 09 §8).
 import { canStartBlock, travelBlock } from '../../sim/run';
 import type { RunState } from '../../sim/state';
-import { destinations } from '../../sim/travel';
+import { destinations, edgeId } from '../../sim/travel';
 import { cragDisciplines, sectorDiscipline, sectorRock } from '../../sim/discipline';
 import { sectorFloor } from '../../sim/routes';
 import { sectorStatus } from '../../sim/weather';
@@ -50,9 +50,10 @@ export function Crag({ run }: { run: RunState }) {
         {trips.length > 0 && <span class="kicker">Travel</span>}
         {trips.map((t) => {
           const dest = data.crags.get(t.to)!;
-          const why = travelBlock(run, t.to, data);
+          const legs = t.legs.map(edgeId);
+          const why = travelBlock(run, t.to, data, legs);
           return (
-            <button key={t.to} class={`card ${why ? 'dim' : ''}`} disabled={!!why} onClick={async () => { if (await act({ t: 'travel', to: t.to })) goto({ name: 'crag' }); }}>
+            <button key={t.to} class={`card ${why ? 'dim' : ''}`} disabled={!!why} onClick={async () => { if (await act({ t: 'travel', to: t.to, legs })) goto({ name: 'crag' }); }}>
               <div class="row between">
                 <span class="card-title">{dest.name}</span>
                 <span class="small mono">{money(t.cost)} · {t.days} {t.days === 1 ? 'day' : 'days'}</span>

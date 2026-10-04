@@ -7,7 +7,7 @@ import { ageOf } from './attempt';
 import { applyAction, canStartBlock, dailyCost, sectorList, travelBlock } from './run';
 import type { RunState } from './state';
 import { nextSessionAttempt, pickSector, simulateDays } from './tactics';
-import { destinations } from './travel';
+import { destinations, travelAction } from './travel';
 import type { Action, DataBundle, SessionTactic } from './types';
 import { calendarDate } from './weather';
 
@@ -93,7 +93,7 @@ export class BotDriver {
     if (this.life.travel) {
       const to = this.seasonalTrip();
       if (to) {
-        this.dispatch({ t: 'travel', to });
+        this.dispatch(travelAction(run.crag, to, this.bundle)!);
         this.streak = 0;
         return;
       }

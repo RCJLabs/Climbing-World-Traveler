@@ -9,7 +9,10 @@ import { CRAG_FILES, cragHash } from '../src/data/assemble';
 import { cragIds, cragTexts, loadBundle, manifestOf } from '../src/data/bundle';
 import { validateContent } from '../src/data/validate';
 import { cragDisciplines, disciplineErrors, mainDiscipline, rockErrors, sectorDiscipline, sectorRock } from '../src/sim/discipline';
-import type { Crag } from '../src/sim/types';
+import { presetSpec } from '../src/sim/presets';
+import { applyAction, createRun, InvalidAction, travelBlock } from '../src/sim/run';
+import { edgeId, tripAlong, tripTo, travelAction } from '../src/sim/travel';
+import type { Crag, DataBundle, TravelEdge } from '../src/sim/types';
 
 const bundle = loadBundle();
 const font = bundle.crags.get('fontainebleau')!;
@@ -81,5 +84,53 @@ describe('what a crag climbs, and on what rock (06 §2, 27 M1)', () => {
     const d = copyWith('kalymnos', 'crag', (c) => { c.grades = { boulder: 'v', sport: 'yds' }; });
     // The edit stales the manifest too; the grading rule is the one under test.
     expect(validateContent(d).errors).toContain('crag kalymnos: a grading system for boulder, which it does not climb');
+  });
+});
+
+describe('replay safety (27 M1)', () => {
+  // An update that adds a cheaper leg between the hubs the trip already uses.
+  const bus: TravelEdge = { from: 'hub_paris', to: 'hub_athens', mode: 'bus', cost: 20, days: 3 };
+  const cheaper: DataBundle = { ...bundle, travel: { hubs: bundle.travel.hubs, edges: [...bundle.travel.edges, bus] } };
+
+  it('a travel action names its legs, and the trip along them is the cheapest one', () => {
+    const a = travelAction('fontainebleau', 'kalymnos', bundle)!;
+    expect(a).toEqual({ t: 'travel', to: 'kalymnos', legs: ['fontainebleau__hub_paris__train', 'hub_paris__hub_athens__fly', 'kalymnos__hub_athens__fly'] });
+    expect(tripAlong('fontainebleau', 'kalymnos', a.legs!, bundle)).toEqual(tripTo('fontainebleau', 'kalymnos', bundle));
+    expect(tripAlong('kalymnos', 'fontainebleau', [...a.legs!].reverse(), bundle)).toEqual(tripTo('kalymnos', 'fontainebleau', bundle));
+    expect(tripAlong('fontainebleau', 'kalymnos', a.legs!.slice(0, 2), bundle)).toBeNull();
+    expect(tripAlong('fontainebleau', 'kalymnos', ['hub_paris__hub_athens__fly', ...a.legs!.slice(1)], bundle)).toBeNull();
+  });
+
+  it('replays the trip taken after an update adds a cheaper way; an action without legs takes the cheapest', () => {
+    const a = travelAction('fontainebleau', 'kalymnos', bundle)!;
+    expect(tripTo('fontainebleau', 'kalymnos', cheaper)!.legs).toContainEqual(bus);
+    const taken = createRun('legs', presetSpec('dirtbag'), bundle);
+    const replayed = createRun('legs', presetSpec('dirtbag'), cheaper);
+    applyAction(taken, a, bundle);
+    applyAction(replayed, a, cheaper);
+    expect(replayed).toEqual(taken);
+    const old = createRun('legs', presetSpec('dirtbag'), cheaper);
+    applyAction(old, { t: 'travel', to: 'kalymnos' }, cheaper);
+    expect(old.day).toBe(taken.day + 2);
+    expect(old.res.money).toBeGreaterThan(taken.res.money);
+  });
+
+  it('refuses legs that do not lead to the destination', () => {
+    const run = createRun('legs2', presetSpec('dirtbag'), bundle);
+    expect(travelBlock(run, 'kalymnos', bundle, ['fontainebleau__hub_paris__train'])).toBe('No such way to Kalymnos from here.');
+    expect(() => applyAction(run, { t: 'travel', to: 'kalymnos', legs: ['nowhere__hub_paris__fly'] }, bundle)).toThrow(InvalidAction);
+    expect(run.day).toBe(0);
+  });
+
+  it('breaks ties by id, so the same graph in any file order gives the same trip', () => {
+    const edges: TravelEdge[] = [
+      { from: 'a', to: 'h2', mode: 'bus', cost: 10, days: 1 },
+      { from: 'h2', to: 'b', mode: 'bus', cost: 10, days: 1 },
+      { from: 'a', to: 'h1', mode: 'bus', cost: 10, days: 1 },
+      { from: 'h1', to: 'b', mode: 'bus', cost: 10, days: 1 },
+      { from: 'a', to: 'h1', mode: 'train', cost: 10, days: 1 },
+    ];
+    const trips = [edges, [...edges].reverse(), [edges[2]!, edges[4]!, edges[0]!, edges[3]!, edges[1]!]].map((e) => tripTo('a', 'b', { travel: { hubs: [], edges: e } })!);
+    for (const t of trips) expect(t.legs.map(edgeId)).toEqual(['a__h1__bus', 'h1__b__bus']);
   });
 });
