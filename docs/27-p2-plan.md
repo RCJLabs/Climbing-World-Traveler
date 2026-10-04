@@ -47,9 +47,9 @@ Related: [01 §4](01-pillars-scope-roadmap.md) · [18](18-tech-architecture.md) 
 | M0 | Harness at scale | 19 §1–2's missing modes | — | 1,000 ten-year careers at both crags in under 2 hours on 4 workers, with run-end shares and money curves in the report |
 | M1 | Groundwork for a bigger world | 18 §5, 18 §7, 20 §2, schemas §6 | the 10 P2 traits whose systems are already live | Font and Kalymnos load on arrival from their folders; a test crag added as a folder, with no code change, has boulders and routes, plays both and passes its gates; a run saved before the test crag was added continues; a build gate holds every chunk under budget |
 | M2 | Injuries and health | 13; 11 §4's forced retirement; 12 §5's load and injury link | about 20 injury and illness traits, the injury clauses of 4 live traits, 2 acquired | injury rates and the site mix within 13 §1's anchors over 1,000 careers |
-| M3 | Training, aging and run ends | 11, 12 | 6 traits (aging, stoke and burnout, the day planner), acquired Jaded | ten-year careers: median length and run-end shares within the agreed targets (§6) |
+| M3 | Training, aging and run ends | 11, 12 | 6 traits (aging, stoke and burnout, the day planner), acquired Jaded; Bounce Back and Brittle, held back from M1 | ten-year careers: median length and run-end shares within the agreed targets (§6) |
 | M4 | Money and gear | 14 §1–4, 14 §8–9 | 5 economy traits | money p10/median/p90 by month and the bankruptcy share within 19 §1's targets |
-| M5 | Weather and seasons | 10, 11 §2 | Weather Nose and the weather side clauses | sending days by month match 09's season scores at both crags; calibration unchanged |
+| M5 | Weather and seasons | 10, 11 §2 | Weather Nose and the weather side clauses; Furnace, held back from M1 | sending days by month match 09's season scores at both crags; calibration unchanged |
 | M6 | The atlas and travel | 09, 14 §5–7, 17 §5 World Map | 10 travel traits, 5 backgrounds, acquired Grit Hardened | every P2 crag passes calibration (C1–C4, C7); travelling careers follow the seasons |
 | M7 | People | 15 §1–3, 17 §5 Social | 21 social and reputation traits, acquired Crag Mayor | partner days, belay quality and reputation curves within 15's ranges |
 | M8 | Events, sponsorship, hidden traits | 15 §4, 14 §2.1, 03 §1.6 | event and sponsor traits, the hidden pool, acquired Sandbagged and Tufa Whisperer | event rate per season, sponsor income share and reveal timing within target |
@@ -69,7 +69,7 @@ Implemented; as built and measured: [28 §1](28-p2-implementation-notes.md). Exi
 
 ### M1 Groundwork for a bigger world
 
-Implemented; as built and measured: [28 §2](28-p2-implementation-notes.md). Exit test met: Font and Kalymnos load on arrival from their folders (checked in the built app); a made-up crag added as a folder with no code change, with boulders and routes, passes the validator and its own calibration and plays both (`tests/testcrag.test.ts`); a run saved before it was added loads unchanged and goes on to it, and a save written at reducer 9 is carried forward; `pnpm size` holds every chunk under budget in CI (28 §2.10).
+Implemented; as built and measured: [28 §2](28-p2-implementation-notes.md). Exit test met: Font and Kalymnos load on arrival from their folders (checked in the built app); a made-up crag added as a folder with no code change, with boulders and routes, passes the validator and its own calibration and plays both (`tests/testcrag.test.ts`); a run saved before it was added loads unchanged and goes on to it, and a save written at reducer 9 is carried forward; `pnpm size` holds every chunk under budget in CI (28 §2.10). Seven of the ten traits are live; the re-costing measured Furnace as harm and Bounce Back and Brittle as nothing today, so they wait for M5 and M3 (28 §2.8).
 
 | Item | Detail |
 |---|---|

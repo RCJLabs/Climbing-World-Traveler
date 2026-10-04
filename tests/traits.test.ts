@@ -227,8 +227,10 @@ describe('the other P1b flags', () => {
   });
 });
 
-describe('the P2 traits of M1 (27 §2: the ten whose systems are live)', () => {
-  const M1 = ['furnace', 'cold_blooded', 'gaston_goblin', 'bounce_back', 'brittle', 'hibernator', 'frugal', 'shiny_things', 'fuelled', 'junk_food'];
+describe('the P2 traits of M1 (27 §2: the ten whose systems are live; 28 §2.8: seven live after the re-costing)', () => {
+  const M1 = ['cold_blooded', 'gaston_goblin', 'hibernator', 'frugal', 'shiny_things', 'fuelled', 'junk_food'];
+  /** Measured as nothing or as harm under both policies: they wait for the milestone that gives them their value. */
+  const LATER = { furnace: 5, bounce_back: 3, brittle: 3 };
   const build = presetSpec('slab_wizard', DEFAULT_OPTIONS);
   /** The same build with `traits` added, the creation rules skipped as the re-costing's paired careers do. */
   const runOf = (traits: string[]) => createRun('m1-traits', { ...build, traits: [...build.traits, ...traits] }, bundle, { unchecked: true });
@@ -241,8 +243,16 @@ describe('the P2 traits of M1 (27 §2: the ten whose systems are live)', () => {
       expect(t, id).toMatchObject({ phase: 'P2', milestone: 1, kind: 'creation' });
       expect(isLive(t), id).toBe(true);
     }
+    for (const [id, milestone] of Object.entries(LATER)) {
+      expect(bundle.traits.get(id), id).toMatchObject({ phase: 'P2', milestone });
+      expect(isLive(bundle.traits.get(id)!), id).toBe(false);
+    }
+    // The re-costing's prices (28 §2.8).
+    expect(Object.fromEntries(M1.map((id) => [id, bundle.traits.get(id)!.cost]))).toEqual({
+      cold_blooded: 10, gaston_goblin: 3, hibernator: 7, frugal: 2, shiny_things: -2, fuelled: 4, junk_food: -4,
+    });
     expect([isLive({ phase: 'P1b' }), isLive({ phase: 'P2' }), isLive({ phase: 'P2', milestone: 2 }), isLive({ phase: 'P3', milestone: 1 })]).toEqual([true, false, false, false]);
-    expect(build.traits.some((t) => M1.includes(t))).toBe(false);
+    expect(build.traits.some((t) => M1.includes(t) || t in LATER)).toBe(false);
   });
 
   it('Furnace and Cold Blooded move the sending window 4 °C and bend cold and hot days 6% and 4% or 6%', () => {

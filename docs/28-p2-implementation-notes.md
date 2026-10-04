@@ -270,26 +270,37 @@ The reducer goes to 10 for M1's state shape (an estimate per discipline; week po
 
 ### 2.8 Traits and screens
 
-**Liveness by milestone.** Phase alone could not make these ten P2 rows live while Lucky, Unlucky, Cool Head and Risk Blind, P2 rows whose systems come later, stay out. Traits, backgrounds and crags may carry a `milestone`; the build is P2 M1 (`CURRENT_PHASE`, `CURRENT_MILESTONE`); `isLive` replaces `phaseLive`: an earlier phase is live, and a row of the current phase once its milestone has come. A current-phase row without a milestone waits for the phase's end ([03 §1.3](03-traits.md)).
+**Liveness by milestone.** Phase alone could not make M1's P2 rows live while Lucky, Unlucky, Cool Head and Risk Blind, P2 rows whose systems come later, stay out. Traits, backgrounds and crags may carry a `milestone`; the build is P2 M1 (`CURRENT_PHASE`, `CURRENT_MILESTONE`); `isLive` replaces `phaseLive`: an earlier phase is live, and a row of the current phase once its milestone has come. A current-phase row without a milestone waits for the phase's end ([03 §1.3](03-traits.md)).
 
-**The ten traits**, at docs/03's costs and effects: Furnace (+3), Cold Blooded (+2), Gaston Goblin (+3), Bounce Back (+5), Brittle (−5), Hibernator (+4), Frugal (+3), Shiny Things (−3), Fuelled (+4), Junk Food (−4). Each uses a mechanism the engine reads today, and a test shows each moving its number.
+**The traits.** 27 M1 named ten P2 traits whose effects use systems already live: Furnace, Cold Blooded, Gaston Goblin, Bounce Back, Brittle, Hibernator, Frugal, Shiny Things, Fuelled and Junk Food. All ten went into the data at docs/03's costs and effects, and a test shows each moving its number. The re-costing that 27 §1 runs after a milestone makes traits live then priced them, and held three back.
 
-**Re-costing.** `pnpm recost --n 24 --days 365 --seed 7` over every live trait at Font (2,515 careers, 14 minutes on 4 workers; price level 0.40 score points per cost point), for the ten:
-
-| Trait | Cost | Impact ± se | Check ± se | Report |
+| Trait | docs/03 | Default week, 48 bases | Project and volume, 24 bases | Now |
 |---|---|---|---|---|
-| Cold Blooded | +2 | 10.6 ± 2.6 | 9.5 ± 3.0 | clear: 10 |
-| Fuelled | +4 | 12.1 ± 3.1 | 11.7 ± 4.3 | clear: 10 |
-| Hibernator | +4 | 10.1 ± 2.5 | 8.7 ± 2.7 | clear: 10 |
-| Gaston Goblin | +3 | 4.0 ± 2.0 | −0.1 ± 2.6 | 4, inside the noise |
-| Frugal | +3 | 3.6 ± 1.8 | −1.2 ± 2.0 | 4, inside the noise |
-| Bounce Back | +5 | 0.9 ± 0.7 | −1.2 ± 1.5 | clear: 2 |
-| Furnace | +3 | −0.2 ± 2.2 | −6.3 ± 2.3 | 2, inside the noise |
-| Shiny Things | −3 | −0.7 ± 1.6 | −7.3 ± 3.3 | −2, inside the noise |
-| Brittle | −5 | −0.5 ± 0.4 | −2.4 ± 1.2 | *no-op* |
-| Junk Food | −4 | −2.9 ± 1.4 | −10.2 ± 2.7 | −3, inside the noise |
+| Cold Blooded | +2 | 10.6 ± 1.8 (check 10.1 ± 2.2), clear | 10.6 ± 2.6 (9.5 ± 3.0), clear | **+10** |
+| Hibernator | +4 | 6.6 ± 1.5 (5.4 ± 1.4) | 10.1 ± 2.5 (8.7 ± 2.7), clear | **+7** |
+| Fuelled | +4 | 4.4 ± 1.4 (2.8 ± 1.5) | 12.1 ± 3.1 (11.7 ± 4.3), clear | +4 |
+| Gaston Goblin | +3 | 2.2 ± 1.5 (0.3 ± 1.1) | 4.0 ± 2.0 (−0.1 ± 2.6) | +3 |
+| Frugal | +3 | −0.3 ± 0.5, *no-op* | 3.6 ± 1.8 (−1.2 ± 2.0) | **+2** |
+| Shiny Things | −3 | −0.4 ± 0.6, clear at −2 | −0.7 ± 1.6 (−7.3 ± 3.3) | **−2** |
+| Junk Food | −4 | −2.7 ± 0.9 (−5.3 ± 1.1) | −2.9 ± 1.4 (−10.2 ± 2.7) | −4 |
+| Furnace | +3 | −3.1 ± 1.3 (−5.8 ± 1.3), *sign* | −0.2 ± 2.2 (−6.3 ± 2.3) | waits for M5 |
+| Bounce Back | +5 | 0.0, *no-op* | 0.9 ± 0.7 (−1.2 ± 1.5), clear at 2 | waits for M3 |
+| Brittle | −5 | 0.0, *no-op* | −0.5 ± 0.4, *no-op* | waits for M3 |
 
-Why the climate pair splits: over six simulated years of game weather, 41% of Font's open sector-days and 78% of Kalymnos's are above the sending window (session temperature over 17 °C), and 18% and 55% count as heat (over 22 °C), against 4% and 0% cold (under 4 °C). A window moved 4 °C warmer with a heat bonus pays on most days; one moved colder with a cold bonus on few. Fuelled and Hibernator are worth so much because sleep and nutrition multiply every adaptation gain (12 §6). Bounce Back and Brittle move resilience, which today only speeds stoke back on rest days. The costs wait for two confirmations: Kalymnos (`--crag kalymnos --n 8`), and 48 bases on the default week (`--policy plan`, which this milestone added, as 27 §4 asks).
+Impacts are in trait points at each run's price level (0.41 and 0.40 score points a point); the check is against each base's diverged median. Runs: `pnpm recost --n 48 --days 365 --seed 7 --policy plan` (5,031 careers, 30 minutes on 4 workers; `--policy` came with this milestone, as 27 §4 asks for the default week and more bases than 26 §10) and `pnpm recost --n 24 --days 365 --seed 7` (2,515 careers, 14 minutes). A Kalymnos run (`--crag kalymnos --n 8`, 847 careers) resolves nothing: its yardstick, +5 on a physical attribute, reads −0.50 ± 2.50, so one year of routes barely moves a career's score, and its impacts carry ±20.
+
+The rule applied: costs follow the default-week run, the one 27 §4 names, where the other run does not contradict it; a trait measured as harm or nothing under both policies waits for the milestone that gives it its value, as P1b did for Lucky, Unlucky, Cool Head and Risk Blind (26 §11).
+
+| Trait | Why |
+|---|---|
+| Cold Blooded +10 | Over six simulated years of game weather, 41% of Font's open sector-days and 78% of Kalymnos's are above the sending window (session temperature over 17 °C); 18% and 55% count as heat (over 22 °C), against 4% and 0% cold (under 4 °C). A window 4 °C warmer with a heat bonus pays on most days. Worth the cap under both policies |
+| Hibernator +7 | sleep multiplies every adaptation gain and overnight skin (12 §6); 6.6 on the default week, 10 on the bot policies |
+| Fuelled +4 | nutrition multiplies gains a little less than sleep and nothing else; worth its cost on the default week, which climbs less than the bots |
+| Frugal +2, Shiny Things −2 | money does not bind on the default week, whose odd jobs cover a shortfall; Frugal goes to the floor with Dirtbag, the same mechanism and stronger (Dirtbag also reads as a no-op). M4's money makes both matter |
+| Furnace, later (M5) | the mirror of Cold Blooded: a cold specialist where nearly every climbing day is warm, so it costs points and loses score. M5's seasons, which send climbers to crags in their good months, decide its value |
+| Bounce Back, Brittle, later (M3) | resilience only speeds stoke back on rest days, which changes no career; M2's injuries (03: "Injured in March, psyched by April") and M3's burnout chain give it its job |
+
+After the change, 92 creation traits are live. Cold Blooded sits at the cap with about its measured worth, as P1b's capped traits do; at its old cost the greedy builder (19 §4 step 3) took it in every build. The default-week run also reads 27 of the older traits clear of their costs, many by a lot (Core of Steel 6 → 2, Crimp Machine 6 → 2, Gym Kid 5 → 10, T-Rex Arms −10 → −3); P1b priced them on the bot policies, and this milestone leaves them (open questions).
 
 **Screens.** The title kicker read "P1a · Fontainebleau"; it now reads the build and its live crags from the code and data (P2 M1 · Fontainebleau · Kalymnos). The Journal ([17 §5](17-ui-ux.md)) shows the tick list filtered by discipline and style, the pyramid of the sends shown (each graded in its crag's system), the journal's lines and a line to share (the share sheet, or the clipboard). It takes the fifth place on the tab bar, where 17 §5 puts Social until people come (M7).
 
@@ -306,7 +317,7 @@ Why the climate pair splits: over six simulated years of game weather, 41% of Fo
 | A run saved before the test crag was added continues | §2.4; and a save written at reducer 9 is carried forward (§2.7) |
 | A build gate holds every chunk under budget | §2.5: `pnpm size` in CI |
 
-Checks: typecheck, 243 tests, validate, calibrate `--quick` 14/14, build, size.
+Checks: typecheck, 246 tests, validate, calibrate `--quick` 14/14, build, size.
 
 ## Open questions
 
@@ -322,3 +333,4 @@ Checks: typecheck, 243 tests, validate, calibrate `--quick` 14/14, build, size.
 - **A mixed crag's week** (§2.4). The default week picks sectors by freshness whatever their discipline, so a climber at a mixed crag alternates boulders and routes. Whether the plan should name a discipline (a project block on routes, mileage on boulders) is open until a real mixed crag ships (M6).
 - **Grades after the run** (§2.8). The run summary and the Hall of Fame show Font and French grades: a `RunSummary` keeps no crag, so a climber who spent a career at a V-grade crag reads their best in Font. Keep the system with the best, or show every system?
 - **The share card** (§2.8). 17 §5 asks for a share card; the Journal shares a line of text. An image card waits for a design.
+- **Pricing on the default week** (§2.8). 27 §4 has each milestone's re-costing play the game's default week; on it, 27 of the traits P1b priced on the bot policies read clear of their costs, many by three points or more, and the yardstick (+5 on a physical attribute) reads 0.38 ± 0.25 points against 1.01 on the bot policies: a year of the default week moves a career less, so every trait's worth shrinks toward its noise. Re-price every trait on the default week, keep the bot policies as P1b did, or price on both? A decision before M2's re-costing.

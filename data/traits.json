@@ -1517,7 +1517,7 @@
   "kind": "creation",
   "cost": 3,
   "phase": "P2",
-  "milestone": 1,
+  "milestone": 5,
   "tags": [
    "cold",
    "friction",
@@ -1543,7 +1543,7 @@
   "name": "Cold Blooded",
   "category": "body",
   "kind": "creation",
-  "cost": 2,
+  "cost": 10,
   "phase": "P2",
   "milestone": 1,
   "tags": [
@@ -2182,7 +2182,7 @@
   "kind": "creation",
   "cost": 5,
   "phase": "P2",
-  "milestone": 1,
+  "milestone": 3,
   "tags": [
    "recovery",
    "patience"
@@ -2204,7 +2204,7 @@
   "kind": "creation",
   "cost": -5,
   "phase": "P2",
-  "milestone": 1,
+  "milestone": 3,
   "tags": [
    "recovery"
   ],
@@ -2243,7 +2243,7 @@
   "name": "Hibernator",
   "category": "lifestyle",
   "kind": "creation",
-  "cost": 4,
+  "cost": 7,
   "phase": "P2",
   "milestone": 1,
   "tags": [
@@ -2265,7 +2265,7 @@
   "name": "Frugal",
   "category": "lifestyle",
   "kind": "creation",
-  "cost": 3,
+  "cost": 2,
   "phase": "P2",
   "milestone": 1,
   "tags": [
@@ -2286,7 +2286,7 @@
   "name": "Shiny Things",
   "category": "lifestyle",
   "kind": "creation",
-  "cost": -3,
+  "cost": -2,
   "phase": "P2",
   "milestone": 1,
   "tags": [
