@@ -30,7 +30,7 @@ const runOf = (seed = 'inj', s: NewRunSpec = spec, opts: { unchecked?: boolean }
 const def = (id: string): InjuryDef => bundle.injuries.get(id)!;
 /** An injury begun on purpose, with its draws from a named stream. */
 const hurt = (run: RunState, id: string, grade: 1 | 2 | 3, seed = 'x', cause: InjuryInstance['cause'] = 'load'): InjuryInstance =>
-  onset(run, modsOf(run, bundle), bundle, def(id), grade, cause, stream('test', seed));
+  onset(run, modsOf(run, bundle), def(id), grade, cause, stream('test', seed));
 const sector = (run: RunState) => bundle.crags.get(run.crag)!.sectors[0]!.id;
 /** The day loop as a player steps it, `n` days of rest. */
 const restDays = (run: RunState, n: number) => {
@@ -172,9 +172,9 @@ describe('what an injury does (13 §3)', () => {
 describe('careers it ends (11 §4, P2 M2)', () => {
   const at = (age: number) => runOf(`age${age}`, { ...spec, background: 'desk_job_late_starter', body: { ...spec.body, age_start: age } }, { unchecked: true });
 
-  it('a second grade 3 at the same site at 30 or over ends the career at the end of its day; at 29 it does not', () => {
+  it('a second grade 3 of the same injury at 30 or over ends the career at the end of its day; at 29 it does not', () => {
     const old = at(31);
-    hurt(old, 'rotator_cuff', 3, 'a');
+    hurt(old, 'labrum_slap', 3, 'a');
     expect(old.injuries[0]!.career_ending).toBeUndefined();
     const second = hurt(old, 'labrum_slap', 3, 'b');
     expect(second.career_ending).toBe(true);
@@ -183,8 +183,16 @@ describe('careers it ends (11 §4, P2 M2)', () => {
     expect(old.ended).toMatchObject({ end_reason: 'forced_injury', injuries: 2 });
     expect(old.journal.some((j) => /ends the climbing/.test(j.text))).toBe(true);
     const young = at(29);
-    hurt(young, 'rotator_cuff', 3, 'a');
+    hurt(young, 'labrum_slap', 3, 'a');
     expect(hurt(young, 'labrum_slap', 3, 'b').career_ending).toBeUndefined();
+  });
+
+  it('a grade 3 of another structure at the same site does not end it', () => {
+    const old = at(31);
+    hurt(old, 'rotator_cuff', 3, 'a');
+    expect(hurt(old, 'labrum_slap', 3, 'b').career_ending).toBeUndefined();
+    applyAction(old, { t: 'end_day' }, bundle);
+    expect(old.ended).toBeNull();
   });
 
   it('a grade-3 back is spinal and ends the career about three times in ten', () => {

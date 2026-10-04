@@ -211,7 +211,7 @@ function pickGrade(rng: Rng, def: InjuryDef, shift: (w: [number, number, number]
  * An injury begins (13 §3): its windows are drawn and kept, a lasting loss rolled, a grade 3's ceiling losses taken,
  * health dented, and whether it ends the career decided. The week's estimate is worked out again on the next session.
  */
-export function onset(run: RunState, mods: Mods, bundle: DataBundle, def: InjuryDef, grade: 1 | 2 | 3, cause: InjuryInstance['cause'], rng: Rng): InjuryInstance {
+export function onset(run: RunState, mods: Mods, def: InjuryDef, grade: 1 | 2 | 3, cause: InjuryInstance['cause'], rng: Rng): InjuryInstance {
   const sev = def.severities.find((s) => s.grade === grade)!;
   const age = ageOf(run);
   // 13 §3: recovery traits, sleep, nutrition and age scale every day count.
@@ -227,8 +227,9 @@ export function onset(run: RunState, mods: Mods, bundle: DataBundle, def: Injury
   const ce = sev.career_ending;
   if (ce) {
     const spine = ce.chance !== undefined && rng.next() < ce.chance;
+    // A repeat: the same structure torn to grade 3 before (11 §4's labrum or cuff, for every structure).
     const repeat = ce.repeat_after_age !== undefined && age >= ce.repeat_after_age
-      && run.injuries.some((i) => i.grade === 3 && defOf(bundle, i.def).site === def.site);
+      && run.injuries.some((i) => i.grade === 3 && i.def === def.id);
     if (spine || repeat) inst.career_ending = true;
   }
   for (const [k, v] of Object.entries(sev.permanent_ceiling_loss ?? {}) as [AttrId, number][]) {
@@ -286,7 +287,7 @@ export function fallInjury(run: RunState, mods: Mods, bundle: DataBundle, kind: 
   // Ground and ledge falls go heavily to grades 2 and 3 (13 §5.1).
   const k = Math.min(1, kappa);
   const grade = pickGrade(rng, def, ([a, b, c]) => [a * (1 - k), b * (1 + k), c * (1 + 3 * k)]);
-  return onset(run, mods, bundle, def, grade, 'fall', rng);
+  return onset(run, mods, def, grade, 'fall', rng);
 }
 
 let moveTables: { bundle: DataBundle; byTag: Map<Tag, { def: InjuryDef; p: number }[]> } | null = null;
@@ -334,7 +335,7 @@ export function moveInjury(run: RunState, mods: Mods, bundle: DataBundle, tags: 
   const i = ps.findIndex((p) => (u -= p) < 0);
   const def = cands[i < 0 ? cands.length - 1 : i]!.def;
   const grade = pickGrade(rng, def, tags.includes('dynamic') ? ([a, b, c]) => [a, b, c * 1.5] : undefined);
-  return onset(run, mods, bundle, def, grade, 'move', rng);
+  return onset(run, mods, def, grade, 'move', rng);
 }
 
 /** Daily load series → (acute over 7 days, chronic daily mean over up to 28). */
@@ -399,7 +400,7 @@ export function weeklyLoadRoll(run: RunState, mods: Mods, bundle: DataBundle): I
     const sub = liveDefs(bundle).find((x) => x.substitutes && x.substitutes.site === d.site && age < x.substitutes.age_max + 1);
     if (sub && (run.counters.exposure[sub.substitutes!.tag] ?? 0) / Math.max(1, run.counters.exposure_total) >= 0.25 && rng.next() < sub.substitutes!.chance) def = sub;
     const grade = pickGrade(rng, def, ([a, b, c]) => [a, b, c * (lr.m > 2 ? 2 : 1) * (1 + dyn)]);
-    return onset(run, mods, bundle, def, grade, 'load', rng);
+    return onset(run, mods, def, grade, 'load', rng);
   }
   return null;
 }
@@ -428,7 +429,7 @@ export function dailyIllnessRoll(run: RunState, mods: Mods, bundle: DataBundle):
     }
     p *= RATE_SCALE.illness * kindRisk(mods, d);
     if (!roll(rng, Math.min(0.95, p), mods)) continue;
-    return onset(run, mods, bundle, d, pickGrade(rng, d), 'illness', rng);
+    return onset(run, mods, d, pickGrade(rng, d), 'illness', rng);
   }
   return null;
 }

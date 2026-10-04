@@ -486,7 +486,7 @@ interface InjurySeverity {
   permanent_ceiling_loss?: Partial<Record<AttrId, number>>;   // negative; kept in RunState.ceiling_loss
   lingering?: { chance: number };         // share of cases with a lasting loss, rolled at onset (TFCC: Glass Wrist)
   career_ending?: { chance?: number; repeat_after_age?: number };   // 11 §4: a chance at onset (a spinal back), or a
-                                          // second grade 3 at the same site at or after this age
+                                          // second grade 3 of the same injury at or after this age
 }
 
 interface InjuryDef {

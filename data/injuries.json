@@ -3,8 +3,8 @@
     "id": "a2_pulley", "name": "A2 pulley injury", "site": "finger", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load", "move"],
     "risk_mods": [{ "tag": "crimp", "mult": 1.6 }, { "tag": "pocket", "mult": 1.4 }, { "tag": "dynamic", "mult": 1.3 }, { "tag": "cold", "mult": 1.2 }],
-    "load_base": 0.00038,
-    "move": [{ "tag": "crimp", "p": 0.000019 }, { "tag": "pocket", "p": 0.000016 }],
+    "load_base": 0.000475,
+    "move": [{ "tag": "crimp", "p": 0.000024 }, { "tag": "pocket", "p": 0.00002 }],
     "severities": [
       { "grade": 1, "heal_days": [14, 21], "full_load_days": [28, 42] },
       { "grade": 2, "heal_days": [35, 60], "full_load_days": [60, 90] },
@@ -16,8 +16,8 @@
     "id": "a4_pulley", "name": "A4 pulley injury", "site": "finger", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load", "move"],
     "risk_mods": [{ "tag": "crimp", "mult": 1.5 }, { "tag": "pocket", "mult": 1.3 }, { "tag": "dynamic", "mult": 1.2 }],
-    "load_base": 0.00021,
-    "move": [{ "tag": "crimp", "p": 0.00002 }],
+    "load_base": 0.000193,
+    "move": [{ "tag": "crimp", "p": 0.0000184 }],
     "severities": [
       { "grade": 1, "heal_days": [14, 21], "full_load_days": [28, 42] },
       { "grade": 2, "heal_days": [35, 60], "full_load_days": [60, 90] },
