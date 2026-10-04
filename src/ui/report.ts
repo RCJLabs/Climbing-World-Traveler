@@ -2,7 +2,8 @@
 // days, for the report screen. Pure: it reads two states and the data bundle.
 
 import { athleteOf } from '../sim/attempt';
-import { estimateBoulderDI } from '../sim/estimate';
+import { mainDiscipline, sessionDiscipline, type Climb } from '../sim/discipline';
+import { estimateAt } from '../sim/estimate';
 import type { AttemptResult, JournalEntry, RunState } from '../sim/state';
 import { ALL_ATTRS, type AttrId, type DataBundle, type Tick } from '../sim/types';
 import { LATER_ATTRS } from './format';
@@ -23,8 +24,10 @@ export interface Report {
   ticks: Tick[];
   /** Every attempt of a session report, in order; empty for a run of days. */
   tries: AttemptResult[];
-  /** Grades in the report are routes (French) when the stretch ended at a sport crag (P1b). */
-  sport: boolean;
+  /** The report's discipline: its session's, or for a run of days the one the crag it ended at is known by (27 M1). */
+  discipline: Climb;
+  /** Where its grades are shown from: the crag it ended at, whose grading system they use (08). */
+  crag: string;
   /** Hardest send before and after, in the report's discipline. */
   pb: [number, number];
   /** The estimate before and after, both at the crag where the stretch ended. */
@@ -42,7 +45,8 @@ const MOVED = 0.05;
 export function buildReport(kind: Report['kind'], title: string, before: RunState, after: RunState, bundle: DataBundle, tries: AttemptResult[] = []): Report {
   const c0 = before.counters;
   const c1 = after.counters;
-  const sport = !bundle.crags.get(after.crag)!.disciplines.includes('boulder');
+  const discipline = sessionDiscipline(before, bundle) ?? mainDiscipline(bundle.crags.get(after.crag)!, bundle);
+  const sport = discipline === 'sport';
   const attrs: AttrChange[] = ALL_ATTRS
     .filter((id) => !LATER_ATTRS.includes(id))
     .map((id) => ({ id, before: before.attrs[id].value, after: after.attrs[id].value }))
@@ -55,9 +59,10 @@ export function buildReport(kind: Report['kind'], title: string, before: RunStat
     attempts: c1.attempts - c0.attempts, sends: c1.sends - c0.sends,
     ticks: after.ticks.slice(before.ticks.length).filter((t) => t.style !== 'repeat').sort((a, b) => b.di - a.di),
     tries,
-    sport,
+    discipline,
+    crag: after.crag,
     pb: sport ? [before.pb_route, after.pb_route] : [before.pb, after.pb],
-    estimate: [estimateBoulderDI(athleteOf(before, bundle), after.crag, bundle), estimateBoulderDI(athleteOf(after, bundle), after.crag, bundle)],
+    estimate: [estimateAt(athleteOf(before, bundle), after.crag, discipline, bundle), estimateAt(athleteOf(after, bundle), after.crag, discipline, bundle)],
     attrs, money: after.res.money - before.res.money,
     journal: after.journal.slice(before.journal.length),
     ended: !!after.ended,

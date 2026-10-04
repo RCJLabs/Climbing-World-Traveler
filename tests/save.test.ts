@@ -1,13 +1,33 @@
-// Event-sourced saves (docs/18 §5): write path, snapshot + tail load, version-bump replay, export/import, meta.
+// Event-sourced saves (docs/18 §5): write path, snapshot + tail load, export/import, meta; carrying a run forward
+// across versions (27 §4): the reducer's adapters on an archived save, a played crag's changed content, the limits.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
 import { DEFAULT_OPTIONS, presetSpec } from '../src/sim/presets';
+import { replay } from '../src/sim/run';
+import { REDUCER_VERSION, type RunState } from '../src/sim/state';
 import { nextPlannedAction, simulateDays } from '../src/sim/tactics';
-import { MemoryBackend } from '../src/save/backend';
-import { importRun, IncompatibleRun, RunSession, SNAPSHOT_EVERY } from '../src/save/session';
+import type { Action, DataBundle } from '../src/sim/types';
+import { OLDEST_ADAPTABLE } from '../src/save/adapt';
+import { MemoryBackend, type RunRecord } from '../src/save/backend';
+import { cannotContinue, CHUNK, importRun, IncompatibleRun, RunSession, SNAPSHOT_EVERY, SNAPSHOTS_KEPT } from '../src/save/session';
 
 const bundle = loadBundle();
 const spec = presetSpec('dirtbag', DEFAULT_OPTIONS);
+
+/** A save as a backend holds it: written by the build at origin/main when the reducer was at 9 (data p2-0). */
+interface Archive { record: RunRecord; chunks: Action[][]; snapshots: { index: number; state: RunState }[] }
+const archive = JSON.parse(readFileSync('tests/fixtures/saves/v9-kalymnos.json', 'utf8')) as Archive;
+
+async function restore(a: Archive): Promise<MemoryBackend> {
+  const backend = new MemoryBackend();
+  await backend.appendChunks(a.record, a.chunks.map((c, i) => [i, c] as const));
+  for (const x of a.snapshots) await backend.putSnapshot(a.record.id, x.index, x.state, SNAPSHOTS_KEPT);
+  return backend;
+}
+
+/** The bundle after an update that changed one crag's content (its hash). */
+const changed = (id: string): DataBundle => ({ ...bundle, hashes: new Map([...bundle.hashes].map(([k, h]) => [k, k === id ? `${h}x` : h])) });
 
 /** Days by the week plan, one action per write, as a player stepping through them would. */
 async function playDays(s: RunSession, days: number): Promise<void> {
@@ -62,14 +82,14 @@ describe('saves', () => {
     expect(backend.writes).toBe(writes + 1);
   });
 
-  it('a reducer-version mismatch discards snapshots and replays the whole log', async () => {
+  it('records the content hash of every crag the run has played', async () => {
     const backend = new MemoryBackend();
     const s = await RunSession.create(backend, bundle, 'save-3', spec);
-    await playDays(s, 3);
-    const rec = (await backend.getRun(s.id))!;
-    await backend.append({ ...rec, version: 0 }, 0, (await backend.getChunks(s.id, 0))[0]!);
-    const loaded = await RunSession.load(backend, bundle, s.id);
-    expect(JSON.stringify(loaded.state)).toBe(JSON.stringify(s.state));
+    expect(s.record.hashes).toEqual({ fontainebleau: bundle.hashes.get('fontainebleau') });
+    await s.dispatch({ t: 'travel', to: 'kalymnos' });
+    expect((await backend.getRun(s.id))!.hashes).toEqual({ fontainebleau: bundle.hashes.get('fontainebleau'), kalymnos: bundle.hashes.get('kalymnos') });
+    // A trip ends on a snapshot: the days it took are not replayed on the next load.
+    expect((await backend.latestSnapshot(s.id))!.index).toBe(s.record.action_count);
   });
 
   it('exports and imports a run, and records the unlock and Hall of Fame entry at run end', async () => {
@@ -86,12 +106,116 @@ describe('saves', () => {
     expect(imported.state.ended).toEqual(s.state.ended);
   });
 
-  it('refuses to replay a run made with another content version', async () => {
+  it('refuses a run older than the first adapter, or saved by a newer version', async () => {
     const backend = new MemoryBackend();
     const s = await RunSession.create(backend, bundle, 'save-5', spec);
     await playDays(s, 1);
     const rec = (await backend.getRun(s.id))!;
-    await backend.append({ ...rec, data_version: 'p1a-0' }, 0, (await backend.getChunks(s.id, 0))[0]!);
-    await expect(RunSession.load(backend, bundle, s.id)).rejects.toBeInstanceOf(IncompatibleRun);
+    const chunk = (await backend.getChunks(s.id, 0))[0]!;
+    for (const version of [OLDEST_ADAPTABLE - 1, REDUCER_VERSION + 1]) {
+      await backend.append({ ...rec, version }, 0, chunk);
+      expect(cannotContinue({ ...rec, version }, bundle)).toMatch(/too old|newer/);
+      await expect(RunSession.load(backend, bundle, s.id)).rejects.toBeInstanceOf(IncompatibleRun);
+    }
+    expect(cannotContinue(rec, bundle)).toBeNull();
+    expect(cannotContinue({ ...rec, version: OLDEST_ADAPTABLE, data_version: 'p1a-0' }, bundle)).toBeNull();
   });
+});
+
+describe('carrying a run forward (27 §4)', () => {
+  const index = archive.snapshots.at(-1)!.index;
+
+  it('carries an archived run from reducer 9: its newest snapshot, adapted, is the state this version builds', async () => {
+    expect(archive.record).toMatchObject({ version: 9, data_version: 'p2-0' });
+    const backend = await restore(archive);
+    const s = await RunSession.load(backend, bundle, archive.record.id);
+    expect(s.record).toMatchObject({ version: REDUCER_VERSION, base: index, action_count: index, day: s.state.day });
+    expect(s.record.hashes).toEqual({ fontainebleau: bundle.hashes.get('fontainebleau'), kalymnos: bundle.hashes.get('kalymnos') });
+    // The same actions played by this version: the same state, but for the line about the update.
+    const fresh = replay(archive.chunks.flat().slice(0, index), bundle);
+    expect({ ...s.state, journal: s.state.journal.slice(0, -1) }).toEqual(fresh);
+    expect(s.state.journal.at(-1)!.text).toMatch(/updated/);
+    expect(s.state.est).toEqual({ sport: archive.snapshots.at(-1)!.state.est });
+    expect(s.state.history.map((p) => `${p.crag}:${Object.keys(p.est ?? {}).join()}`)).toEqual([
+      ...Array(4).fill('fontainebleau:boulder'), ...Array(3).fill('kalymnos:sport'),
+    ]);
+    expect(s.state.ticks.every((t) => t.crag === (t.discipline ? 'kalymnos' : 'fontainebleau'))).toBe(true);
+  }, 20_000);
+
+  it('cuts the log at the base, drops the old tail, goes on, and reloads to the same state', async () => {
+    const backend = await restore(archive);
+    expect(archive.record.action_count).toBeGreaterThan(index);
+    const s = await RunSession.load(backend, bundle, archive.record.id);
+    expect((await backend.getChunks(s.id, 0)).flat()).toEqual(archive.chunks.flat().slice(0, index));
+    await s.simulate((d) => simulateDays(d, bundle, 7));
+    expect(s.record.action_count).toBeGreaterThan(index);
+    const again = await RunSession.load(backend, bundle, s.id);
+    expect(again.record.base).toBe(index);
+    expect(again.state).toEqual(s.state);
+  }, 20_000);
+
+  it('exports a carried run with its base, and imports it to the same state', async () => {
+    const s = await RunSession.load(await restore(archive), bundle, archive.record.id);
+    await s.simulate((d) => simulateDays(d, bundle, 3));
+    const file = JSON.parse(JSON.stringify(await s.exportFile()));
+    expect(file.version).toBe(2);
+    expect(file.actions).toHaveLength(s.record.action_count);
+    const imported = await importRun(new MemoryBackend(), bundle, file);
+    expect(imported.state).toEqual(s.state);
+    // A file without a snapshot from an older version would need its log replayed across a version step.
+    await expect(importRun(new MemoryBackend(), bundle, { ...file, version: 1, base: undefined, record: archive.record })).rejects.toBeInstanceOf(IncompatibleRun);
+  }, 20_000);
+
+  it('a played crag whose content changed: its projects keep their attempts and lose what they knew of the moves', async () => {
+    const backend = new MemoryBackend();
+    const s = await RunSession.create(backend, bundle, 'carry-content', spec);
+    await s.simulate((d) => simulateDays(d, bundle, 21));
+    const before = structuredClone(s.state.projects);
+    expect(Object.keys(before).length).toBeGreaterThan(0);
+    const update = changed('fontainebleau');
+    expect(cannotContinue(s.record, update)).toBeNull();
+    const loaded = await RunSession.load(backend, update, s.id);
+    expect(loaded.record).toMatchObject({ base: s.record.action_count, hashes: { fontainebleau: update.hashes.get('fontainebleau') } });
+    for (const [id, p] of Object.entries(loaded.state.projects)) {
+      expect(p).toMatchObject({ attempts: before[id]!.attempts, sessions: before[id]!.sessions, di: before[id]!.di, attempt_eq: 0, best: 0, revealed: [] });
+      expect(p.reach_until).toBeUndefined();
+    }
+    expect(loaded.state.journal.at(-1)!.text).toMatch(/rebuilt the routes at Fontainebleau/);
+    // Nothing else moved.
+    expect({ ...loaded.state, projects: before, journal: loaded.state.journal.slice(0, -1) }).toEqual(s.state);
+  }, 20_000);
+
+  it('a crag the run has not played changes nothing: no carry, the same state', async () => {
+    const backend = new MemoryBackend();
+    const s = await RunSession.create(backend, bundle, 'carry-elsewhere', spec);
+    await s.simulate((d) => simulateDays(d, bundle, 3));
+    const other = await RunSession.load(backend, changed('kalymnos'), s.id);
+    expect(other.record.base).toBeUndefined();
+    expect(other.state).toEqual(s.state);
+  });
+
+  it('refuses a run whose climber is at a crag the new version does not have', async () => {
+    const backend = new MemoryBackend();
+    const s = await RunSession.create(backend, bundle, 'carry-gone', spec);
+    await playDays(s, 1);
+    const crags = new Map(bundle.crags);
+    crags.delete('fontainebleau');
+    const gone: DataBundle = { ...changed('fontainebleau'), crags };
+    await expect(RunSession.load(backend, gone, s.id)).rejects.toThrow(/does not have/);
+  });
+
+  it('cuts the log cleanly at a chunk boundary: the base starts an empty chunk the run then fills', async () => {
+    const backend = new MemoryBackend();
+    const s = await RunSession.create(backend, bundle, 'carry-chunk', spec);
+    while (s.record.action_count < CHUNK + 20) await s.simulate((d) => simulateDays(d, bundle, 5));
+    const actions = (await backend.getChunks(s.id, 0)).flat();
+    await backend.deleteSnapshots(s.id);
+    await backend.putSnapshot(s.id, CHUNK, replay(actions.slice(0, CHUNK), bundle), SNAPSHOTS_KEPT);
+    const loaded = await RunSession.load(backend, changed('fontainebleau'), s.id);
+    expect(loaded.record).toMatchObject({ base: CHUNK, action_count: CHUNK });
+    expect((await backend.getChunks(s.id, 0)).map((c) => c.length)).toEqual([CHUNK, 0]);
+    await loaded.simulate((d) => simulateDays(d, changed('fontainebleau'), 2));
+    expect((await backend.getChunks(s.id, 0)).map((c) => c.length)).toEqual([CHUNK, loaded.record.action_count - CHUNK]);
+    expect((await RunSession.load(backend, changed('fontainebleau'), s.id)).state).toEqual(loaded.state);
+  }, 30_000);
 });

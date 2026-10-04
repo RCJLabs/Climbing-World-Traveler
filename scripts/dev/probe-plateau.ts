@@ -6,7 +6,7 @@ import { loadBundle } from '../../src/data/bundle';
 import { sampleBuild } from '../../src/harness/sampler';
 import { athleteOf } from '../../src/sim/attempt';
 import { BotDriver, PROJECT_POLICY, VOLUME_POLICY } from '../../src/sim/bot';
-import { estimateBoulderDI } from '../../src/sim/estimate';
+import { estimateAt } from '../../src/sim/estimate';
 import { DEFAULT_OPTIONS } from '../../src/sim/presets';
 import { stream } from '../../src/sim/rng';
 import { createRun } from '../../src/sim/run';
@@ -26,7 +26,7 @@ for (let i = from; i < to; i++) {
     for (let y = 1; y <= years; y++) {
       for (let d = 0; d < 365 && !run.ended; d++) bot.day();
       const ath = athleteOf(run, bundle);
-      const E = estimateBoulderDI(ath, run.crag, bundle);
+      const E = estimateAt(ath, run.crag, 'boulder', bundle);
       const frac = (ids: readonly AttrId[]) => {
         const xs = ids.filter((a) => !LATER.has(a)).map((a) => run.attrs[a].value / Math.max(1, run.attrs[a].ceiling));
         return xs.reduce((s, x) => s + x, 0) / xs.length;
@@ -34,7 +34,7 @@ for (let i = from; i < to; i++) {
       // Limiters: the estimate's gain from +5 on one attribute, top three.
       const lim = [...PHYSICAL_ATTRS, ...TECHNIQUE_ATTRS].filter((a) => !LATER.has(a)).map((a) => {
         const up = { ...ath, a: { ...ath.a, [a]: ath.a[a] + 5 } };
-        return [a, estimateBoulderDI(up, run.crag, bundle) - E] as const;
+        return [a, estimateAt(up, run.crag, 'boulder', bundle) - E] as const;
       }).sort((p, q) => q[1] - p[1]).slice(0, 3);
       const atCeil = [...PHYSICAL_ATTRS, ...TECHNIQUE_ATTRS].filter((a) => !LATER.has(a) && run.attrs[a].value >= 0.9 * run.attrs[a].ceiling).length;
       rows.push(`y${y} E ${E.toFixed(1)} PB ${run.pb.toFixed(1)} | phys ${(100 * frac(PHYSICAL_ATTRS)).toFixed(0)}% tech ${(100 * frac(TECHNIQUE_ATTRS)).toFixed(0)}% of ceiling, ${atCeil} attrs ≥90% | limiters ${lim.map(([a, g]) => `${a} +${g.toFixed(2)}`).join(', ')}`);

@@ -7,17 +7,19 @@
 // proposal on its own side, clear only outside the noise; no-op and sign flags), pick rates under a greedy builder,
 // the caps check and the diff. Careers stream to <out>/recost-<crag>-<seed>.jsonl, so a long run resumes where it
 // stopped, and a finished one re-reads in seconds.
-//   pnpm recost --n 24 --days 365 --seed 7 [--crag fontainebleau] [--traits a,b] [--workers 4] [--out dir]
+// `--policy` plays every career by one bot policy (`plan` is the game's default week, 27 §4) instead of alternating
+// project and volume by base.
+//   pnpm recost --n 24 --days 365 --seed 7 [--crag fontainebleau] [--traits a,b] [--policy mixed|project|volume|plan] [--workers 4] [--out dir]
 import { fork } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadBundle } from '../src/data/bundle';
-import { HARNESS_ROUTE_CACHE, runCareer, type CareerConfig } from '../src/harness/career';
+import { HARNESS_ROUTE_CACHE, runCareer, type CareerConfig, type CareerPolicy } from '../src/harness/career';
 import { capsOver, divergedDelta, mean, pickRates, priceSlope, sd, toggled, verdict, type Lite, type Verdict } from '../src/harness/recost';
 import { sampleBuild } from '../src/harness/sampler';
 import { setRouteCacheMax } from '../src/sim/attempt';
-import { phaseLive } from '../src/sim/character';
+import { isLive } from '../src/sim/character';
 import { DEFAULT_OPTIONS } from '../src/sim/presets';
 import { cyrb53, stream } from '../src/sim/rng';
 import { PHYSICAL_ATTRS, type AttrId, type DataBundle, type NewRunSpec, type Trait } from '../src/sim/types';
@@ -41,13 +43,14 @@ if (process.env.CWT_RECOST_WORKER) {
 }
 
 /** The base builds and every variant to play: the base itself, each trait toggled, each physical attribute +5. */
-function plan(bundle: DataBundle, o: { n: number; days: number; seed: string; crag: string; traits: Trait[] }): { jobs: Job[]; sign: Map<string, number> } {
+function plan(bundle: DataBundle, o: { n: number; days: number; seed: string; crag: string; traits: Trait[]; policy: 'mixed' | CareerPolicy }): { jobs: Job[]; sign: Map<string, number> } {
   const jobs: Job[] = [];
   const sign = new Map<string, number>();
   for (let i = 0; i < o.n; i++) {
     const spec = sampleBuild(stream('recost-build', o.seed, i), bundle, DEFAULT_OPTIONS, `R${i}`, o.crag);
     const bg = bundle.backgrounds.get(spec.background)!;
-    const cfg = (s: NewRunSpec): CareerConfig => ({ seed: `rc${o.seed}-${i}`, spec: s, days: o.days, policy: i % 2 ? 'volume' : 'project', unchecked: true });
+    const policy: CareerPolicy = o.policy === 'mixed' ? (i % 2 ? 'volume' : 'project') : o.policy;
+    const cfg = (s: NewRunSpec): CareerConfig => ({ seed: `rc${o.seed}-${i}`, spec: s, days: o.days, policy, unchecked: true });
     jobs.push({ key: `${i}|base`, cfg: cfg(spec) });
     for (const t of o.traits) {
       const v = toggled(spec, bg, t, bundle);
@@ -70,10 +73,12 @@ async function main(): Promise<void> {
   const out = opt('out', 'reports');
   const only = opt('traits', '').split(',').filter(Boolean);
   const workers = Math.max(1, Number(opt('workers', String(cpus().length))));
+  const policy = opt('policy', 'mixed');
+  if (!['mixed', 'project', 'volume', 'plan'].includes(policy)) throw new Error(`--policy ${policy}: mixed, project, volume or plan`);
   const bundle = loadBundle();
   const traits = [...bundle.traits.values()]
-    .filter((t) => phaseLive(t.phase) && (t.kind === 'creation' || t.kind === 'evolving') && (!only.length || only.includes(t.id)));
-  const { jobs, sign } = plan(bundle, { n, days, seed, crag, traits });
+    .filter((t) => isLive(t) && (t.kind === 'creation' || t.kind === 'evolving') && (!only.length || only.includes(t.id)));
+  const { jobs, sign } = plan(bundle, { n, days, seed, crag, traits, policy: policy as 'mixed' | CareerPolicy });
 
   mkdirSync(out, { recursive: true });
   const file = `${out}/recost-${crag}-${seed}.jsonl`;
@@ -107,14 +112,14 @@ async function main(): Promise<void> {
     child.on('exit', (code) => { if (code) reject(new Error(`worker exited with ${code}`)); });
     child.send({ jobs: mine });
   })));
-  const report = analyse(bundle, traits, done, sign, { n, days, seed, crag, mins: (performance.now() - t0) / 60000, out });
+  const report = analyse(bundle, traits, done, sign, { n, days, seed, crag, policy, mins: (performance.now() - t0) / 60000, out });
   writeFileSync(`${out}/recost-${crag}-${seed}.md`, report + '\n');
   console.log(report);
 }
 
 interface Row extends Verdict { t: Trait; n: number; d: number; check: number; checkSe: number; yard: number; dPb: number; dTicks: number }
 
-function analyse(bundle: DataBundle, traits: Trait[], done: Map<string, Lite>, sign: Map<string, number>, m: { n: number; days: number; seed: string; crag: string; mins: number; out: string }): string {
+function analyse(bundle: DataBundle, traits: Trait[], done: Map<string, Lite>, sign: Map<string, number>, m: { n: number; days: number; seed: string; crag: string; policy: string; mins: number; out: string }): string {
   const L: string[] = [];
   const bases = Array.from({ length: m.n }, (_, i) => i).filter((i) => done.has(`${i}|base`));
   const delta = (i: number, k: string) => { const v = done.get(`${i}|${k}`); return v ? v.score - done.get(`${i}|base`)!.score : null; };
@@ -145,7 +150,7 @@ function analyse(bundle: DataBundle, traits: Trait[], done: Map<string, Lite>, s
   const slope2 = priceSlope(priced.map((x) => ({ cost: x.t.cost, d: x.d2 })));
   L.push(`# Trait re-costing · ${m.crag} · seed ${m.seed}`);
   L.push('');
-  L.push(`${bases.length} base builds × ${m.days} days, paired careers (docs/19 §4); ${done.size} careers, ${m.mins.toFixed(0)} min this session.`);
+  L.push(`${bases.length} base builds × ${m.days} days, paired careers (docs/19 §4), ${m.policy === 'mixed' ? 'project and volume policies alternating by base' : `the ${m.policy} policy`}; ${done.size} careers, ${m.mins.toFixed(0)} min this session.`);
   L.push('');
   L.push(`**Scale:** ${slope.toFixed(2)} score points per cost point at today's prices (least squares over ${priced.length} priced traits); ${slope2.toFixed(2)} for the check against each base's diverged median. 19 §4's yardstick (+5 on one physical attribute, the mean of twelve) reads ${Y.toFixed(2)} ± ${seY.toFixed(2)} points: ${perAttr.map((x) => `${x.a} ${x.d.toFixed(1)}`).join(', ')}.`);
   L.push('');
@@ -167,7 +172,7 @@ function analyse(bundle: DataBundle, traits: Trait[], done: Map<string, Lite>, s
   L.push('');
   const rates = pickRates(bundle, new Map(rows.map((r) => [r.t.id, r.impact])));
   const hot = [...rates].sort((a, b) => b[1] - a[1]).filter(([, r]) => r > 0.6).map(([id, r]) => `${id} ${(100 * r).toFixed(0)}%`);
-  const live = [...bundle.backgrounds.values()].filter((b) => phaseLive(b.phase)).length;
+  const live = [...bundle.backgrounds.values()].filter((b) => isLive(b)).length;
   L.push(`**Pick rates (19 §4 step 3)**, one greedy build per live background (${live}), valuing traits at their measured impact: picked by more than 60%: ${hot.join(', ') || 'none'}; picked at all: ${rates.size} of ${rows.length}.`);
   L.push('');
   const caps = capsOver(bundle);

@@ -18,7 +18,7 @@ const builds = [
   ...PRESETS.map((p) => [p.id, athleteOf(createRun('e', presetSpec(p.id), bundle), bundle)] as const),
   ...[12, 16, 20].map((d) => [`reference DI ${d}`, referenceAthlete(d)] as const),
 ];
-const shipped = benchmarks('fontainebleau', bundle);
+const shipped = benchmarks('fontainebleau', bundle, 'boulder');
 const sets = Array.from({ length: n }, (_, i) => benchFrom(generateBenchmarks('fontainebleau', bundle, String(i + 1))));
 for (const [id, ath] of builds) {
   const xs = sets.map((s) => estimateFrom(ath, s));

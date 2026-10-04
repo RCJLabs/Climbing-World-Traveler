@@ -6,13 +6,14 @@
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
 import { atRoute, syntheticRun } from '../src/harness/sim';
-import { aggregateMods, phaseLive, traitEffectErrors, type Athlete, type Mods } from '../src/sim/character';
+import { aggregateMods, CURRENT_MILESTONE, isLive, traitEffectErrors, type Athlete, type Mods } from '../src/sim/character';
 import { athleteOf, climberStep, conditionsOf, doMove, doWallAction, familiarity, registerRoute, routeEntry, startAttempt } from '../src/sim/attempt';
 import { prepareMove } from '../src/sim/engine';
 import { referenceAthlete } from '../src/sim/grade';
 import { DEFAULT_OPTIONS, presetSpec } from '../src/sim/presets';
 import { evaluate, powerPool, reserveStart } from '../src/sim/resolve';
-import { applyAction, createRun } from '../src/sim/run';
+import { applyAction, createRun, dailyCost, energyCap } from '../src/sim/run';
+import { sendingCentre } from '../src/sim/weather';
 import type { RunState } from '../src/sim/state';
 import type { Route } from '../src/sim/types';
 
@@ -43,7 +44,7 @@ function finish(run: RunState): void {
 
 describe('the P1b traits in the data', () => {
   it('name only flags the engine reads or knows to be inert, and only resources it regenerates; an invented one is caught', () => {
-    for (const t of bundle.traits.values()) if (phaseLive(t.phase)) expect(traitEffectErrors(t), t.id).toEqual([]);
+    for (const t of bundle.traits.values()) if (isLive(t)) expect(traitEffectErrors(t), t.id).toEqual([]);
     expect(traitEffectErrors({ id: 'made_up', effect: { flags: ['moon_phase_mult=1.2'], resource_mult: { mana: 1.1 } } })).toHaveLength(2);
     // Energy refills every morning and health waits for the injuries: fine on a P2 trait, an error on a live one.
     expect(traitEffectErrors({ id: 'early', phase: 'P1b', effect: { resource_mult: { energy: 1.1 } } })).toEqual(['trait early: resource energy waits for P2']);
@@ -56,7 +57,7 @@ describe('the P1b traits in the data', () => {
     for (const id of ['dry_hands', 'clutch', 'zen', 'rope_gun', 'vertigo', 'weightlifter', 'stubborn']) expect(bundle.traits.has(id), id).toBe(true);
     for (const id of ['bendy_shoulders', 'pain_tolerant', 'kneebar_finder', 'downclimber']) expect(bundle.traits.has(id), id).toBe(false);
     // Nothing they carry is read before P2 (docs/26 §11): kept in the data, not offered at creation.
-    for (const id of ['lucky', 'unlucky', 'cool_head', 'risk_blind']) expect(phaseLive(bundle.traits.get(id)!.phase), id).toBe(false);
+    for (const id of ['lucky', 'unlucky', 'cool_head', 'risk_blind']) expect(isLive(bundle.traits.get(id)!), id).toBe(false);
   });
 });
 
@@ -223,5 +224,75 @@ describe('the other P1b flags', () => {
     };
     expect(send([], true) - send(['perfectionist'], true)).toBeCloseTo(3, 9);
     expect(send([], false) - send(['perfectionist'], false)).toBeCloseTo(0, 9);
+  });
+});
+
+describe('the P2 traits of M1 (27 §2: the ten whose systems are live; 28 §2.8: seven live after the re-costing)', () => {
+  const M1 = ['cold_blooded', 'gaston_goblin', 'hibernator', 'frugal', 'shiny_things', 'fuelled', 'junk_food'];
+  /** Measured as nothing or as harm under both policies: they wait for the milestone that gives them their value. */
+  const LATER = { furnace: 5, bounce_back: 3, brittle: 3 };
+  const build = presetSpec('slab_wizard', DEFAULT_OPTIONS);
+  /** The same build with `traits` added, the creation rules skipped as the re-costing's paired careers do. */
+  const runOf = (traits: string[]) => createRun('m1-traits', { ...build, traits: [...build.traits, ...traits] }, bundle, { unchecked: true });
+  const base = runOf([]);
+
+  it('come live with P2 M1; a P2 row of a later milestone, or with none, waits', () => {
+    expect(CURRENT_MILESTONE).toBe(1);
+    for (const id of M1) {
+      const t = bundle.traits.get(id)!;
+      expect(t, id).toMatchObject({ phase: 'P2', milestone: 1, kind: 'creation' });
+      expect(isLive(t), id).toBe(true);
+    }
+    for (const [id, milestone] of Object.entries(LATER)) {
+      expect(bundle.traits.get(id), id).toMatchObject({ phase: 'P2', milestone });
+      expect(isLive(bundle.traits.get(id)!), id).toBe(false);
+    }
+    // The re-costing's prices (28 §2.8).
+    expect(Object.fromEntries(M1.map((id) => [id, bundle.traits.get(id)!.cost]))).toEqual({
+      cold_blooded: 10, gaston_goblin: 3, hibernator: 7, frugal: 2, shiny_things: -2, fuelled: 4, junk_food: -4,
+    });
+    expect([isLive({ phase: 'P1b' }), isLive({ phase: 'P2' }), isLive({ phase: 'P2', milestone: 2 }), isLive({ phase: 'P3', milestone: 1 })]).toEqual([true, false, false, false]);
+    expect(build.traits.some((t) => M1.includes(t) || t in LATER)).toBe(false);
+  });
+
+  it('Furnace and Cold Blooded move the sending window 4 °C and bend cold and hot days 6% and 4% or 6%', () => {
+    const run = runWith([]);
+    startAttempt(run, seed, 'flash', bundle);
+    const { geom } = routeEntry(seed, bundle);
+    const step = easy.beta_line.find((s) => s.limb === 'LH' || s.limb === 'RH')!;
+    const plain = athleteOf(run, bundle);
+    const spec = prepareMove(geom, plain, run.attempt!.climb, step.limb, step.hold)!.spec;
+    const st = { pump: 0, power: 50, focus_meter: 50, overgrip: 0, under: 0, energy: 100, skin: 100, fam: 0 };
+    const cond = conditionsOf(run, run.attempt!, bundle);
+    const mTrait = (ids: string[], day: 'cold' | 'heat' | 'mild') =>
+      evaluate(withMods(plain, aggregateMods(ids, bundle.traits)), spec, st, { ...cond, cold: day === 'cold', heat: day === 'heat' }).M_trait;
+    expect(mTrait(['furnace'], 'cold') - mTrait([], 'cold')).toBeCloseTo(0.06, 9);
+    expect(mTrait(['furnace'], 'heat') - mTrait([], 'heat')).toBeCloseTo(-0.04, 9);
+    expect(mTrait(['cold_blooded'], 'heat') - mTrait([], 'heat')).toBeCloseTo(0.06, 9);
+    expect(mTrait(['cold_blooded'], 'cold') - mTrait([], 'cold')).toBeCloseTo(-0.06, 9);
+    expect(mTrait(['furnace'], 'mild')).toBeCloseTo(mTrait([], 'mild'), 9);
+    const centre = (ids: string[]) => sendingCentre(withMods(plain, aggregateMods(ids, bundle.traits)));
+    expect([centre(['furnace']) - centre([]), centre(['cold_blooded']) - centre([])]).toEqual([-4, 4]);
+  });
+
+  it('Gaston Goblin: gastons and sidepulls bend 8% and 4%, and shoulders start two points looser', () => {
+    const mods = aggregateMods(['gaston_goblin'], bundle.traits);
+    expect(mods.hold_mult).toEqual({ gaston: 1.08, sidepull: 1.04 });
+    expect(runOf(['gaston_goblin']).attrs.shoulder_mobility.value - base.attrs.shoulder_mobility.value).toBe(2);
+  });
+
+  it('Bounce Back and Brittle start resilience ten points either way; Hibernator, Fuelled and Junk Food move the energy cap', () => {
+    expect(runOf(['bounce_back']).attrs.resilience.value - base.attrs.resilience.value).toBe(10);
+    expect(runOf(['brittle']).attrs.resilience.value - base.attrs.resilience.value).toBe(-10);
+    expect(runOf(['hibernator']).attrs.sleep_hygiene.value - base.attrs.sleep_hygiene.value).toBe(10);
+    expect(energyCap(runOf(['hibernator']))).toBeGreaterThan(energyCap(base));
+    expect(runOf(['fuelled']).attrs.nutrition.value - base.attrs.nutrition.value).toBe(10);
+    expect(energyCap(runOf(['junk_food']))).toBeLessThan(energyCap(base));
+  });
+
+  it('Frugal lives on 10% less a day, Shiny Things on 15% more', () => {
+    const cost = dailyCost(base, bundle);
+    expect(dailyCost(runOf(['frugal']), bundle)).toBe(Math.round(cost * 0.9));
+    expect(dailyCost(runOf(['shiny_things']), bundle)).toBe(Math.round(cost * 1.15));
   });
 });

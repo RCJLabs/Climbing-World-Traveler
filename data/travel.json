@@ -1,11 +1,7 @@
 {
   "hubs": [
-    { "id": "hub_paris", "name": "Paris", "country": "FR", "lat": 48.86, "lon": 2.35, "airport": true },
-    { "id": "hub_athens", "name": "Athens", "country": "GR", "lat": 37.98, "lon": 23.73, "airport": true }
+    {"id":"hub_paris","name":"Paris","country":"FR","lat":48.86,"lon":2.35,"airport":true},
+    {"id":"hub_athens","name":"Athens","country":"GR","lat":37.98,"lon":23.73,"airport":true}
   ],
-  "edges": [
-    { "from": "fontainebleau", "to": "hub_paris", "mode": "train", "cost": 45, "days": 0 },
-    { "from": "hub_paris", "to": "hub_athens", "mode": "fly", "cost": 160, "days": 1 },
-    { "from": "hub_athens", "to": "kalymnos", "mode": "fly", "cost": 75, "days": 1 }
-  ]
+  "edges": [{"from":"hub_paris","to":"hub_athens","mode":"fly","cost":160,"days":1}]
 }

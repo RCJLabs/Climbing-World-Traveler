@@ -1,21 +1,29 @@
 // Title / menu: continue a saved run, start a new climber, Hall of Fame, settings.
 import type { RunState } from '../../sim/state';
 import { Seg, Top } from '../components';
-import { grade, gradeIn } from '../format';
+import { climbsLabel, grade, gradeAt } from '../format';
 import type { RunSummary } from '../../sim/types';
+import { cannotContinue } from '../../save/session';
+import { CURRENT_MILESTONE, CURRENT_PHASE, isLive } from '../../sim/character';
 
 /** A finished run's best: its hardest boulder, its hardest route, or both (P1b). Older entries have no route fields. */
 const hardestLine = (s: RunSummary): string => {
-  const parts = [s.hardest ? grade(s.hardest) : '', s.hardest_route ? gradeIn(s.hardest_route, true) : ''].filter(Boolean);
+  const parts = [s.hardest ? grade(s.hardest) : '', s.hardest_route ? gradeAt(s.hardest_route, 'sport') : ''].filter(Boolean);
   return parts.length ? parts.join(' · ') : '—';
 };
 import { act, continueRun, data, deleteRun, goto, meta, runs, saveSettings, settings, storageNote } from '../store';
+
+/** The build and its world, for the title: the phase and milestone, and the live crags by name while they are few. */
+function buildLine(): string {
+  const crags = [...data.crags.values()].filter(isLive);
+  return `${CURRENT_PHASE} M${CURRENT_MILESTONE} · ${crags.length <= 3 ? crags.map((c) => c.name).join(' · ') : `${crags.length} crags`}`;
+}
 
 export function Title({ current }: { current: RunState | null }) {
   const s = settings.value;
   return (
     <div class="screen">
-      <Top kicker="P1a · Fontainebleau" title="Climbing World Traveler">
+      <Top kicker={buildLine()} title="Climbing World Traveler">
         <span class="small muted">Build a climber. Plan the training. Watch the sends.</span>
       </Top>
       <div class="scroll">
@@ -27,9 +35,9 @@ export function Title({ current }: { current: RunState | null }) {
           <div key={r.id} class="card">
             <div class="row between"><span class="card-title">{r.title}</span><span class="tiny muted mono">day {r.day + 1}</span></div>
             <span class="tiny muted">{r.summary ? `Finished · ${r.summary.end_reason} · hardest ${hardestLine(r.summary)}` : `Last played ${new Date(r.last_played).toLocaleDateString()}`} · seed {r.run_seed}</span>
-            {r.data_version !== data.version && <span class="tiny warn">Made with an older version of the game, so it can't be continued. Its Hall of Fame entry is kept.</span>}
+            {cannotContinue(r, data) && <span class="tiny warn">{cannotContinue(r, data)} It can't be continued; its Hall of Fame entry is kept.</span>}
             <div class="row">
-              <button class="btn small" disabled={r.data_version !== data.version} onClick={() => continueRun(r.id)}>{r.summary ? 'View' : 'Continue'}</button>
+              <button class="btn small" disabled={!!cannotContinue(r, data)} onClick={() => continueRun(r.id)}>{r.summary ? 'View' : 'Continue'}</button>
               <button class="btn small" onClick={() => { if (confirm(`Delete ${r.title}? This cannot be undone.`)) void deleteRun(r.id); }}>Delete</button>
             </div>
           </div>
@@ -42,7 +50,7 @@ export function Title({ current }: { current: RunState | null }) {
         {current && !current.ended && (
           <button class="btn" onClick={() => { if (confirm(`Retire ${current.name}? The run ends and goes into the Hall of Fame.`)) void act({ t: 'retire' }).then((ok) => ok && goto({ name: 'summary' })); }}>Retire {current.name}</button>
         )}
-        <p class="tiny muted">Build a climber, plan the training, and the climbing plays out by itself. Real places, fictional people. Bouldering at Fontainebleau and sport climbing on Kalymnos in this version; the rest of the world comes later.</p>
+        <p class="tiny muted">Build a climber, plan the training, and the climbing plays out by itself. Real places, fictional people. In this version: {[...data.crags.values()].filter(isLive).map((c) => `${climbsLabel(c, data)} at ${c.name}`).join(', ')}; the rest of the world comes later.</p>
         <p class="tiny muted mono">Version {__BUILD__.sha} · {__BUILD__.date}</p>
       </div>
     </div>

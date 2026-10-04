@@ -7,9 +7,16 @@ import type { Action, RunSummary } from '../sim/types';
 
 export interface RunRecord {
   id: string;
+  /** The reducer version the run's state and log are at (state.ts REDUCER_VERSION). */
   version: number;
   run_seed: string;
   data_version: string;
+  /** The content hash of each crag the run has played (27 §4, data/manifest.json). Absent on runs saved before P2 M1. */
+  hashes?: Record<string, string>;
+  /** Where the climber is, so the app can load that crag's routes before it loads the run (27 M1). Absent before P2 M1. */
+  crag?: string;
+  /** The action index of the run's base state, a snapshot carried forward from an older version: the actions before it are kept for export but never replayed (27 §4). Absent: 0. */
+  base?: number;
   created: string;
   title: string;
   last_played: string;
@@ -47,6 +54,11 @@ export interface SaveBackend {
   /** Write the run record and several action chunks in a single transaction (a simulated stretch of days, docs/24 §2). */
   appendChunks(record: RunRecord, chunks: readonly (readonly [number, readonly Action[]])[]): Promise<void>;
   getChunks(id: string, fromChunk: number): Promise<Action[][]>;
+  /**
+   * Carry a run forward (27 §4), in one transaction: write the record, cut the log after its base (chunk `chunkIndex`
+   * becomes `chunk`, and every chunk after it goes), and replace every snapshot with the base state, at `record.base`.
+   */
+  rebase(record: RunRecord, chunkIndex: number, chunk: readonly Action[], state: RunState): Promise<void>;
   putSnapshot(id: string, actionIndex: number, state: RunState, keep: number): Promise<void>;
   latestSnapshot(id: string): Promise<{ index: number; state: RunState } | undefined>;
   deleteSnapshots(id: string): Promise<void>;
@@ -82,6 +94,13 @@ export class MemoryBackend implements SaveBackend {
     const out: Action[][] = [];
     for (let i = fromChunk; this.chunks.has(`${id}|${i}`); i++) out.push(structuredClone(this.chunks.get(`${id}|${i}`)!));
     return out;
+  }
+  async rebase(record: RunRecord, chunkIndex: number, chunk: readonly Action[], state: RunState) {
+    this.writes++;
+    this.runs.set(record.id, structuredClone(record));
+    this.chunks.set(`${record.id}|${chunkIndex}`, structuredClone([...chunk]));
+    for (let i = chunkIndex + 1; this.chunks.delete(`${record.id}|${i}`); i++);
+    this.snaps.set(record.id, new Map([[record.base ?? 0, structuredClone(state)]]));
   }
   async putSnapshot(id: string, actionIndex: number, state: RunState, keep: number) {
     const m = this.snaps.get(id) ?? new Map<number, RunState>();
@@ -153,6 +172,22 @@ export class IdbBackend implements SaveBackend {
   async getChunks(id: string, fromChunk: number) {
     const rows = await this.db.getAll('actions', IDBKeyRange.bound([id, fromChunk], [id, Number.MAX_SAFE_INTEGER]));
     return rows.sort((a, b) => a.chunk - b.chunk).map((r) => r.actions);
+  }
+
+  async rebase(record: RunRecord, chunkIndex: number, chunk: readonly Action[], state: RunState) {
+    const id = record.id;
+    const tx = this.db.transaction(['runs', 'actions', 'snapshots'], 'readwrite');
+    const actions = tx.objectStore('actions');
+    const snaps = tx.objectStore('snapshots');
+    // Requests in a transaction run in order: the snapshots go before the base is written.
+    await Promise.all([
+      tx.objectStore('runs').put(record),
+      actions.put({ run: id, chunk: chunkIndex, actions: [...chunk] }),
+      actions.delete(IDBKeyRange.bound([id, chunkIndex + 1], [id, Number.MAX_SAFE_INTEGER])),
+      snaps.delete(IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER])),
+      snaps.put({ run: id, index: record.base ?? 0, state }),
+      tx.done,
+    ]);
   }
 
   async putSnapshot(id: string, actionIndex: number, state: RunState, keep: number) {

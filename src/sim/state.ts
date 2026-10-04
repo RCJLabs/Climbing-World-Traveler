@@ -1,6 +1,7 @@
 // The materialised run state (schemas §8 `WorldState`, typed with the first reducer version as schemas'
 // open question asks). Plain JSON: it is snapshotted to IndexedDB and rebuilt by replaying the action log.
 
+import type { Climb } from './discipline';
 import type { CommitOutcome } from './resolve';
 import type { ClimbState } from './wall';
 import type { DayWeather, RainMark } from './weather';
@@ -8,8 +9,11 @@ import type {
   AttemptMode, AttrId, Attributes, BlockKind, Body, Discipline, EvolveCounter, Limb, MoveClass, RunOptions, RunSummary, Tick, WeekPlan,
 } from './types';
 
-/** Reducer version (18 §5). Bump when replaying an old log through the new reducer would change outcomes. */
-export const REDUCER_VERSION = 9;
+/**
+ * Reducer version (18 §5, 27 §4). Bump when the state's shape changes or an old log would play out differently, and
+ * add the adapter from the version before (save/adapt.ts) with a test on an archived save of it.
+ */
+export const REDUCER_VERSION = 10;
 
 export interface Resources {
   energy: number;
@@ -219,10 +223,10 @@ export interface JournalEntry {
 /** A weekly point on the climber's progress (docs/24 §4), written at each week boundary. */
 export interface WeekPoint {
   day: number;
-  /** Grade estimate from the last climbing session, if there was one yet: boulders or routes, by `crag`. */
-  E: number | null;
-  /** Where the climber was (P1b): the estimate is a route grade at a sport crag. Absent on older points. */
-  crag?: string;
+  /** The week's estimates where the climber was, one per discipline the crag climbs (27 M1). */
+  est: Partial<Record<Climb, number>> | null;
+  /** Where the climber was. */
+  crag: string;
   pb: number;
   /** Best route ticked (P1b). */
   pb_route?: number;
@@ -282,8 +286,11 @@ export interface RunState {
   actions: number;
   /** The training week simulated days follow (docs/24 §2). */
   plan: WeekPlan;
-  /** Unrounded grade estimate at the start of the latest climbing session. */
-  est: number | null;
+  /**
+   * The week's grade estimates at the crag, one per discipline it climbs (06 §5, 27 M1), unrounded: worked out at
+   * creation, on arrival and at each week's start. Null until then.
+   */
+  est: Partial<Record<Climb, number>> | null;
   history: WeekPoint[];
 }
 

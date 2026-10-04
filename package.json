@@ -14,7 +14,9 @@
     "calibrate": "tsx scripts/calibrate.ts",
     "harness": "tsx scripts/bundled.ts scripts/harness.ts",
     "recost": "tsx scripts/bundled.ts scripts/recost.ts",
-    "benchmarks": "tsx scripts/build-benchmarks.ts"
+    "benchmarks": "tsx scripts/build-benchmarks.ts",
+    "manifest": "tsx scripts/build-manifest.ts",
+    "size": "tsx scripts/check-size.ts"
   },
   "dependencies": {
     "@preact/signals": "^2.0.0",
@@ -27,6 +29,7 @@
     "@preact/preset-vite": "^2.10.0",
     "@types/node": "^22.0.0",
     "esbuild": "^0.25.12",
+    "fake-indexeddb": "^6.2.5",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",

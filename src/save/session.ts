@@ -1,12 +1,16 @@
-// A live, saved run (docs/18 §5). Every action is validated by the reducer, then appended to the log in the
-// same write as the record update, and only then becomes the visible state. Snapshots every 200 actions and
-// at day boundaries; load is the newest snapshot plus a replay of the tail; a reducer-version bump discards
-// snapshots and replays the whole log.
+// A live, saved run (docs/18 §5, 27 §4). Every action is validated by the reducer, then appended to the log in the
+// same write as the record update, and only then becomes the visible state. Snapshots every 200 actions, at day
+// boundaries and after a trip; load is the newest snapshot plus a replay of the tail. A run saved by an older version
+// of the game, or one whose played crags' content has changed, is carried forward from its newest snapshot instead
+// (adapt.ts): the adapted snapshot becomes the run's base, and the actions after it, part of a day at most, go.
 
 import { createRun, reduce, replay } from '../sim/run';
 import { REDUCER_VERSION, type RunState } from '../sim/state';
 import type { Action, DataBundle, NewRunSpec } from '../sim/types';
+import { adaptContent, adaptState, carryNeed, changedCrags, contentHashes, IncompatibleRun } from './adapt';
 import type { MetaState, RunRecord, SaveBackend } from './backend';
+
+export { IncompatibleRun } from './adapt';
 
 export const CHUNK = 500;
 export const SNAPSHOT_EVERY = 200;
@@ -14,13 +18,29 @@ export const SNAPSHOTS_KEPT = 2;
 
 export interface ExportFile {
   format: 'cwt-run';
+  /** 1: the log alone, replayed whole on import. 2 (P2 M1): with the newest snapshot, the import's base. */
   version: number;
   record: RunRecord;
   actions: Action[];
+  base?: { index: number; state: RunState };
 }
 
-/** A saved run whose problems came from a different content or generator version and so cannot be replayed. */
-export class IncompatibleRun extends Error {}
+/**
+ * The crags whose routes must be loaded before a saved run is: where the climber is, or for a run saved before records
+ * said so, every crag it has played, or every crag.
+ */
+export function cragsToLoad(record: RunRecord, bundle: Pick<DataBundle, 'crags'>): string[] {
+  const ids = record.crag ? [record.crag] : Object.keys(record.hashes ?? {});
+  return (ids.length ? ids : [...bundle.crags.keys()]).filter((id) => bundle.crags.has(id));
+}
+
+/** Why a saved run cannot be continued in this build, or null; the run list shows it without loading the run. */
+export function cannotContinue(record: RunRecord, bundle: Pick<DataBundle, 'version' | 'hashes'>): string | null {
+  const need = carryNeed(record, bundle);
+  return need === 'carry' ? null : need;
+}
+
+const runId = (seed: string, now: Date): string => `run_${now.getTime().toString(36)}_${seed.replace(/[^a-z0-9]/gi, '').slice(0, 12)}`;
 
 export class RunSession {
   private constructor(
@@ -38,9 +58,9 @@ export class RunSession {
   static async create(backend: SaveBackend, bundle: DataBundle, seed: string, spec: NewRunSpec, now = new Date()): Promise<RunSession> {
     const state = createRun(seed, spec, bundle);
     const first: Action = { t: 'new_run', seed, spec };
-    const id = `run_${now.getTime().toString(36)}_${seed.replace(/[^a-z0-9]/gi, '').slice(0, 12)}`;
+    const id = runId(seed, now);
     const record: RunRecord = {
-      id, version: REDUCER_VERSION, run_seed: seed, data_version: bundle.version, created: now.toISOString(),
+      id, version: REDUCER_VERSION, run_seed: seed, data_version: bundle.version, hashes: contentHashes(state, bundle), crag: state.crag, created: now.toISOString(),
       title: spec.name, last_played: now.toISOString(), action_count: 1, day: 0,
     };
     const s = new RunSession(backend, bundle, record, state, [first], 0, 1);
@@ -53,34 +73,43 @@ export class RunSession {
   static async load(backend: SaveBackend, bundle: DataBundle, id: string): Promise<RunSession> {
     const record = await backend.getRun(id);
     if (!record) throw new Error(`no saved run ${id}`);
-    // Procedural problems are rebuilt from their seeds, so a log from another content version would replay moves
-    // onto different holds or under different reach rules. P1a keeps no old versions; such runs stay listed but
-    // cannot continue.
-    if (record.data_version !== bundle.version) {
-      throw new IncompatibleRun(`made with game data ${record.data_version}; this version (${bundle.version}) builds or plays its problems differently`);
-    }
-    const stale = record.version !== REDUCER_VERSION;
-    if (stale) await backend.deleteSnapshots(id);
-    const snap = stale ? undefined : await backend.latestSnapshot(id);
+    const need = carryNeed(record, bundle);
+    if (need === 'carry') return RunSession.carry(backend, bundle, record);
+    if (need !== null) throw new IncompatibleRun(need);
+    const snap = await backend.latestSnapshot(id);
+    // A run carried forward cannot replay the actions before its base: they were played by an older version.
+    if ((record.base ?? 0) > (snap?.index ?? 0)) throw new IncompatibleRun('Its saved state is missing.');
     const fromChunk = snap ? Math.floor(snap.index / CHUNK) : 0;
     const chunks = await backend.getChunks(id, fromChunk);
     const tail = chunks.flat();
-    const base = fromChunk * CHUNK;
-    let state: RunState;
-    if (snap) {
-      // The tail starts at action `base`; the snapshot is the state after actions [0, snap.index).
-      state = replay(tail, bundle, { state: snap.state, index: snap.index - base });
-    } else {
-      state = replay(tail, bundle);
-    }
+    const start = fromChunk * CHUNK;
+    // The tail starts at action `start`; the snapshot is the state after actions [0, snap.index).
+    const state = snap ? replay(tail, bundle, { state: snap.state, index: snap.index - start }) : replay(tail, bundle);
     const lastChunk = chunks.length ? chunks[chunks.length - 1]! : [];
     const chunkIndex = fromChunk + Math.max(0, chunks.length - 1);
-    const s = new RunSession(backend, bundle, record, state, [...lastChunk], chunkIndex, 0);
-    if (stale) {
-      s.record = { ...record, version: REDUCER_VERSION };
-      await backend.putSnapshot(id, record.action_count, state, SNAPSHOTS_KEPT);
-    }
-    return s;
+    return new RunSession(backend, bundle, record, state, [...lastChunk], chunkIndex, 0);
+  }
+
+  /**
+   * Carry a run forward to this version (27 §4): its newest snapshot through the reducer's adapters, then the crags
+   * whose content changed, becomes the run's base. The actions after the snapshot, played under the old version, are
+   * dropped, and the log is cut there; the ones before stay for export.
+   */
+  private static async carry(backend: SaveBackend, bundle: DataBundle, record: RunRecord): Promise<RunSession> {
+    const snap = await backend.latestSnapshot(record.id);
+    if (!snap || snap.index < (record.base ?? 0)) throw new IncompatibleRun('There is no saved state to carry forward.');
+    const state = adaptState(snap.state, record.version, bundle);
+    if (!bundle.crags.has(state.crag)) throw new IncompatibleRun(`The climber is at ${state.crag}, which this version of the game does not have.`);
+    adaptContent(state, changedCrags(record, state, bundle), bundle);
+    if (record.action_count > snap.index) state.journal.push({ day: state.day, text: 'The game was updated, and today picks up from the last save.', tone: 'info' });
+    const index = snap.index;
+    const chunkIndex = Math.floor(index / CHUNK);
+    const head = ((await backend.getChunks(record.id, chunkIndex))[0] ?? []).slice(0, index - chunkIndex * CHUNK);
+    const next: RunRecord = {
+      ...record, version: REDUCER_VERSION, data_version: bundle.version, hashes: contentHashes(state, bundle), crag: state.crag, base: index, action_count: index, day: state.day,
+    };
+    await backend.rebase(next, chunkIndex, head, state);
+    return new RunSession(backend, bundle, next, state, head, chunkIndex, 0);
   }
 
   /** Apply an action: reduce (throws on an invalid action, nothing is written), persist, then expose. */
@@ -114,7 +143,7 @@ export class RunSession {
     writes.push([chunkIndex, chunk]);
     const record: RunRecord = {
       ...this.record, last_played: now.toISOString(), action_count: this.record.action_count + actions.length, day: next.day,
-      ...(next.ended ? { summary: next.ended } : {}),
+      hashes: contentHashes(next, this.bundle), crag: next.crag, ...(next.ended ? { summary: next.ended } : {}),
     };
     await this.backend.appendChunks(record, writes);
     this.chunk = chunk;
@@ -122,7 +151,7 @@ export class RunSession {
     this.record = record;
     this.state = next;
     this.sinceSnapshot += actions.length;
-    if (this.sinceSnapshot >= SNAPSHOT_EVERY || actions.some((a) => a.t === 'end_day') || next.ended) {
+    if (this.sinceSnapshot >= SNAPSHOT_EVERY || actions.some((a) => a.t === 'end_day' || a.t === 'travel') || next.ended) {
       await this.backend.putSnapshot(this.id, record.action_count, next, SNAPSHOTS_KEPT);
       this.sinceSnapshot = 0;
     }
@@ -136,7 +165,8 @@ export class RunSession {
 
   async exportFile(): Promise<ExportFile> {
     const chunks = await this.backend.getChunks(this.id, 0);
-    return { format: 'cwt-run', version: 1, record: this.record, actions: chunks.flat() };
+    const base = await this.backend.latestSnapshot(this.id);
+    return { format: 'cwt-run', version: 2, record: this.record, actions: chunks.flat(), ...(base ? { base } : {}) };
   }
 }
 
@@ -153,10 +183,24 @@ export async function recordRunEnd(backend: SaveBackend, run: RunState): Promise
   return meta;
 }
 
-/** Import a run from an export file: validate the shape, replay the whole log, write it as a new run. */
+/**
+ * Import a run from an export file as a new run. A file with a snapshot is restored as saved and loaded, so a run from
+ * an older version is carried forward like any other; a file without one (version 1) is replayed whole, which only a
+ * run of this reducer and data allows.
+ */
 export async function importRun(backend: SaveBackend, bundle: DataBundle, file: ExportFile, now = new Date()): Promise<RunSession> {
   if (file.format !== 'cwt-run' || !Array.isArray(file.actions) || file.actions[0]?.t !== 'new_run') throw new Error('not a run export');
   const first = file.actions[0];
+  if (file.base) {
+    if (file.base.index > file.actions.length || file.base.index < (file.record.base ?? 0)) throw new Error('not a run export');
+    const id = runId(first.seed, now);
+    const record: RunRecord = { ...file.record, id, last_played: now.toISOString(), action_count: file.actions.length };
+    const chunks = Array.from({ length: Math.ceil(file.actions.length / CHUNK) }, (_, i) => [i, file.actions.slice(i * CHUNK, (i + 1) * CHUNK)] as const);
+    await backend.appendChunks(record, chunks);
+    await backend.putSnapshot(id, file.base.index, file.base.state, SNAPSHOTS_KEPT);
+    return RunSession.load(backend, bundle, id);
+  }
+  if (carryNeed(file.record, bundle) !== null) throw new IncompatibleRun('It was exported by an older version of the game without a saved state, so it cannot be carried forward.');
   const session = await RunSession.create(backend, bundle, first.seed, first.spec, now);
   for (const a of file.actions.slice(1)) await session.dispatch(a, now);
   return session;

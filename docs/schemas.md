@@ -215,6 +215,7 @@ interface Trait {
   cost: number;                   // creation traits: +2..+10 cost, -2..-10 refund; quirks, hidden and acquired: 0
   point_mass?: number;            // hidden traits only: signed weight used to balance the hidden pool (03 §1.6)
   phase: Phase;
+  milestone?: number;                    // P2 M1: the milestone of its phase that makes it live; a row of the current phase without one waits for the phase's end (27 §1)
   tags: Tag[];
   effect: TraitEffect;
   excludes: string[];             // trait ids; reciprocal for creation traits, one-way allowed for hidden
@@ -234,6 +235,7 @@ interface Background {
   id: string;
   name: string;
   phase: Phase;
+  milestone?: number;                    // as on Trait
   unlock?: string;                              // meta unlock required to pick it (16 §4.1), e.g. Farm Kid in P1a
   point_bonus: number;                          // 0..6
   age_range: [number, number];                  // inclusive age_start window the background allows
@@ -352,8 +354,10 @@ interface Route {
 }
 
 interface Hub { id: string; name: string; country: string; lat: number; lon: number; airport: boolean; }   // id matches ^hub_; country is ISO 3166 alpha-2
-// A TravelEdge is known by the id `${from}__${to}__${mode}`. Edges run both ways. P1b's travel action names the destination
-// crag and the reducer takes the cheapest path (fewer days on a tie); a later action can name edges for a chosen path.
+// A TravelEdge is known by the id `${from}__${to}__${mode}`. Edges run both ways. data/travel.json holds the hubs and the
+// legs between hubs; a crag's leg to its hub is its `last_mile` (P2 M1). A travel action names its legs by edge id, so a
+// replay takes the trip taken; one without legs (saved before P2 M1) takes the cheapest path, fewer days then ids
+// breaking ties.
 ```
 
 ---
@@ -398,20 +402,21 @@ interface CragStyleProfile {
   tags: Tag[];
 }
 
-// A crag-flavoured name bank (06 §2.9), keyed by CragStyleProfile.name_bank in data/names.json.
+// A crag-flavoured name bank (06 §2.9), keyed by CragStyleProfile.name_bank in its crag folder's names.json (20 §1).
 interface NameBank {
   lang?: 'fr' | 'en';               // the bank's word order: French ('{masc} {adj_masc}') or English ('{adj} {noun}'), P1b
   masc: string[]; fem: string[]; adj_masc: string[]; adj_fem: string[]; place: string[]; suffix: string[];
 }
 
 interface Crag {
-  id: string;
+  id: string;                            // its folder is data/crags/<id>/ (20 §1)
   name: string;
   country: string; region: string;
   lat: number; lon: number; altitude_m: number;
-  rock: RockType;
-  disciplines: Discipline[];
+  rock: RockType;                        // the rock it is known by: one of its sectors' (§9 rule 20); a sector's rock is its styles'
+  disciplines: Discipline[];             // what its sectors climb (P2 M1): a sector's discipline is its styles' (bolted: sport, else boulder)
   di_range: [number, number];
+  grades?: { boulder?: 'font' | 'v'; sport?: 'french' | 'yds' };   // P2 M1: the systems it shows its grades in (08); Font and French where unset
   season: Record<1|2|3|4|5|6|7|8|9|10|11|12, 0 | 1 | 2 | 3>;   // 0 closed/unclimbable .. 3 prime
   climate: Climate;
   cost_tier: 1 | 2 | 3 | 4 | 5;
@@ -435,11 +440,16 @@ interface Crag {
   }[];
   signature_routes: string[];            // route ids
   style_profiles: string[];              // CragStyleProfile ids
-  npc_archetypes: string[];
+  npc_archetypes: NpcArchetype[];        // P2 M1: 'local_legend' | 'developer' | 'dirtbag_lifer' | 'weekend_warrior' | 'comp_kid' | 'international_pro' | 'guide' | 'setter' | 'photographer' | 'van_couple' | 'elder_trad' | 'rookie' | 'gym_rat' (15 §1.1)
   hub: string;                           // travel hub id
+  last_mile: { mode: TravelEdge['mode']; cost: number; days: number };   // P2 M1: the leg between the crag and its hub, either way, kept in the crag's folder
+  look: { scenery: 'forest' | 'sea' };   // P2 M1: how the cartoon wall dresses its rock (25 §10.8)
   character: string;
   phase: Phase;
+  milestone?: number;                    // as on Trait
 }
+// As built (P2 M1) a crag's style profiles and signatures are listed per sector, not on the crag, and climate is the
+// twelve months only; data/manifest.json holds each crag folder's content hash (cyrb53 of its files' text, 20 §1).
 
 interface AccessRule {
   kind: 'permit' | 'daily_cap' | 'reservation' | 'wet_rock' | 'seasonal_closure' | 'cultural' | 'raptor' | 'fee' | 'visa';
@@ -547,7 +557,7 @@ interface NPC extends Climber {
 
 interface Relationship { trust: number; familiarity: number; rivalry: number; romance?: number; last_seen_day: number; }
 
-interface Tick { route: string; day: number; style: 'onsight' | 'flash' | 'redpoint' | 'repeat' | 'attempt'; attempts: number; di: number; discipline?: Discipline; }   // discipline set on routes (P1b); unset = a boulder
+interface Tick { route: string; day: number; style: 'onsight' | 'flash' | 'redpoint' | 'repeat' | 'attempt'; attempts: number; di: number; discipline?: Discipline; crag?: string; }   // discipline set on routes (P1b); unset = a boulder. crag (P2 M1): where it was climbed, whose grading system shows it
 ```
 
 ---
@@ -556,14 +566,19 @@ interface Tick { route: string; day: number; style: 'onsight' | 'flash' | 'redpo
 
 ```ts
 interface SaveGame {
-  version: number;                       // reducer/schema version, migrated by replay (18 §5)
-  data_version: string;                  // content bundle that produced the run; replay selects it
+  version: number;                       // reducer version the state and log are at; carried forward by adapters, never by replay (27 §4)
+  data_version: string;                  // the rules every crag shares (DATA_VERSION)
+  hashes?: Record<string, string>;       // P2 M1: content hash of each crag the run has played (data/manifest.json)
+  base?: number;                         // P2 M1: action index of a snapshot carried forward from an older version; actions before it are kept for export, never replayed
+  crag?: string;                         // P2 M1: where the climber is, whose routes load before the run does
   run_seed: string;
   created: string;                       // ISO date
   actions: Action[];                     // full action log since last snapshot
   snapshot?: WorldState;                 // periodic materialised state
   snapshot_action_index?: number;
 }
+// As built this is the RunRecord (src/save/backend.ts), with the log in chunks and snapshots beside it. An export file
+// (version 2, P2 M1) carries the record, the whole log and the newest snapshot.
 
 // Account-level state that lives outside any run (18 §5 `meta` store). Never written by run actions.
 interface MetaState {
@@ -585,7 +600,7 @@ type Action =
   | { t: 'end_day' }
   | { t: 'attempt'; route_seed: string; mode: 'onsight' | 'flash' | 'redpoint' | 'work' }   // a whole simulated attempt (docs/24 §3.1)
   | { t: 'set_plan'; plan: WeekPlan }                   // the training week (docs/24 §2); changes no outcome by itself
-  | { t: 'travel'; to: string }                         // P1b: go to another live crag by the cheapest path; the fare is paid and the trip's days pass (09 §8)
+  | { t: 'travel'; to: string; legs?: string[] }       // P1b: go to another live crag; the fare is paid and the trip's days pass (09 §8). legs (P2 M1): the path's edge ids
   | { t: 'retire' };
 // Retired with docs/24 (data version p1a-13): attempt_start, move (with a Reach or Balance perf), commit (with a
 // Swing and Catch), wall_action and settings (auto_commit, sweep_speed, pause_drift). Runs saved with them cannot continue.
@@ -620,9 +635,10 @@ interface WeekPlan {
 }
 
 // A weekly progress point in RunState.history (docs/24 §4), written at creation and every seventh day.
-interface WeekPoint { day: number; E: number | null; pb: number; ticks: number; attrs: Partial<Record<AttrId, number>>; crag?: string; pb_route?: number }
-// RunState also carries plan: WeekPlan, est: number | null (the week's unrounded estimate, a route grade at a sport
-// crag: worked out at creation, on arrival and at each week's start since P2, 06 §5) and history: WeekPoint[]. SessionState carries tried: Record<route_seed, { n: number; sent: boolean }> for
+interface WeekPoint { day: number; est: Partial<Record<'boulder' | 'sport', number>> | null; pb: number; ticks: number; attrs: Partial<Record<AttrId, number>>; crag: string; pb_route?: number }
+// RunState also carries plan: WeekPlan, est: Partial<Record<'boulder' | 'sport', number>> | null (the week's unrounded
+// estimates at the crag, one per discipline it climbs, P2 M1: worked out at creation, on arrival and at each week's start,
+// 06 §5) and history: WeekPoint[]. Reducer 10 (P2 M1) has these shapes; reducer 9 had one number in est and E. SessionState carries tried: Record<route_seed, { n: number; sent: boolean }> for
 // the tactics. P1b adds pb_route: number (the hardest route sent; pb stays the boulder one), visited: string[] (crag ids
 // in the order first reached), counters.pyramid_route (the route pyramid beside counters.pyramid), DaySummary.travel?:
 // string (the destination on a day on the move) and ProjectState.discipline?: Discipline (set on routes).
@@ -668,12 +684,15 @@ interface RunSummary {                   // P1a shape (src/sim/types.ts); later 
 10. Hidden traits carry `point_mass`; the pool's positive and negative masses must be equal (03 §1.6).
 11. Every `scope`, `foreshadow`, `requires_age`, `expires` and `TraitEffect.flags` entry must be read by a system named in the trait's row; the validator keeps the flag registry from 03 §1.9. As built, a flag must be one the engine reads or one listed with the phase that will read it, and a live trait's `resource_mult` may name only resources the engine regenerates ([26 §8.1](26-p1b-implementation-notes.md)).
 12. `deprecated` entries are excluded from new-run selection and from the harness, but must still validate.
-13. A `CragStyleProfile` with `protection.kind = 'bolt'` has `protection.spacing_m` and `rest_spacing_m`; a crag whose `disciplines` include `sport` uses bolted profiles in every sector, and any other crag uses none (P1b).
+13. A `CragStyleProfile` with `protection.kind = 'bolt'` has `protection.spacing_m` and `rest_spacing_m` (P1b). From P2 M1 a crag may mix disciplines by sector (rule 20).
 14. A `CragStyleProfile`'s `di_min`, when set with `di_max`, is below it; a sector's `seep_lag_days` lies in 1..30 (P1b).
 15. The travel graph: hub ids match `^hub_`, hub countries are two letters, edge `days` are whole numbers 0..10; every edge joins known crags or hubs, and every live crag can reach every other live crag (P1b, `travelGraphErrors`).
 16. A live background starts at a live crag, and every live crag ships a benchmark set of at least 12 problems or routes (P1b).
 17. `evolves_to` appears only on `evolving` and `acquired` traits; each evolution names an existing trait or null, at least one need, each need a known `EvolveCounter` with `n ≥ 1`, and `min_weeks ≥ 0`; an evolving trait has at least one evolution.
 18. Every sector of a live crag has a catalogue: `routes` in 1..2000 (06 §5, P2).
+19. The manifest holds a current content hash for every crag folder and for nothing else, and a folder holds the crag it is named for (P2 M1, 20 §1).
+20. A sector climbs one discipline (all its styles bolted, or none) on one rock (all its styles' `rock` the same); a crag's `disciplines` are its sectors', its `rock` is one of its sectors', and `grades` names a system only for a discipline it climbs; sector ids are unique across crags (P2 M1).
+21. A crag hangs off a hub in `travel.json`, whose edges join hubs only; a crag's signatures and benchmarks are its own (P2 M1).
 
 ## Open questions
 

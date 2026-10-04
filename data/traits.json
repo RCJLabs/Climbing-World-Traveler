@@ -1511,6 +1511,60 @@
   "flavour": "Launching is a hope, not a plan."
  },
  {
+  "id": "furnace",
+  "name": "Furnace",
+  "category": "body",
+  "kind": "creation",
+  "cost": 3,
+  "phase": "P2",
+  "milestone": 5,
+  "tags": [
+   "cold",
+   "friction",
+   "wind"
+  ],
+  "effect": {
+   "condition_mult": {
+    "cold": 1.06,
+    "heat": 0.96
+   },
+   "flags": [
+    "sending_temp_shift=-4"
+   ]
+  },
+  "excludes": [
+   "cold_blooded",
+   "cold_hands"
+  ],
+  "flavour": "T-shirt in January. Suffers in Kalymnos in June."
+ },
+ {
+  "id": "cold_blooded",
+  "name": "Cold Blooded",
+  "category": "body",
+  "kind": "creation",
+  "cost": 10,
+  "phase": "P2",
+  "milestone": 1,
+  "tags": [
+   "heat",
+   "humid"
+  ],
+  "effect": {
+   "condition_mult": {
+    "heat": 1.06,
+    "cold": 0.94
+   },
+   "flags": [
+    "sending_temp_shift=+4"
+   ]
+  },
+  "excludes": [
+   "furnace"
+  ],
+  "flavour": "Thrives when everyone else has gone to the beach."
+ },
+ {
   "id": "pocket_fingers",
   "name": "Pocket Fingers",
   "category": "aptitude",
@@ -1791,6 +1845,31 @@
    "kinesthetic_learner"
   ],
   "flavour": "Gets there. Eventually. Via everywhere else."
+ },
+ {
+  "id": "gaston_goblin",
+  "name": "Gaston Goblin",
+  "category": "aptitude",
+  "kind": "creation",
+  "cost": 3,
+  "phase": "P2",
+  "milestone": 1,
+  "tags": [
+   "vertical",
+   "comp",
+   "gym"
+  ],
+  "effect": {
+   "attr_add": {
+    "shoulder_mobility": 2
+   },
+   "hold_mult": {
+    "gaston": 1.08,
+    "sidepull": 1.04
+   }
+  },
+  "excludes": [],
+  "flavour": "Opens doors nobody else can see."
  },
  {
   "id": "overthinker",
@@ -2097,6 +2176,49 @@
   "flavour": "Climbs it twice. Once with the eyes shut."
  },
  {
+  "id": "bounce_back",
+  "name": "Bounce Back",
+  "category": "mental",
+  "kind": "creation",
+  "cost": 5,
+  "phase": "P2",
+  "milestone": 3,
+  "tags": [
+   "recovery",
+   "patience"
+  ],
+  "effect": {
+   "attr_add": {
+    "resilience": 10
+   }
+  },
+  "excludes": [
+   "brittle"
+  ],
+  "flavour": "Injured in March, psyched by April."
+ },
+ {
+  "id": "brittle",
+  "name": "Brittle",
+  "category": "mental",
+  "kind": "creation",
+  "cost": -5,
+  "phase": "P2",
+  "milestone": 3,
+  "tags": [
+   "recovery"
+  ],
+  "effect": {
+   "attr_add": {
+    "resilience": -10
+   }
+  },
+  "excludes": [
+   "bounce_back"
+  ],
+  "flavour": "One bad session, one bad month."
+ },
+ {
   "id": "skin_care_routine",
   "name": "Skin Care Routine",
   "category": "lifestyle",
@@ -2115,6 +2237,113 @@
   },
   "excludes": [],
   "flavour": "Sands, files, balms. Climbs a day longer than you."
+ },
+ {
+  "id": "hibernator",
+  "name": "Hibernator",
+  "category": "lifestyle",
+  "kind": "creation",
+  "cost": 7,
+  "phase": "P2",
+  "milestone": 1,
+  "tags": [
+   "sleep",
+   "recovery"
+  ],
+  "effect": {
+   "attr_add": {
+    "sleep_hygiene": 10
+   }
+  },
+  "excludes": [
+   "insomniac"
+  ],
+  "flavour": "Nine hours in a tent on a slope. Refreshed."
+ },
+ {
+  "id": "frugal",
+  "name": "Frugal",
+  "category": "lifestyle",
+  "kind": "creation",
+  "cost": 2,
+  "phase": "P2",
+  "milestone": 1,
+  "tags": [
+   "money"
+  ],
+  "effect": {
+   "cost_mult": 0.9
+  },
+  "excludes": [
+   "dirtbag",
+   "trust_fund",
+   "shiny_things"
+  ],
+  "flavour": "Resoles twice before buying."
+ },
+ {
+  "id": "shiny_things",
+  "name": "Shiny Things",
+  "category": "lifestyle",
+  "kind": "creation",
+  "cost": -2,
+  "phase": "P2",
+  "milestone": 1,
+  "tags": [
+   "money"
+  ],
+  "effect": {
+   "cost_mult": 1.15
+  },
+  "excludes": [
+   "frugal",
+   "dirtbag"
+  ],
+  "flavour": "Needed the new pad. The old pad was fine."
+ },
+ {
+  "id": "fuelled",
+  "name": "Fuelled",
+  "category": "lifestyle",
+  "kind": "creation",
+  "cost": 4,
+  "phase": "P2",
+  "milestone": 1,
+  "tags": [
+   "nutrition",
+   "recovery"
+  ],
+  "effect": {
+   "attr_add": {
+    "nutrition": 10
+   }
+  },
+  "excludes": [
+   "junk_food"
+  ],
+  "flavour": "Meal-preps in a van. Somehow."
+ },
+ {
+  "id": "junk_food",
+  "name": "Junk Food",
+  "category": "lifestyle",
+  "kind": "creation",
+  "cost": -4,
+  "phase": "P2",
+  "milestone": 1,
+  "tags": [
+   "nutrition",
+   "weight"
+  ],
+  "effect": {
+   "attr_add": {
+    "nutrition": -10
+   }
+  },
+  "excludes": [
+   "fuelled"
+  ],
+  "flavour": "Crag snacks are a food group."
  },
  {
   "id": "climber_parents",

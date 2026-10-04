@@ -42,6 +42,7 @@ export function TabBar() {
     ['planner', 'Planner', () => goto({ name: 'planner' })],
     ['crag', 'Crag', () => goto({ name: 'crag' })],
     ['character', 'Climber', () => goto({ name: 'character' })],
+    ['journal', 'Journal', () => goto({ name: 'journal' })],
     ['title', 'Menu', () => goto({ name: 'title' })],
   ];
   return (

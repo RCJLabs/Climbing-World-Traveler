@@ -36,11 +36,11 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // Generated route data changes with every generator change and is most of the app's size; its own chunks keep
-        // the code chunk under Vite's 500 kB warning and let each be re-cached without the others. One chunk per crag:
-        // Workbox precaches no file over 2 MiB, and both crags in one chunk came within 0.17 MB of it (docs/26 §8).
+        // A crag's routes (its signatures and benchmarks) are one lazy chunk, fetched when a run gets there (27 M1); the
+        // crag's record, styles and name banks stay in the main chunk. Workbox precaches no file over 2 MiB (docs/26 §8),
+        // and the size gate holds every crag chunk under its budget (scripts/check-size.ts).
         manualChunks: (id) => {
-          const crag = /\/data\/routes\/([a-z_]+?)_(?:benchmarks|signatures)\.json/.exec(id)?.[1];
+          const crag = /\/data\/crags\/([a-z0-9_]+)\/(?:benchmarks|signatures)\.json/.exec(id)?.[1];
           return crag ? `routes-${crag}` : undefined;
         },
       },

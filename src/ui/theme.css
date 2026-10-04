@@ -88,7 +88,7 @@ button.card:hover { border-color: #55558a; }
 .meter-label span:last-child { margin-left: 6px; flex-shrink: 0; }
 .meter-label span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
-.tabbar { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }
+.tabbar { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }
 .tabbar button { background: none; border: none; padding: 10px 4px 12px; font-family: var(--cond); font-size: 14px; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
 .tabbar button[aria-current='page'] { color: var(--accent); }
 
@@ -178,6 +178,7 @@ button.card:hover { border-color: #55558a; }
 .pyramid { display: flex; flex-direction: column; gap: 3px; align-items: center; }
 .pyramid > div { display: flex; align-items: center; gap: 8px; width: 100%; }
 .pyramid .bar { height: 14px; background: var(--accent); border-radius: 3px; }
+.tick { gap: 1px; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 

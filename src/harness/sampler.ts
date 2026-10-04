@@ -2,7 +2,7 @@
 // population bands, a Dirichlet split of attribute points under the +25 cap, traits by rejection sampling
 // against the real creation rules.
 
-import { ALLOC_MAX_PER_ATTR, deriveMass, phaseLive, refFat, validateCreation } from '../sim/character';
+import { ALLOC_MAX_PER_ATTR, deriveMass, isLive, refFat, validateCreation } from '../sim/character';
 import { DEFAULT_OPTIONS } from '../sim/presets';
 import type { Rng } from '../sim/rng';
 import { LIFESTYLE_ATTRS, MENTAL_ATTRS, PHYSICAL_ATTRS, TECHNIQUE_ATTRS, type AttrId, type Body, type DataBundle, type NewRunSpec, type RunOptions } from '../sim/types';
@@ -44,9 +44,9 @@ function sampleAlloc(rng: Rng, total: number): Partial<Record<AttrId, number>> {
 
 /** A random valid build (19 §1). `startCrag` keeps to the backgrounds that start there, e.g. P1a careers at Font. */
 export function sampleBuild(rng: Rng, bundle: DataBundle, options: RunOptions = DEFAULT_OPTIONS, name = 'Climber', startCrag?: string): NewRunSpec {
-  const backgrounds = [...bundle.backgrounds.values()].filter((b) => phaseLive(b.phase) && (!startCrag || b.start_crag === startCrag));
+  const backgrounds = [...bundle.backgrounds.values()].filter((b) => isLive(b) && (!startCrag || b.start_crag === startCrag));
   const unlocked = new Set(backgrounds.map((b) => b.unlock).filter((x): x is string => !!x));
-  const traits = [...bundle.traits.values()].filter((t) => phaseLive(t.phase) && (t.kind === 'creation' || t.kind === 'evolving'));
+  const traits = [...bundle.traits.values()].filter((t) => isLive(t) && (t.kind === 'creation' || t.kind === 'evolving'));
   for (let tries = 0; tries < 400; tries++) {
     const bg = rng.pick(backgrounds);
     const age = clamp(Math.round(rng.triangular(bg.age_range[0], Math.min(bg.age_range[1], Math.max(bg.age_range[0], 22)), bg.age_range[1])), bg.age_range[0], bg.age_range[1]);

@@ -1,7 +1,7 @@
 // Run summary and legacy (11 §5, 16 §6–§7).
 import type { RunState } from '../../sim/state';
 import { Top } from '../components';
-import { CIRCUIT_LABEL, grade, gradeIn } from '../format';
+import { CIRCUIT_LABEL, grade, gradeAt } from '../format';
 import { goto, meta } from '../store';
 
 const ENDING: Record<string, string> = {
@@ -30,11 +30,11 @@ export function Summary({ run }: { run: RunState }) {
         <div class="list">
           {(s.hardest > 0 || !s.hardest_route) && <div class="row between"><span class="kicker">Hardest boulder</span><span class="mono">{s.hardest ? grade(s.hardest) : '—'}</span></div>}
           {s.hardest > 0 && <div class="row between"><span class="kicker">Hardest boulder flash</span><span class="mono">{s.hardest_flash ? grade(s.hardest_flash) : '—'}</span></div>}
-          {s.hardest_route > 0 && <div class="row between"><span class="kicker">Hardest route</span><span class="mono">{gradeIn(s.hardest_route, true)}</span></div>}
-          {s.hardest_route > 0 && <div class="row between"><span class="kicker">Hardest onsight</span><span class="mono">{s.hardest_route_onsight ? gradeIn(s.hardest_route_onsight, true) : '—'}</span></div>}
+          {s.hardest_route > 0 && <div class="row between"><span class="kicker">Hardest route</span><span class="mono">{gradeAt(s.hardest_route, 'sport')}</span></div>}
+          {s.hardest_route > 0 && <div class="row between"><span class="kicker">Hardest onsight</span><span class="mono">{s.hardest_route_onsight ? gradeAt(s.hardest_route_onsight, 'sport') : '—'}</span></div>}
           <div class="row between"><span class="kicker">Ticks</span><span class="mono">{s.ticks}</span></div>
           {Object.keys(s.circuits).length > 0 && <span class="small muted">circuits: {Object.entries(s.circuits).map(([c, n]) => `${CIRCUIT_LABEL[c as keyof typeof CIRCUIT_LABEL]} ×${n}`).join(' · ')}</span>}
-          {s.got_away && <div class="row between"><span class="kicker">The one that got away</span><span class="small">{gradeIn(s.got_away.di, !!s.got_away.discipline)} {s.got_away.name} · {s.got_away.sessions} sessions</span></div>}
+          {s.got_away && <div class="row between"><span class="kicker">The one that got away</span><span class="small">{gradeAt(s.got_away.di, s.got_away.discipline === 'sport' ? 'sport' : 'boulder')} {s.got_away.name} · {s.got_away.sessions} sessions</span></div>}
         </div>
         {pyramids.map(({ sport, steps }) => {
           const maxCount = Math.max(1, ...steps.map(([, v]) => v));
@@ -43,7 +43,7 @@ export function Summary({ run }: { run: RunState }) {
               <span class="kicker">{pyramids.length > 1 ? (sport ? 'Route pyramid' : 'Boulder pyramid') : 'Grade pyramid'}</span>
               <div class="pyramid">
                 {steps.map(([di, n]) => (
-                  <div key={di}><span class="mono small" style={{ width: '40px' }}>{gradeIn(di, sport)}</span><div class="bar" style={{ width: `${(n / maxCount) * 70}%` }} /><span class="mono tiny">{n}</span></div>
+                  <div key={di}><span class="mono small" style={{ width: '40px' }}>{gradeAt(di, sport ? 'sport' : 'boulder')}</span><div class="bar" style={{ width: `${(n / maxCount) * 70}%` }} /><span class="mono tiny">{n}</span></div>
                 ))}
               </div>
             </div>

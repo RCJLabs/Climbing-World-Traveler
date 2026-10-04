@@ -2,9 +2,9 @@
 // through `act` or `simulate`, which serialise writes so two taps can never interleave.
 
 import { signal } from '@preact/signals';
-import { bundle } from '../data/bundle';
+import { bundle, loadCrag } from '../data/browser';
 import { DEFAULT_SETTINGS, emptyMeta, IdbBackend, MemoryBackend, type MetaState, type RunRecord, type SaveBackend, type Settings } from '../save/backend';
-import { RunSession } from '../save/session';
+import { cragsToLoad, RunSession } from '../save/session';
 import { simulateAttempt } from '../sim/attempt';
 import { applyAction } from '../sim/run';
 import type { AttemptResult, AttemptState, RunState } from '../sim/state';
@@ -22,6 +22,7 @@ export type Screen =
   | { name: 'result' }
   | { name: 'report' }
   | { name: 'character' }
+  | { name: 'journal' }
   | { name: 'summary' }
   | { name: 'hall' };
 
@@ -73,8 +74,24 @@ export function homeFor(r: RunState): Screen {
   return { name: 'planner' };
 }
 
+/**
+ * Fetch a crag's routes before a run plays there (27 M1): the chunk comes from the service worker's cache, or the
+ * network the first time. False, with a message, when it cannot be had.
+ */
+export async function ensureCrag(id: string): Promise<boolean> {
+  try {
+    await loadCrag(id);
+    return true;
+  } catch {
+    say(`Could not load ${data.crags.get(id)?.name ?? id}. Connect to the internet once to download it.`);
+    return false;
+  }
+}
+
 export async function startRun(seed: string, spec: NewRunSpec): Promise<void> {
   if (!backend) return;
+  const start = data.backgrounds.get(spec.background)?.start_crag;
+  if (start && !(await ensureCrag(start))) return;
   session = await RunSession.create(backend, data, seed, spec);
   run.value = session.state;
   runs.value = await backend.listRuns();
@@ -83,8 +100,13 @@ export async function startRun(seed: string, spec: NewRunSpec): Promise<void> {
 
 export async function continueRun(id: string): Promise<void> {
   if (!backend) return;
+  const record = await backend.getRun(id);
+  if (!record) return;
+  for (const crag of cragsToLoad(record, data)) if (!(await ensureCrag(crag))) return;
   try {
     session = await RunSession.load(backend, data, id);
+    // A run carried forward from an older version may stand at a crag its record did not name.
+    if (!(await ensureCrag(session.state.crag))) return;
     run.value = session.state;
     screen.value = homeFor(session.state);
   } catch (e) {
@@ -96,6 +118,11 @@ export async function deleteRun(id: string): Promise<void> {
   if (!backend) return;
   await backend.deleteRun(id);
   runs.value = (await backend.listRuns()).sort((a, b) => b.last_played.localeCompare(a.last_played));
+}
+
+/** Set off for another crag along the trip's legs, its routes fetched first (27 M1). */
+export async function travel(to: string, legs: string[]): Promise<boolean> {
+  return (await ensureCrag(to)) && act({ t: 'travel', to, legs });
 }
 
 /** Dispatch a game action. Resolves to true when it was applied and saved. */

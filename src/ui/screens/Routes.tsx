@@ -2,12 +2,13 @@
 // try and how: one attempt (watched or not), a siege, or the rest of the session by a tactic. Every attempt is simulated.
 import { useMemo, useState } from 'preact/hooks';
 import { athleteOf, conditionsOf, effectiveMode, familiarity, newProject, routeEntry, showsExactOdds } from '../../sim/attempt';
+import { sectorDiscipline } from '../../sim/discipline';
 import { evWalk } from '../../sim/grade';
 import type { RouteSlot, RunState } from '../../sim/state';
 import { tired } from '../../sim/tactics';
 import type { AttemptMode } from '../../sim/types';
 import { Circuit, TabBar, Top } from '../components';
-import { band, bandColour, gradeOf, isSportCrag, pct } from '../format';
+import { band, bandColour, gradeOf, pct } from '../format';
 import { boltsOf, isRoped } from '../../sim/rope';
 import { act, busy, data, finishSession, goto, siege, tryProblem } from '../store';
 
@@ -44,7 +45,7 @@ export function Routes({ run }: { run: RunState }) {
   const crag = data.crags.get(run.crag)!;
   const sector = crag.sectors.find((s) => s.id === session.sector)!;
   const spent = tired(run);
-  const sport = isSportCrag(crag);
+  const sport = sectorDiscipline(sector, data) === 'sport';
 
   return (
     <div class="screen">
@@ -71,7 +72,7 @@ export function Routes({ run }: { run: RunState }) {
             <div key={slot.seed} class={`card ${isOpen ? 'selected' : ''}`}>
               <button class="row between" style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left' }} onClick={() => { setOpen(isOpen ? null : slot.seed); setMode(null); }}>
                 <div class="row" style={{ alignItems: 'baseline' }}>
-                  <span class="mono" style={{ fontSize: '20px', fontWeight: 600, minWidth: '44px' }}>{gradeOf(route)}</span>
+                  <span class="mono" style={{ fontSize: '20px', fontWeight: 600, minWidth: '44px' }}>{gradeOf(route, crag)}</span>
                   <div class="col" style={{ gap: '2px' }}>
                     <span class="card-title">{route.name}{route.signature ? <span class="tiny accent"> · SIGNATURE</span> : null}</span>
                     <span class="tiny muted row"><Circuit c={route.circuit} />{route.style_tags.slice(0, 3).join(', ')}</span>

@@ -1,58 +1,43 @@
-// Loads the authored content into a DataBundle. Content is validated against the Zod schemas at load in
-// development and in tests; production builds trust the build (the validator ran in CI).
-import traitsJson from '../../data/traits.json';
-import backgroundsJson from '../../data/backgrounds.json';
-import cragsJson from '../../data/crags.json';
-import profilesJson from '../../data/style_profiles.json';
-import namesJson from '../../data/names.json';
-import travelJson from '../../data/travel.json';
-import fontSignaturesJson from '../../data/routes/fontainebleau_signatures.json';
-import kalymnosSignaturesJson from '../../data/routes/kalymnos_signatures.json';
-import fontBenchmarksJson from '../../data/routes/fontainebleau_benchmarks.json';
-import kalymnosBenchmarksJson from '../../data/routes/kalymnos_benchmarks.json';
-import { BackgroundSchema, CragSchema, NamesSchema, ProfileSchema, RouteSchema, TraitSchema, TravelSchema } from './schema';
-import type { Background, Crag, CragStyleProfile, DataBundle, NameBank, Route, Trait, TravelEdge } from '../sim/types';
+// Loads the content from data/ in Node: the harness, the tests and the scripts get every crag folder with its routes.
+// The app loads through browser.ts instead, a crag's routes when the climber gets there (27 M1). Paths are relative to
+// the working directory, the repository root for every pnpm script.
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import type { DataBundle } from '../sim/types';
+import { addCragRoutes, assembleBundle, CRAG_FILES, cragHash, type CoreFiles } from './assemble';
 
-/**
- * Content and rules version (18 §5). Bump when the same seed would build a different problem, or the same actions
- * would play out differently: P1a keeps no old generators or reducers, so such a run cannot be replayed.
- */
-export const DATA_VERSION = 'p2-0';
+export { DATA_VERSION } from './assemble';
 
-const byId = <T extends { id: string }>(items: T[]): Map<string, T> => new Map(items.map((x) => [x.id, x]));
+export const DATA_DIR = 'data';
 
-export function loadBundle(validate = true): DataBundle {
-  if (validate) {
-    TraitSchema.array().parse(traitsJson);
-    BackgroundSchema.array().parse(backgroundsJson);
-    CragSchema.array().parse(cragsJson);
-    ProfileSchema.array().parse(profilesJson);
-    NamesSchema.parse(namesJson);
-    TravelSchema.parse(travelJson);
-    RouteSchema.array().parse(fontSignaturesJson);
-    RouteSchema.array().parse(kalymnosSignaturesJson);
-    RouteSchema.array().parse(fontBenchmarksJson);
-    RouteSchema.array().parse(kalymnosBenchmarksJson);
-  }
-  const signatures = [...fontSignaturesJson, ...kalymnosSignaturesJson] as unknown as Route[];
-  return {
-    traits: byId(traitsJson as unknown as Trait[]),
-    backgrounds: byId(backgroundsJson as unknown as Background[]),
-    crags: byId(cragsJson as unknown as Crag[]),
-    profiles: byId(profilesJson as unknown as CragStyleProfile[]),
-    signatures: new Map(signatures.map((r) => [r.seed ?? r.id, r])),
-    benchmarks: new Map([
-      ['fontainebleau', fontBenchmarksJson as unknown as Route[]],
-      ['kalymnos', kalymnosBenchmarksJson as unknown as Route[]],
-    ]),
-    names: namesJson as unknown as Record<string, NameBank>,
-    travel: { hubs: travelJson.hubs, edges: travelJson.edges as TravelEdge[] },
-    version: DATA_VERSION,
-  };
+/** The crag folders under `<dir>/crags`, sorted; a folder whose name is not an id (`_template`) is not a crag. */
+export const cragIds = (dir = DATA_DIR): string[] =>
+  readdirSync(`${dir}/crags`, { withFileTypes: true }).filter((d) => d.isDirectory() && /^[a-z0-9_]+$/.test(d.name)).map((d) => d.name).sort();
+
+/** A crag folder's files as text, in CRAG_FILES order. */
+export const cragTexts = (dir: string, id: string): string[] => CRAG_FILES.map((f) => readFileSync(`${dir}/crags/${id}/${f}.json`, 'utf8'));
+
+const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
+
+/** Every crag folder's content hash, as data/manifest.json holds them (docs/20 §1). */
+export const manifestOf = (dir = DATA_DIR): { crags: Record<string, string> } =>
+  ({ crags: Object.fromEntries(cragIds(dir).map((id) => [id, cragHash(cragTexts(dir, id))])) });
+
+/** Write data/manifest.json (`pnpm manifest`); the scripts that write a crag's files call it after them. */
+export function writeManifest(dir = DATA_DIR): void {
+  const m = manifestOf(dir);
+  writeFileSync(`${dir}/manifest.json`, `{\n  "crags": {\n${Object.entries(m.crags).map(([id, h]) => `    "${id}": "${h}"`).join(',\n')}\n  }\n}\n`);
 }
 
-let cached: DataBundle | null = null;
-export function bundle(): DataBundle {
-  if (!cached) cached = loadBundle(import.meta.env?.DEV ?? true);
-  return cached;
+export function loadBundle(validate = true, dir = DATA_DIR): DataBundle {
+  const core: CoreFiles = {
+    traits: readJson(`${dir}/traits.json`),
+    backgrounds: readJson(`${dir}/backgrounds.json`),
+    travel: readJson(`${dir}/travel.json`),
+    manifest: readJson(`${dir}/manifest.json`),
+  };
+  const ids = cragIds(dir);
+  const texts = ids.map((id) => cragTexts(dir, id).map((t) => JSON.parse(t) as unknown));
+  const b = assembleBundle(core, texts.map(([crag, styles, names], i) => ({ id: ids[i]!, crag, styles, names })), validate);
+  ids.forEach((id, i) => addCragRoutes(b, id, { signatures: texts[i]![3], benchmarks: texts[i]![4] }, validate));
+  return b;
 }

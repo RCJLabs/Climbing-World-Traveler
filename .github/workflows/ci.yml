@@ -27,3 +27,5 @@ jobs:
         run: pnpm calibrate --quick
       - name: Build
         run: pnpm build
+      - name: Size gate (18 §7, 27 M1)
+        run: pnpm size

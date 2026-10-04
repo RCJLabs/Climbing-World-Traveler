@@ -2,7 +2,7 @@
 // the scale that turns score into trait points, the verdict on each trait (19 §4 steps 2 and 5), pick rates under a
 // greedy builder (step 3) and the caps check (step 4). scripts/recost.ts plays the careers and writes the report.
 
-import { phaseLive } from '../sim/character';
+import { isLive } from '../sim/character';
 import type { Background, DataBundle, NewRunSpec, Trait } from '../sim/types';
 
 export const mean = (xs: readonly number[]): number => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
@@ -101,7 +101,7 @@ export function divergedDelta(base: Lite, careers: readonly Lite[]): (variant: L
  * The share of builds that pick each trait; one build per background, so the resolution is coarse.
  */
 export function pickRates(bundle: Pick<DataBundle, 'traits' | 'backgrounds'>, values: ReadonlyMap<string, number>): Map<string, number> {
-  const bgs = [...bundle.backgrounds.values()].filter((b) => phaseLive(b.phase));
+  const bgs = [...bundle.backgrounds.values()].filter((b) => isLive(b));
   const counts = new Map<string, number>();
   for (const bg of bgs) {
     const chosen = new Set(bg.forced_traits);
@@ -139,7 +139,7 @@ export function pickRates(bundle: Pick<DataBundle, 'traits' | 'backgrounds'>, va
 
 /** 19 §4 step 4: hold types and move classes where a compatible set of live traits adds up to more than +30%. */
 export function capsOver(bundle: Pick<DataBundle, 'traits'>): { key: string; total: number }[] {
-  const live = [...bundle.traits.values()].filter((t) => phaseLive(t.phase) && (t.kind === 'creation' || t.kind === 'evolving'));
+  const live = [...bundle.traits.values()].filter((t) => isLive(t) && (t.kind === 'creation' || t.kind === 'evolving'));
   const keys = new Set(live.flatMap((t) => [...Object.keys(t.effect.hold_mult ?? {}).map((k) => `hold:${k}`), ...Object.keys(t.effect.move_mult ?? {}).map((k) => `move:${k}`)]));
   const over: { key: string; total: number }[] = [];
   for (const key of keys) {

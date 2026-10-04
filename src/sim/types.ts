@@ -146,6 +146,8 @@ export interface Trait {
   kind: TraitKind;
   cost: number;
   phase: Phase;
+  /** The milestone of its phase that makes it live (27 §2, character.ts `isLive`). */
+  milestone?: number;
   tags: Tag[];
   effect: TraitEffect;
   excludes: string[];
@@ -159,6 +161,8 @@ export interface Background {
   id: string;
   name: string;
   phase: Phase;
+  /** The milestone of its phase that makes it live (27 §2). */
+  milestone?: number;
   /** Meta unlock required to pick this background (16 §4.1). */
   unlock?: string;
   point_bonus: number;
@@ -302,11 +306,36 @@ export interface Sector {
 
 export type CircuitColour = 'yellow' | 'orange' | 'blue' | 'red' | 'black' | 'white';
 
+/** An access rule on a crag (schemas §6, 09 §5). Data from P2 M1; the systems that read it come with M6. */
+export interface AccessRule {
+  kind: 'permit' | 'daily_cap' | 'reservation' | 'wet_rock' | 'seasonal_closure' | 'cultural' | 'raptor' | 'fee' | 'visa';
+  detail: string;
+  months?: number[];
+  cost?: number;
+  dry_days_required?: number;
+  rep_penalty_if_violated?: number;
+}
+
+/** NPC archetypes a crag's community draws from (15 §1.1, schemas §3). */
+export const NPC_ARCHETYPES = [
+  'local_legend', 'developer', 'dirtbag_lifer', 'weekend_warrior', 'comp_kid', 'international_pro', 'guide', 'setter',
+  'photographer', 'van_couple', 'elder_trad', 'rookie', 'gym_rat',
+] as const;
+export type NpcArchetype = (typeof NPC_ARCHETYPES)[number];
+
+/** A grading system a crag shows its climbs in (08): Font or V on boulders, French or YDS on routes. */
+export type GradeSystem = 'font' | 'v' | 'french' | 'yds';
+
+/** How a crag is drawn round its rock on the cartoon wall (25 §10.8, schemas §6): its scenery. */
+export interface CragLook { scenery: 'forest' | 'sea' }
+
 export interface Crag {
   id: string;
   name: string;
   country: string;
   region: string;
+  lat: number;
+  lon: number;
   altitude_m: number;
   rock: RockType;
   disciplines: Discipline[];
@@ -314,8 +343,25 @@ export interface Crag {
   season: number[]; // 12 months, 0..3
   climate: ClimateMonth[]; // 12 months
   cost_tier: 1 | 2 | 3 | 4 | 5;
+  /** The travel hub the crag hangs off (09 §8.1), and the last leg from it (09 §8.3), either way. */
+  hub: string;
+  last_mile: { mode: TravelEdge['mode']; cost: number; days: number };
+  access: AccessRule[];
+  community_size: 'tiny' | 'small' | 'medium' | 'large' | 'huge';
+  /** ISO-639 codes, the most spoken first. */
+  language: string[];
+  gym_tier: 0 | 1 | 2 | 3;
+  /** 0 none .. 3 reliable: remote work and content income (14 §9). */
+  connectivity: 0 | 1 | 2 | 3;
+  climate_class: string;
+  npc_archetypes: NpcArchetype[];
+  look: CragLook;
+  /** The systems the crag shows its grades in (08, 27 M1); Font on boulders and French on routes where unset. */
+  grades?: { boulder?: 'font' | 'v'; sport?: 'french' | 'yds' };
   sectors: Sector[];
   phase: Phase;
+  /** The milestone of its phase that makes it live (27 §2). */
+  milestone?: number;
 }
 
 export interface NameBank {
@@ -339,11 +385,15 @@ export interface TravelEdge { from: string; to: string; mode: 'fly' | 'drive' | 
 export interface DataBundle {
   traits: ReadonlyMap<string, Trait>;
   backgrounds: ReadonlyMap<string, Background>;
+  /** Every crag in the build, with its styles and name banks; a crag's routes join when its data is loaded (27 M1). */
   crags: ReadonlyMap<string, Crag>;
   profiles: ReadonlyMap<string, CragStyleProfile>;
+  /** Signature routes of the crags whose data is loaded, by seed. */
   signatures: ReadonlyMap<string, Route>;
-  /** Benchmark problems per crag for the grade estimate (02 §C.3). */
+  /** Benchmark problems per crag for the grade estimate (02 §C.3), for the crags whose data is loaded. */
   benchmarks: ReadonlyMap<string, Route[]>;
+  /** Each crag's content hash (data/manifest.json): a run records the hashes of the crags it has played (27 §4). */
+  hashes: ReadonlyMap<string, string>;
   names: Readonly<Record<string, NameBank>>;
   /** The travel graph between the live crags (09 §8). */
   travel: { hubs: readonly Hub[]; edges: readonly TravelEdge[] };
@@ -408,7 +458,8 @@ export type Action =
   | { t: 'end_day' }
   | { t: 'attempt'; route_seed: string; mode: AttemptMode }
   | { t: 'set_plan'; plan: WeekPlan }
-  | { t: 'travel'; to: string }
+  /** `legs` is the trip's path as edge ids (travel.ts `edgeId`), so a world that grows a cheaper way replays the trip taken (27 M1); without it, the cheapest path. */
+  | { t: 'travel'; to: string; legs?: string[] }
   | { t: 'retire' };
 
 export type TickStyle = 'onsight' | 'flash' | 'redpoint' | 'repeat';
@@ -425,6 +476,8 @@ export interface Tick {
   area: string;
   /** A route's discipline (P1b); absent on a boulder. */
   discipline?: Discipline;
+  /** The crag it was climbed at (27 M1), whose grading system shows it. Absent on ticks from before. */
+  crag?: string;
 }
 
 export type EndReason = 'retired' | 'forced_injury' | 'death' | 'burnout' | 'bankrupt';

@@ -1,8 +1,9 @@
 // Create Climber (16 §1, 17 §2): background → body → allocation → traits → identity, with Quick-build chips.
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { athleteOf } from '../../sim/attempt';
-import { ageMoneyBonus, ALLOC_MAX_PER_ATTR, buildAttributes, creationBudget, deriveMass, phaseLive, refFat, refMass, validateCreation } from '../../sim/character';
-import { estimateBoulderDI } from '../../sim/estimate';
+import { ageMoneyBonus, ALLOC_MAX_PER_ATTR, buildAttributes, creationBudget, deriveMass, isLive, refFat, refMass, validateCreation } from '../../sim/character';
+import { mainDiscipline } from '../../sim/discipline';
+import { estimateAt } from '../../sim/estimate';
 import { DEFAULT_OPTIONS, PRESETS, presetSpec } from '../../sim/presets';
 import { stream } from '../../sim/rng';
 import { createRun } from '../../sim/run';
@@ -11,8 +12,8 @@ import {
   type AttrId, type Body, type Difficulty, type NewRunSpec, type Trait, type TraitCategory,
 } from '../../sim/types';
 import { Seg, Top } from '../components';
-import { ATTR_LABEL, gradeIn, isSportCrag, LATER_ATTRS, money } from '../format';
-import { data, goto, meta, startRun } from '../store';
+import { ATTR_LABEL, gradeAt, LATER_ATTRS, money } from '../format';
+import { data, ensureCrag, goto, meta, startRun } from '../store';
 
 const STEPS = ['Background', 'Body', 'Allocate', 'Traits', 'Identity'];
 
@@ -114,9 +115,10 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
   const errors = validateCreation(spec, ctx);
   const bg = data.backgrounds.get(d.background)!;
   const startCrag = data.crags.get(bg.start_crag);
-  const startSport = !!startCrag && isSportCrag(startCrag);
+  // The start crag's estimate in the discipline it is known by (27 M1), in its own grades.
+  const startClimb = startCrag ? mainDiscipline(startCrag, data) : 'boulder';
   const attrs = useMemo(() => buildAttributes(spec, ctx), [spec]);
-  const backgrounds = [...data.backgrounds.values()].filter((b) => phaseLive(b.phase));
+  const backgrounds = [...data.backgrounds.values()].filter((b) => isLive(b));
   const presets = PRESETS.filter((p) => { const b = data.backgrounds.get(p.spec.background); return !b?.unlock || unlocked.has(b.unlock); });
 
   const pickBackground = (id: string) => {
@@ -139,15 +141,18 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
     patch({ alloc: next });
   };
 
+  // The estimate reads the start crag's benchmarks, which come with its routes (27 M1).
+  const [loaded, setLoaded] = useState(0);
+  useEffect(() => { void ensureCrag(bg.start_crag).then((ok) => ok && setLoaded((n) => n + 1)); }, [bg.start_crag]);
   const estimate = useMemo(() => {
     if (step !== 4 || errors.length) return null;
     try {
       const run = createRun(d.seed, spec, data);
-      return estimateBoulderDI(athleteOf(run, data), run.crag, data);
+      return estimateAt(athleteOf(run, data), run.crag, startClimb, data);
     } catch {
       return null;
     }
-  }, [step, spec, errors.length]);
+  }, [step, spec, errors.length, loaded]);
 
   const stepErrors = step === 3 ? errors.filter((e) => /trait|budget|refund|conflict|negative|fit/i.test(e)) : step === 2 ? errors.filter((e) => /Allocat|attribute/i.test(e)) : [];
 
@@ -160,7 +165,7 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
         {step === 0 && (
           <>
             <h1>Where did you come from?</h1>
-            <p class="muted small">Your background sets trait points, money, starting attributes and one trait you can't refuse. Everyone starts in Fontainebleau.</p>
+            <p class="muted small">Your background sets trait points, money, starting attributes, one trait you can't refuse, and where you start.</p>
             <div class="row wrap">
               {presets.map((p) => (
                 <button key={p.id} class="chip-btn" onClick={() => { setD(fromPreset(p.id, d.seed)); setStep(4); }}>Quick: {p.name}</button>
@@ -219,7 +224,7 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
             </div>
             <Seg label="Trait category" value={cat} onChange={setCat} options={[['all', 'All'], ['body', 'Body'], ['aptitude', 'Aptitude'], ['mental', 'Mental'], ['history', 'History'], ['lifestyle', 'Life'], ['health', 'Health'], ['quirk', 'Quirk']]} />
             {[...data.traits.values()]
-              .filter((t) => phaseLive(t.phase) && (t.kind === 'creation' || t.kind === 'evolving') && (cat === 'all' || t.category === cat))
+              .filter((t) => isLive(t) && (t.kind === 'creation' || t.kind === 'evolving') && (cat === 'all' || t.category === cat))
               .filter((t) => !bg.locked_traits.includes(t.id))
               .sort((a, b) => Number(d.traits.includes(b.id)) - Number(d.traits.includes(a.id)) || b.cost - a.cost)
               .map((t) => {
@@ -249,7 +254,7 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
             <div class="card">
               <div class="row between"><span class="card-title">{bg.name}</span><span class="mono small">{d.body.sex === 'f' ? 'F' : 'M'} · {d.body.age_start} · {d.body.height_cm} cm</span></div>
               <span class="small soft">{d.traits.map((t) => data.traits.get(t)?.name ?? t).join(' · ')}</span>
-              <span class="small">{startSport ? 'Route' : 'Boulder'} estimate: <span class="accent mono">{estimate === null ? '—' : gradeIn(estimate, startSport)}</span> <span class="tiny muted">({startCrag?.name ?? '—'})</span></span>
+              <span class="small">{startClimb === 'sport' ? 'Route' : 'Boulder'} estimate: <span class="accent mono">{estimate === null ? '—' : gradeAt(estimate, startClimb, startCrag)}</span> <span class="tiny muted">({startCrag?.name ?? '—'})</span></span>
             </div>
           </>
         )}
