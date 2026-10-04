@@ -4,6 +4,7 @@
 // a crag is whatever folder the data has.
 import { cyrb53 } from '../sim/rng';
 import type { Background, Crag, CragStyleProfile, DataBundle, NameBank, Route, Trait, TravelEdge } from '../sim/types';
+import { decodeRoutes } from './routefile';
 import { BackgroundSchema, CragSchema, ManifestSchema, NamesSchema, ProfileSchema, RouteSchema, TraitSchema, TravelSchema } from './schema';
 
 /**
@@ -79,13 +80,15 @@ export function assembleBundle(core: CoreFiles, folders: readonly CragFolder[], 
 /** A crag's routes join the bundle (27 M1): its signatures, by seed, and its benchmark set. */
 export function addCragRoutes(bundle: DataBundle, id: string, files: CragRouteFiles, validate: boolean): void {
   if (!bundle.crags.has(id)) throw new Error(`unknown crag ${id}`);
+  const sigs = decodeRoutes(files.signatures);
+  const bench = decodeRoutes(files.benchmarks);
   if (validate) {
-    RouteSchema.array().parse(files.signatures);
-    RouteSchema.array().parse(files.benchmarks);
+    RouteSchema.array().parse(sigs);
+    RouteSchema.array().parse(bench);
   }
   const signatures = bundle.signatures as Map<string, Route>;
-  for (const r of files.signatures as Route[]) signatures.set(r.seed ?? r.id, r);
-  (bundle.benchmarks as Map<string, Route[]>).set(id, files.benchmarks as Route[]);
+  for (const r of sigs as Route[]) signatures.set(r.seed ?? r.id, r);
+  (bundle.benchmarks as Map<string, Route[]>).set(id, bench as Route[]);
 }
 
 /** Whether a crag's routes are in the bundle, so a run can play there (27 M1: never at a crag whose data is not loaded). */

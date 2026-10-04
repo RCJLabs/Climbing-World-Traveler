@@ -1,11 +1,13 @@
 // A crag's benchmarks.json (02 §C.3, src/sim/estimate.ts): its generated benchmark set as shipped. Decoys are stripped:
 // the expected-value walk only touches start, beta and clipping holds. Numbers are rounded to 3 decimals, which halves
-// the gzipped size, and each route is regraded after rounding so its stored grade matches the geometry shipped.
-// `pnpm benchmarks` writes it for the crags in data/; the test crag's test writes its own the same way (27 M1). Node only.
+// the gzipped size, and each route is regraded after rounding so its stored grade matches the geometry shipped. The
+// file is the compact route format (routefile.ts). `pnpm benchmarks` writes it for the crags in data/; the test crag's
+// test writes its own the same way (27 M1). Node only.
 import { writeFileSync } from 'node:fs';
 import { generateBenchmarks } from '../sim/estimate';
 import { gradeRoute } from '../sim/grade';
 import type { DataBundle, Route } from '../sim/types';
+import { encodeRoutes } from './routefile';
 
 const round = <T>(v: T): T => {
   if (typeof v === 'number') return (Number.isInteger(v) ? v : Math.round(v * 1000) / 1000) as T;
@@ -34,7 +36,7 @@ export function shippedBenchmarks(cragId: string, bundle: DataBundle): { routes:
 export function writeBenchmarks(dir: string, cragId: string, bundle: DataBundle): { path: string; routes: number; bytes: number; moved: number } {
   const { routes, moved } = shippedBenchmarks(cragId, bundle);
   const path = `${dir}/crags/${cragId}/benchmarks.json`;
-  const text = JSON.stringify(routes) + '\n';
+  const text = JSON.stringify(encodeRoutes(routes)) + '\n';
   writeFileSync(path, text);
   return { path, routes: routes.length, bytes: Buffer.byteLength(text), moved };
 }

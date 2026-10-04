@@ -28,7 +28,7 @@ This repo is a climbing career simulation (build a climber, plan the training, a
 ## Working in this repo
 
 - Branch per task; small commits with a one-line summary and a body explaining why.
-- Before pushing: `pnpm typecheck && pnpm test && pnpm validate && pnpm calibrate --quick` (CI runs the same, then `pnpm build`).
+- Before pushing: `pnpm typecheck && pnpm test && pnpm validate && pnpm calibrate --quick` (CI runs the same, then `pnpm build` and the size gate, `pnpm size`).
 - Before claiming a balance change works, show harness output (`docs/19`): `pnpm calibrate` for grades, `pnpm harness` for careers.
 - After any change to the route generator or the grade engine, rebuild the benchmark set with `pnpm benchmarks` and check `pnpm calibrate`.
 - Prefer tables and formulas over prose in docs. Every doc ends with `## Open questions`.
