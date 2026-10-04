@@ -15,18 +15,22 @@ import { gradeFor } from './grades';
 import { routeFromSeed } from './routes';
 import { stream } from './rng';
 import type { AttemptResult, AttemptState, MoveReport, ProjectState, RunState } from './state';
-import { matrixCell, isDynamic } from './tables';
+import { cellEntries, matrixCell, isDynamic } from './tables';
 import {
   anchorOf, atAnchor, BELAY_QUALITY, belayerFear, boltPassed, boltsOf, clipCost, clipFrom, fallLength, HANG, isRoped, leadFear,
   reachesGround, ropeHeightFear, ropeKappa, URGENT_KAPPA,
 } from './rope';
 import { novelty, nudge, techniqueXp } from './training';
-import type { AttemptMode, AttrId, DataBundle, Limb, MoveClass, Route, Sector, Tick } from './types';
+import type { AttemptMode, AttrId, DataBundle, Hold, Limb, MoveClass, Route, Sector, Tick } from './types';
 import { ALL_ATTRS, TECHNIQUE_ATTRS } from './types';
-import { bodyPoints, dist, freeState, judgeOption, limbKind, reachRadius, routeGeom, yOfS, type ClimbState, type RouteGeom } from './wall';
+import {
+  bodyPoints, dist, freeState, judgeOption, limbKind, reachRadius, routeGeom, yOfS, type BodyPoints, type ClimbState, type Pt, type RouteGeom,
+} from './wall';
 import { sessionConditions } from './weather';
 
 export class InvalidAction extends Error {}
+
+const TECHNIQUE: ReadonlySet<AttrId> = new Set(TECHNIQUE_ATTRS);
 
 // ---------------------------------------------------------------- derived views (memoised pure functions)
 
@@ -70,7 +74,15 @@ export function setRouteCacheMax(n: number): void {
   routeCacheMax = n;
 }
 
+/**
+ * The route the last call handed back. It is already the cache's newest, so asking for it again moves nothing: an
+ * attempt asks for its route at every step, and moving it to the end of a map of thousands each time was a
+ * twentieth of a harness career.
+ */
+let lastRoute: { seed: string; e: RouteEntry } | null = null;
+
 export function routeEntry(seed: string, bundle: DataBundle): RouteEntry {
+  if (lastRoute && lastRoute.seed === seed) return lastRoute.e;
   let e = routeCache.get(seed);
   if (e) {
     routeCache.delete(seed);
@@ -80,6 +92,7 @@ export function routeEntry(seed: string, bundle: DataBundle): RouteEntry {
     while (routeCache.size >= routeCacheMax) routeCache.delete(routeCache.keys().next().value!);
   }
   routeCache.set(seed, e);
+  lastRoute = { seed, e };
   return e;
 }
 
@@ -87,6 +100,7 @@ export function routeEntry(seed: string, bundle: DataBundle): RouteEntry {
 export function registerRoute(route: Route): void {
   const seed = route.seed ?? route.id;
   routeCache.set(seed, { route, geom: routeGeom(route) });
+  lastRoute = null;
 }
 
 export function sectorOf(run: RunState, bundle: DataBundle, id: string): Sector {
@@ -164,10 +178,35 @@ export function progressOf(geom: RouteGeom, st: ClimbState): number {
 
 // ---------------------------------------------------------------- hidden holds (05b §13)
 
+/** A route's holds by id (the first of an id, as a search of the list finds it), and its hidden holds in list order. */
+const holdIndex = new WeakMap<Route, { byId: Map<string, Hold>; hidden: Hold[] }>();
+function holdsOf(route: Route): { byId: Map<string, Hold>; hidden: Hold[] } {
+  let x = holdIndex.get(route);
+  if (!x) {
+    const byId = new Map<string, Hold>();
+    for (const h of route.holds) if (!byId.has(h.id)) byId.set(h.id, h);
+    x = { byId, hidden: route.holds.filter((h) => h.hidden) };
+    holdIndex.set(route, x);
+  }
+  return x;
+}
+
+/**
+ * A project's revealed holds as a set beside its list. The list only ever grows (a hold once seen stays seen), so the
+ * set catches up with whatever was pushed since it last looked; a list it has not seen, or a shorter one, starts afresh.
+ */
+const revealedSets = new WeakMap<string[], { n: number; set: Set<string> }>();
+function revealedSet(list: string[]): Set<string> {
+  let c = revealedSets.get(list);
+  if (!c || c.n > list.length) { c = { n: 0, set: new Set() }; revealedSets.set(list, c); }
+  for (; c.n < list.length; c.n++) c.set.add(list[c.n]!);
+  return c.set;
+}
+
 export function isVisible(project: ProjectState | undefined, route: Route, holdId: string): boolean {
-  const h = route.holds.find((x) => x.id === holdId);
+  const h = holdsOf(route).byId.get(holdId);
   if (!h || !h.hidden) return true;
-  return !!project?.revealed.includes(holdId);
+  return !!project && revealedSet(project.revealed).has(holdId);
 }
 
 /** Reveal hidden holds in reach: by a route-reading roll, or all of them when `lookAround` (a rest). */
@@ -175,16 +214,18 @@ function revealScan(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athle
   const project = run.projects[at.route_id];
   if (!project) return;
   const rr = run.attrs.route_reading.value;
-  // Each limb's body points and reach are the same for every hold the scan looks at, so they are worked out once. A
-  // hold past a limb's longest reach has no legal move for it whatever else judgeOption would say, so the scan only
-  // asks judgeOption about holds within it.
-  const reach = (['LH', 'RH', 'LF', 'RF'] as Limb[]).map((l) => {
-    const bp = bodyPoints(geom, ath, freeState(at.climb, l));
-    const hand = limbKind(l) === 'hand';
-    return { l, bp, root: hand ? bp.shoulder : bp.hip, max: reachRadius(ath, limbKind(l), at.climb.posture) * (hand ? 1.5 : 1.0) };
-  });
-  for (const h of geom.route.holds) {
-    if (!h.hidden || project.revealed.includes(h.id)) continue;
+  const seen = revealedSet(project.revealed);
+  // Each limb's body points and reach are the same for every hold the scan looks at, so they are worked out once, at
+  // the first hidden hold not yet seen (most scans find none). A hold past a limb's longest reach has no legal move for
+  // it whatever else judgeOption would say, so the scan only asks judgeOption about holds within it.
+  let reach: { l: Limb; bp: BodyPoints; root: Pt; max: number }[] | null = null;
+  for (const h of holdsOf(geom.route).hidden) {
+    if (seen.has(h.id)) continue;
+    reach ??= (['LH', 'RH', 'LF', 'RF'] as Limb[]).map((l) => {
+      const bp = bodyPoints(geom, ath, freeState(at.climb, l));
+      const hand = limbKind(l) === 'hand';
+      return { l, bp, root: hand ? bp.shoulder : bp.hip, max: reachRadius(ath, limbKind(l), at.climb.posture) * (hand ? 1.5 : 1.0) };
+    });
     const g = geom.holds.get(h.id)!;
     const inReach = reach.some(({ l, bp, root, max }) => {
       if (at.climb.anchors[l] === h.id) return true;
@@ -192,7 +233,10 @@ function revealScan(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athle
       return judgeOption(geom, ath, at.climb, bp, l, g).classes.length > 0;
     });
     if (!inReach) continue;
-    if (lookAround || stream(run.seed, at.route_id, 'reveal', h.id).next() < rr / 100 * 0.6) project.revealed.push(h.id);
+    if (lookAround || stream(run.seed, at.route_id, 'reveal', h.id).next() < rr / 100 * 0.6) {
+      project.revealed.push(h.id);
+      seen.add(h.id);
+    }
   }
 }
 
@@ -292,7 +336,12 @@ function syncBeta(at: AttemptState, route: Route): void {
 
 function prepare(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athlete, limb: Limb, hold: string, cls: MoveClass): Prepared {
   if (cls === 'mantle' && canMantle(geom, at.climb) !== limb) throw new InvalidAction('mantle needs that hand on the finish');
-  const prep = prepareMove(geom, ath, at.climb, limb, hold, cls);
+  // The climber's tactics prepared this very move a moment ago (nextMove): the same state, limb, hold and class make
+  // the same preparation, so it is copied rather than worked out again (the copy's spec takes the pq penalty below).
+  const n = lastNext;
+  const prep = n && n.climb === at.climb && n.geom === geom && n.ath === ath && n.prep.cls === cls && n.prep.option.limb === limb && n.prep.option.hold.id === hold
+    ? { option: n.prep.option, cls: n.prep.cls, spec: { ...n.prep.spec } }
+    : prepareMove(geom, ath, at.climb, limb, hold, cls);
   if (!prep) throw new InvalidAction(`illegal move ${limb} → ${hold} (${cls})`);
   if (!isVisible(run.projects[at.route_id], geom.route, hold)) throw new InvalidAction('that hold has not been found yet');
   if (at.pq_penalty > 0) prep.spec.pq = Math.max(0.3, prep.spec.pq - at.pq_penalty);
@@ -359,7 +408,8 @@ function resolveMove(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athl
   session.time_s += time;
 
   // Stimulus and technique XP (12 §3, 02 §B.2).
-  const cell = matrixCell(spec.kind, prep.cls, spec.type) ?? {};
+  const cell = matrixCell(spec.kind, prep.cls, spec.type);
+  const weights = cell ? cellEntries(cell) : [];
   const hardness = clamp(1 - margin / (2 * e.T), 0, 1.5);
   if (margin < 0.5 * e.T) session.hard_moves++;
   const key = `${spec.type}:${prep.cls}`;
@@ -367,9 +417,9 @@ function resolveMove(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athl
   run.move_counts[key] = count + 1;
   const xp = techniqueXp(margin, novelty(count), outcome === 'slip' ? 'slip' : outcome);
   let techW = 0;
-  for (const [id, w] of Object.entries(cell) as [AttrId, number][]) if ((TECHNIQUE_ATTRS as readonly string[]).includes(id)) techW += w;
-  for (const [id, w] of Object.entries(cell) as [AttrId, number][]) {
-    if ((TECHNIQUE_ATTRS as readonly string[]).includes(id)) session.xp[id] = (session.xp[id] ?? 0) + xp * w / Math.max(1e-9, techW);
+  for (const [id, w] of weights) if (TECHNIQUE.has(id)) techW += w;
+  for (const [id, w] of weights) {
+    if (TECHNIQUE.has(id)) session.xp[id] = (session.xp[id] ?? 0) + xp * w / Math.max(1e-9, techW);
     else session.stim[id] = (session.stim[id] ?? 0) + w * hardness;
   }
 
@@ -414,7 +464,7 @@ function resolveMove(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athl
   at.shake_k = 0;
   at.move_index++;
   const project = run.projects[at.route_id]!;
-  if (!project.revealed.includes(prep.option.hold.id) && prep.option.hold.hidden) project.revealed.push(prep.option.hold.id);
+  if (prep.option.hold.hidden && !revealedSet(project.revealed).has(prep.option.hold.id)) project.revealed.push(prep.option.hold.id);
   const step = geom.route.beta_line[at.beta_ptr];
   if (step && step.limb === prep.option.limb && step.hold === prep.option.hold.id) at.beta_ptr++;
   syncBeta(at, geom.route);
@@ -796,13 +846,21 @@ export function climberStep(run: RunState, bundle: DataBundle): ClimbStep | null
   return { t: 'move', limb: step.limb, hold: step.hold, class: prep.cls };
 }
 
+/**
+ * The last move nextMove prepared and what from, for `prepare`. Whether the step's own class was legal or the first
+ * legal one was taken instead, preparing the same move with the class it ended with gives the same option and spec.
+ */
+let lastNext: { climb: ClimbState; geom: RouteGeom; ath: Athlete; prep: Prepared } | null = null;
+
 /** The beta line's next move from where the climber is, or null when its body has no legal way to make it. */
 function nextMove(at: AttemptState, geom: RouteGeom, ath: Athlete): Prepared | null {
   const step = geom.route.beta_line[at.beta_ptr];
   if (!step) return null;
-  return step.class === 'mantle'
+  const prep = step.class === 'mantle'
     ? (canMantle(geom, at.climb) === step.limb ? prepareMove(geom, ath, at.climb, step.limb, step.hold, 'mantle') : null)
     : prepareMove(geom, ath, at.climb, step.limb, step.hold, step.class) ?? prepareMove(geom, ath, at.climb, step.limb, step.hold);
+  lastNext = prep ? { climb: at.climb, geom, ath, prep } : null;
+  return prep;
 }
 
 /** Days a route stays left alone after the climber found a move on it out of its reach (06 §5). **(tune)** */

@@ -198,15 +198,19 @@ export function sessionSlots(run: RunState, sectorId: string, E: number, bundle:
   const taken = new Set<number>();
   for (const [kind, blo, bhi] of crag.disciplines.includes('boulder') ? SLOT_BANDS : ROUTE_SLOT_BANDS) {
     const target = clamp(Math.round(rng.range(E + blo, E + bhi) * 2) / 2, lo, hi);
+    const pref = SLOT_PREFERENCE[kind];
+    // The smallest key (distance past the tolerance, preference, distance, order), compared field by field.
     let best = -1;
-    let bestKey: [number, number, number, number] = [Infinity, Infinity, Infinity, Infinity];
+    let b0 = Infinity; let b1 = Infinity; let b2 = Infinity; let b3 = Infinity;
     for (let i = 0; i < catalogue.length; i++) {
       if (taken.has(i)) continue;
       const d = Math.abs(catalogue[i]!.di - target);
-      const key: [number, number, number, number] = [Math.max(0, d - SLOT_TOLERANCE), SLOT_PREFERENCE[kind][history[i]!], d, order[i]!];
-      if (key[0] < bestKey[0] || (key[0] === bestKey[0] && (key[1] < bestKey[1] || (key[1] === bestKey[1] && (key[2] < bestKey[2] || (key[2] === bestKey[2] && key[3] < bestKey[3])))))) {
+      const k0 = Math.max(0, d - SLOT_TOLERANCE);
+      const k1 = pref[history[i]!];
+      const k3 = order[i]!;
+      if (k0 < b0 || (k0 === b0 && (k1 < b1 || (k1 === b1 && (d < b2 || (d === b2 && k3 < b3)))))) {
         best = i;
-        bestKey = key;
+        b0 = k0; b1 = k1; b2 = d; b3 = k3;
       }
     }
     if (best < 0) break;

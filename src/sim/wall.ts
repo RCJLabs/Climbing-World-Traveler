@@ -221,7 +221,30 @@ export function lockDepth(ath: Athlete): number {
 
 const LIMB_ORDER: readonly Limb[] = ['LH', 'RH', 'LF', 'RF'];
 
+/**
+ * The last few body points worked out, with what they were worked from. A move asks for one state's points several
+ * times (its reach, its position quality, its height and fear, the clipping tactic), and none of the inputs changes once
+ * built: not a state's anchors, nor a geometry's hold places (`refreshHold` changes a hold's kind, never its place), nor
+ * an athlete. So a match on the same objects is the same answer, and the points are shared, never written to.
+ */
+const BP_MEMO = 8;
+interface BpMemo { geom: RouteGeom | null; ath: Athlete | null; anchors: ClimbState['anchors'] | null; posture: Posture | null; feet_cut: boolean; bp: BodyPoints | null }
+const bpMemo: BpMemo[] = Array.from({ length: BP_MEMO }, () => ({ geom: null, ath: null, anchors: null, posture: null, feet_cut: false, bp: null }));
+let bpNext = 0;
+
 export function bodyPoints(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyPoints {
+  for (let i = 0; i < BP_MEMO; i++) {
+    const m = bpMemo[i]!;
+    if (m.anchors === st.anchors && m.posture === st.posture && m.feet_cut === st.feet_cut && m.geom === geom && m.ath === ath) return m.bp!;
+  }
+  const bp = pointsOf(geom, ath, st);
+  const m = bpMemo[bpNext]!;
+  m.geom = geom; m.ath = ath; m.anchors = st.anchors; m.posture = st.posture; m.feet_cut = st.feet_cut; m.bp = bp;
+  bpNext = (bpNext + 1) % BP_MEMO;
+  return bp;
+}
+
+function pointsOf(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyPoints {
   const k = kinematics(ath.body);
   const scale = k.height_m / 1.7;
   // The hands' and the feet's centroids, summed in limb order from zero exactly as a reduce over the anchored holds
@@ -320,6 +343,7 @@ function handednessOk(limb: Limb, hold: HoldG, bp: BodyPoints, ath: Athlete): bo
 /** A foot placed this far above the free-limb hip is a high step (05b §2; P1a tuning, see docs). */
 export const HIGH_STEP_ABOVE_HIP = 0.05;
 
+const NO_DYNO: readonly HoldType[] = ['pocket1', 'undercling', 'gaston'];
 const HEEL_TYPES: readonly HoldType[] = ['jug', 'edge', 'sloper', 'horn', 'volume', 'pocket3', 'sidepull', 'crack_hand', 'crack_fist', 'crack_offwidth'];
 const TOE_TYPES: readonly HoldType[] = ['jug', 'horn', 'volume', 'undercling', 'edge', 'crack_hand', 'crack_fist', 'crack_offwidth'];
 
@@ -332,9 +356,11 @@ export function classesFor(geom: RouteGeom, st: ClimbState, bp: BodyPoints, limb
     const other = st.anchors[otherHand(limb)];
     if (other === hold.id) return MATCHABLE(hold.type, hold.size) ? ['match'] : [];
     const feetOn = bp.feetOn;
-    const handHolds = (['LH', 'RH'] as Limb[]).map((l) => st.anchors[l]).filter((x): x is string => !!x).map((id) => geom.holds.get(id)!);
-    const deadpointLegal = feetOn >= 1 || (st.posture === 'hang' && handHolds.length === 2 && handHolds.every((h) => h.quality >= 0.5));
-    const dynoLegal = feetOn >= 1 && hold.hands_ok && !['pocket1', 'undercling', 'gaston'].includes(hold.type);
+    // Hanging from both hands, without feet, a deadpoint needs two good holds (the hands' holds, as the anchors name them).
+    const lh = st.anchors.LH;
+    const rh = st.anchors.RH;
+    const deadpointLegal = feetOn >= 1 || (st.posture === 'hang' && !!lh && !!rh && geom.holds.get(lh)!.quality >= 0.5 && geom.holds.get(rh)!.quality >= 0.5);
+    const dynoLegal = feetOn >= 1 && hold.hands_ok && !NO_DYNO.includes(hold.type);
     const cur = st.anchors[limb] ? geom.holds.get(st.anchors[limb]!) : undefined;
     if (r <= 0.9 && cur && dist(cur, hold) <= 0.35 && hold.s > cur.s && MATCHABLE(hold.type, hold.size)) out.push('bump');
     if (r <= 1.0) {
@@ -373,7 +399,9 @@ export function judgeOption(geom: RouteGeom, ath: Athlete, st: ClimbState, bp: B
   const opt: Option = { limb, hold, verdict: 'reachable', reason: '', d, R, classes: [] };
   if (st.anchors[limb] === hold.id) return { ...opt, verdict: 'occupied', reason: 'already there' };
   if (kind === 'hand' ? !hold.hands_ok : !hold.feet_ok) return { ...opt, verdict: 'blocked', reason: kind === 'hand' ? 'a foothold' : 'not a foothold' };
-  const occupiedBy = (Object.entries(st.anchors) as [Limb, string][]).find(([l, id]) => id === hold.id && l !== limb)?.[0];
+  // The first other limb on the hold, in the anchors' own key order.
+  let occupiedBy: Limb | undefined;
+  for (const l in st.anchors) if (l !== limb && st.anchors[l as Limb] === hold.id) { occupiedBy = l as Limb; break; }
   if (occupiedBy && (limbKind(occupiedBy) !== kind || kind === 'foot' || !MATCHABLE(hold.type, hold.size))) {
     return { ...opt, verdict: 'blocked', reason: `blocked: your ${LIMB_NAME[occupiedBy]}` };
   }
@@ -414,13 +442,17 @@ export function rawRestValue(hold: HoldG, posture: Posture): number {
   return Math.max(0, rv);
 }
 
-function handHolds(geom: RouteGeom, st: ClimbState): HoldG[] {
-  return (['LH', 'RH'] as Limb[]).map((l) => st.anchors[l]).filter((x): x is string => !!x).map((id) => geom.holds.get(id)!).filter(Boolean);
+/** The holds a pair of limbs is on, the left one's first; anchors whose hold the geometry lacks are skipped. */
+function pairHolds(geom: RouteGeom, a: string | undefined, b: string | undefined): HoldG[] {
+  const out: HoldG[] = [];
+  const ha = a ? geom.holds.get(a) : undefined;
+  if (ha) out.push(ha);
+  const hb = b ? geom.holds.get(b) : undefined;
+  if (hb) out.push(hb);
+  return out;
 }
-function footHolds(geom: RouteGeom, st: ClimbState): HoldG[] {
-  if (st.feet_cut) return [];
-  return (['LF', 'RF'] as Limb[]).map((l) => st.anchors[l]).filter((x): x is string => !!x).map((id) => geom.holds.get(id)!).filter(Boolean);
-}
+const handHolds = (geom: RouteGeom, st: ClimbState): HoldG[] => pairHolds(geom, st.anchors.LH, st.anchors.RH);
+const footHolds = (geom: RouteGeom, st: ClimbState): HoldG[] => (st.feet_cut ? [] : pairHolds(geom, st.anchors.LF, st.anchors.RF));
 
 /** Hands at least this far apart (m), one of them opposing, put the body in compression (05a §6). */
 export const COMPRESSION_WIDTH = 0.45;
@@ -453,8 +485,28 @@ export function choosePosture(geom: RouteGeom, ath: Athlete, st: ClimbState): Po
   return best;
 }
 
+/**
+ * The last few position qualities, kept as `bodyPoints` keeps points and for the same reason: the posture chosen after
+ * a move is rated again when the next move is prepared from it.
+ */
+interface PqMemo { geom: RouteGeom | null; ath: Athlete | null; anchors: ClimbState['anchors'] | null; posture: Posture | null; feet_cut: boolean; q: number }
+const pqMemo: PqMemo[] = Array.from({ length: BP_MEMO }, () => ({ geom: null, ath: null, anchors: null, posture: null, feet_cut: false, q: 0 }));
+let pqNext = 0;
+
 /** Position quality carried forward (05a §7). */
 export function positionQuality(geom: RouteGeom, ath: Athlete, st: ClimbState): number {
+  for (let i = 0; i < BP_MEMO; i++) {
+    const m = pqMemo[i]!;
+    if (m.anchors === st.anchors && m.posture === st.posture && m.feet_cut === st.feet_cut && m.geom === geom && m.ath === ath) return m.q;
+  }
+  const q = qualityOf(geom, ath, st);
+  const m = pqMemo[pqNext]!;
+  m.geom = geom; m.ath = ath; m.anchors = st.anchors; m.posture = st.posture; m.feet_cut = st.feet_cut; m.q = q;
+  pqNext = (pqNext + 1) % BP_MEMO;
+  return q;
+}
+
+function qualityOf(geom: RouteGeom, ath: Athlete, st: ClimbState): number {
   const bp = bodyPoints(geom, ath, st);
   const k = kinematics(ath.body);
   const footDeficit = bp.feetOn >= 2 ? 0 : bp.feetOn === 1 ? 0.5 : 1;

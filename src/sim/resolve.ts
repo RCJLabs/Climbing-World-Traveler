@@ -2,7 +2,7 @@
 
 import { refFat, refMass, resourceMult, type Athlete } from './character';
 import {
-  CLASS_C, FS, H_FOOT, H_HAND, isDynamic, matrixCell, MOVE_TIME, FOOT_STATIC_TIME, PC, POSTURE_PUMP, SIZE_DI, SIZE_PUMP, SK,
+  cellEntries, CLASS_C, FS, H_FOOT, H_HAND, isDynamic, matrixCell, MOVE_TIME, FOOT_STATIC_TIME, PC, POSTURE_PUMP, SIZE_DI, SIZE_PUMP, SK,
   featureTerm,
 } from './tables';
 import type { Feature, HoldType, LimbKind, MoveClass, Posture, SizeClass, Tag } from './types';
@@ -105,15 +105,21 @@ export function moveDifficulty(m: MoveSpec, fam = 0): { MD: number; parts: MDPar
 
 // ---------------------------------------------------------------- body modifiers (02 §A.1)
 
-export function terrainTagsFor(angle: number, posture: Posture, feature: Feature): Set<Tag> {
-  const t = new Set<Tag>();
-  t.add(angle < 85 ? 'slab' : angle <= 95 ? 'vertical' : angle <= 130 ? 'overhang' : 'roof');
-  if (posture === 'compression') t.add('compression');
-  if (feature === 'arete') t.add('arete');
-  return t;
+/** The sixteen terrain tag sets a move can have (angle band × compression × arête), built once and shared, never changed. */
+const TERRAIN_SETS: ReadonlySet<Tag>[] = (['slab', 'vertical', 'overhang', 'roof'] as const).flatMap((band) =>
+  [false, true].flatMap((compression) => [false, true].map((arete) => {
+    const t = new Set<Tag>([band]);
+    if (compression) t.add('compression');
+    if (arete) t.add('arete');
+    return t;
+  })));
+
+export function terrainTagsFor(angle: number, posture: Posture, feature: Feature): ReadonlySet<Tag> {
+  const band = angle < 85 ? 0 : angle <= 95 ? 1 : angle <= 130 ? 2 : 3;
+  return TERRAIN_SETS[band * 4 + (posture === 'compression' ? 2 : 0) + (feature === 'arete' ? 1 : 0)]!;
 }
 
-export function bodyMods(ath: Athlete, type: HoldType, cls: MoveClass, tags: Set<Tag>, rMarginal: boolean): number {
+export function bodyMods(ath: Athlete, type: HoldType, cls: MoveClass, tags: ReadonlySet<Tag>, rMarginal: boolean): number {
   const b = ath.body;
   let m = 1;
   const dh = b.height_cm - 170;
@@ -194,7 +200,7 @@ export function evaluate(ath: Athlete, m: MoveSpec, st: MoveState, cond: Conditi
       pump_cost: 0, power_cost: 0, skin_cost: 0, time: 0, hesitation: 1, legal: false };
   }
   let S_cell = 0;
-  for (const [id, w] of Object.entries(cell) as [keyof Athlete['a'], number][]) {
+  for (const [id, w] of cellEntries(cell)) {
     S_cell += w * ath.a[id] * (ath.mods.attr_mult[id] ?? 1);
   }
   const condMult = (k: 'humid' | 'heat' | 'cold') => (cond[k] ? (ath.mods.condition_mult[k] ?? 1) - 1 : 0);
