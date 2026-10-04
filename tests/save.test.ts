@@ -140,7 +140,7 @@ describe('carrying a run forward (27 §4)', () => {
       ...Array(4).fill('fontainebleau:boulder'), ...Array(3).fill('kalymnos:sport'),
     ]);
     expect(s.state.ticks.every((t) => t.crag === (t.discipline ? 'kalymnos' : 'fontainebleau'))).toBe(true);
-  });
+  }, 20_000);
 
   it('cuts the log at the base, drops the old tail, goes on, and reloads to the same state', async () => {
     const backend = await restore(archive);

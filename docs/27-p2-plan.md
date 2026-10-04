@@ -69,6 +69,8 @@ Implemented; as built and measured: [28 §1](28-p2-implementation-notes.md). Exi
 
 ### M1 Groundwork for a bigger world
 
+Implemented; as built and measured: [28 §2](28-p2-implementation-notes.md). Exit test met: Font and Kalymnos load on arrival from their folders (checked in the built app); a made-up crag added as a folder with no code change, with boulders and routes, passes the validator and its own calibration and plays both (`tests/testcrag.test.ts`); a run saved before it was added loads unchanged and goes on to it, and a save written at reducer 9 is carried forward; `pnpm size` holds every chunk under budget in CI (28 §2.10).
+
 | Item | Detail |
 |---|---|
 | Crag fields | schemas §6's missing fields: `lat`, `lon`, `hub`, `access`, `community_size`, `language`, `gym_tier`, `connectivity`, `climate_class`, `npc_archetypes`, `look` ([25](25-visual-representation.md)) |

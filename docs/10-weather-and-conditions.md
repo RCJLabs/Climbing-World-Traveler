@@ -79,7 +79,7 @@ When `t_rock < Td` (rock colder than dew point; typical on a warm humid afternoo
 
 Violation penalties apply to regional reputation ([15](15-social-reputation-events.md)) and may spawn a confrontation event; they never apply to the player's own score. Partners with high `ethics` refuse to spot or belay on wet sandstone.
 
-**As implemented (P1a–P1b, `sectorStatus`).** The game has no wet climbing yet, so a sector is simply open or shut:
+**As implemented (P1a–P1b, `sectorStatus`).** The game has no wet climbing yet, so a sector is simply open or shut. From P2 M1 the rule goes by the sector's rock, its styles' (`sectorRock`), not the crag's, so a crag with sandstone boulders and limestone routes shuts each sector by its own rock ([28 §2.2](28-p2-implementation-notes.md)); the rock knowledge a session earns is the sector's rock too:
 
 | Rock | Shut | Reason shown |
 |---|---|---|
