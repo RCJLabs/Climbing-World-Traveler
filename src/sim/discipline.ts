@@ -1,9 +1,10 @@
 // What a sector, a crag and a session climb (27 M1). A sector's discipline is its styles': bolted styles are sport,
 // the rest boulders (06 §2.6). A crag climbs every discipline its sectors do, so one crag can have both, and a session
-// climbs its sector's. Nothing here names a crag.
+// climbs its sector's. A sector's rock is its styles' too, so one crag can have sandstone boulders and limestone routes.
+// Nothing here names a crag.
 
 import type { RunState } from './state';
-import type { Crag, DataBundle, Discipline, Sector } from './types';
+import type { Crag, DataBundle, Discipline, RockType, Sector } from './types';
 
 /** The disciplines the engine plays (P1b–P2); trad, DWS and the rest come with P3. */
 export type Climb = 'boulder' | 'sport';
@@ -37,6 +38,21 @@ export function disciplineErrors(crag: Crag, bundle: Pick<DataBundle, 'profiles'
   const climbs = cragDisciplines(crag, bundle);
   const listed = [...crag.disciplines].sort();
   if (listed.join() !== [...climbs].sort().join()) out.push(`crag ${crag.id}: disciplines ${crag.disciplines.join(', ')} but its sectors climb ${climbs.join(', ')}`);
+  return out;
+}
+
+/** A sector's rock, its styles' (06 §2): what its wet rule and the rock knowledge a session there earns go by. The crag's own `rock` is the one it is known by. */
+export const sectorRock = (sector: Pick<Sector, 'style_profiles'>, bundle: Pick<DataBundle, 'profiles'>): RockType =>
+  bundle.profiles.get(sector.style_profiles[0]!)!.rock;
+
+/** What is wrong with a crag's rock (validator): a sector whose styles are on different rocks, or a crag known by a rock none of its sectors is. */
+export function rockErrors(crag: Crag, bundle: Pick<DataBundle, 'profiles'>): string[] {
+  const out: string[] = [];
+  for (const s of crag.sectors) {
+    const rocks = new Set(s.style_profiles.map((p) => bundle.profiles.get(p)?.rock).filter((r) => r !== undefined));
+    if (rocks.size > 1) out.push(`crag ${crag.id}/${s.id}: styles on ${[...rocks].join(' and ')}; a sector is one rock`);
+  }
+  if (!crag.sectors.some((s) => bundle.profiles.get(s.style_profiles[0]!)?.rock === crag.rock)) out.push(`crag ${crag.id}: known by ${crag.rock}, which none of its sectors is`);
   return out;
 }
 

@@ -5,7 +5,7 @@
 import type { Athlete } from './character';
 import { chalkTerm, type Conditions } from './resolve';
 import { stream } from './rng';
-import type { ClimateMonth, Crag, Difficulty, Sector } from './types';
+import type { ClimateMonth, Crag, Difficulty, RockType, Sector } from './types';
 
 export type Sky = 'clear' | 'cloudy' | 'rain' | 'storm';
 const SKIES: readonly Sky[] = ['clear', 'cloudy', 'rain', 'storm'];
@@ -137,13 +137,13 @@ export type SectorStatus = { open: true } | { open: false; reason: string };
 export const HEAVY_RAIN_MM = 15;
 
 /**
- * Whether a sector can be climbed today (10 §4), by the crag's rock. Sandstone (Font) is never climbed damp: shut in
- * rain, in damp air, and until it has dried. Limestone dries in hours: shut only while it rains, except the tufa caves
- * (`seep_lag_days`), which seep for days after heavy rain.
+ * Whether a sector can be climbed today (10 §4), by its rock (discipline.ts `sectorRock`). Sandstone (Font) is never
+ * climbed damp: shut in rain, in damp air, and until it has dried. Limestone dries in hours: shut only while it rains,
+ * except the tufa caves (`seep_lag_days`), which seep for days after heavy rain.
  */
-export function sectorStatus(crag: Pick<Crag, 'rock'>, sector: Sector, today: DayWeather, lastRain: RainMark | null): SectorStatus {
+export function sectorStatus(rock: RockType, sector: Sector, today: DayWeather, lastRain: RainMark | null): SectorStatus {
   const since = lastRain ? today.day - lastRain.day : Infinity;
-  if (crag.rock.startsWith('sandstone')) {
+  if (rock.startsWith('sandstone')) {
     if (today.sky === 'rain' || today.sky === 'storm') return { open: false, reason: 'Raining. Font sandstone is never climbed wet.' };
     if (today.rh > 90) return { open: false, reason: 'Damp air: the sandstone is soft and the holds will break.' };
     if (lastRain) {

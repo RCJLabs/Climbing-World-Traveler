@@ -20,8 +20,8 @@ export const CRAG_FILES = ['crag', 'styles', 'names', 'signatures', 'benchmarks'
 export const cragHash = (texts: readonly string[]): string => cyrb53(texts.join('\u0000')).toString(36);
 
 export interface CoreFiles { traits: unknown; backgrounds: unknown; travel: unknown; manifest: unknown }
-/** What a crag folder adds to the bundle at once. */
-export interface CragFolder { crag: unknown; styles: unknown; names: unknown }
+/** What a crag folder adds to the bundle at once; `id` is the folder's name, which must be its crag's id. */
+export interface CragFolder { id: string; crag: unknown; styles: unknown; names: unknown }
 /** What it adds when its data is loaded. */
 export interface CragRouteFiles { signatures: unknown; benchmarks: unknown }
 
@@ -46,6 +46,10 @@ export function assembleBundle(core: CoreFiles, folders: readonly CragFolder[], 
       ProfileSchema.array().parse(f.styles);
       NamesSchema.parse(f.names);
     }
+  }
+  for (const f of folders) {
+    const id = (f.crag as Partial<Crag> | null)?.id;
+    if (id !== f.id) throw new Error(`crag folder ${f.id} holds crag ${String(id)}; a folder is named for its crag`);
   }
   const crags = folders.map((f) => f.crag as Crag).sort((a, b) => (a.id < b.id ? -1 : 1));
   const names: Record<string, NameBank> = {};

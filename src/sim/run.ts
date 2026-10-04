@@ -3,7 +3,7 @@
 
 import { ageMoneyBonus, aggregateMods, buildAttributes, ceilingFor, clamp, phaseLive, resourceMult, validateCreation, type Athlete } from './character';
 import { ageOf, athleteOf, doWallAction, InvalidAction, modsOf, routeEntry, sectorOf, simulateAttempt } from './attempt';
-import { cragDisciplines, mainDiscipline, sectorDiscipline, type Climb } from './discipline';
+import { cragDisciplines, mainDiscipline, sectorDiscipline, sectorRock, type Climb } from './discipline';
 import { estimateAt } from './estimate';
 import { countEvolve, evolveTraits, PRACTICE_FALLS_PER_SESSION } from './evolve';
 import { stream } from './rng';
@@ -284,8 +284,8 @@ function endSession(run: RunState, s: SessionState, bundle: DataBundle): void {
   addGains(run, applyStimulus(ctx, stim));
   addGains(run, applyTechniqueXp(ctx, s.xp, project ? 1.5 : 1.0));
   if (project && s.progress_made) run.attrs.confidence.value = Math.min(run.attrs.confidence.ceiling, run.attrs.confidence.value + 0.5);
-  // Rock knowledge (02 §B.4): +1 per session at this rock, diminishing.
-  const rock = bundle.crags.get(run.crag)!.rock;
+  // Rock knowledge (02 §B.4): +1 per session at this rock, diminishing; the sector's rock, which at a mixed crag need not be the crag's.
+  const rock = sectorRock(sectorOf(run, bundle, s.sector), bundle);
   const rk = run.rock_knowledge[rock] ?? 0;
   run.rock_knowledge[rock] = Math.min(100, rk + (s.attempts > 0 ? 1 - rk / 100 : 0));
   if (s.attempts > 0) {
@@ -321,7 +321,8 @@ export function canStartBlock(run: RunState, kind: BlockKind, target: string | u
   if (kind === 'climb') {
     if (onBreak) return { ok: false, reason: 'Forced break: burnout. Rest, work or recover.' };
     if (!target) return { ok: false, reason: 'Pick a sector.' };
-    const status = sectorStatus(bundle.crags.get(run.crag)!, sectorOf(run, bundle, target), run.weather, run.last_rain);
+    const sector = sectorOf(run, bundle, target);
+    const status = sectorStatus(sectorRock(sector, bundle), sector, run.weather, run.last_rain);
     if (!status.open) return { ok: false, reason: status.reason };
     if (run.res.energy < CLIMB_BLOCK_BASE_ENERGY + 10) return { ok: false, reason: 'Too tired to climb.' };
     if (run.res.skin < 5) return { ok: false, reason: 'No skin left. Tomorrow.' };
@@ -423,7 +424,7 @@ function endDay(run: RunState, bundle: DataBundle): void {
   const mods = modsOf(run, bundle);
   if (restDay) run.res.stoke = clamp(run.res.stoke + 0.1 * resilience * (run.res.burnout > 50 ? 0.5 : 1) * resourceMult(mods, 'stoke'), 0, 100);
   run.res.stoke += 0.03 * (60 - run.res.stoke); // drifts back toward a neutral 60
-  const anyOpen = crag.sectors.some((s) => sectorStatus(crag, s, run.weather, run.last_rain).open);
+  const anyOpen = crag.sectors.some((s) => sectorStatus(sectorRock(s, bundle), s, run.weather, run.last_rain).open);
   if (!anyOpen && !climbed && !travelling) run.res.stoke = clamp(run.res.stoke - 1, 0, 100);
 
   // Load and ACWR (12 §5).
@@ -640,7 +641,7 @@ export function dateLabel(run: RunState): string {
 export function sectorList(run: RunState, bundle: DataBundle): { id: string; name: string; open: boolean; reason?: string }[] {
   const crag = bundle.crags.get(run.crag)!;
   return crag.sectors.map((s) => {
-    const st = sectorStatus(crag, s, run.weather, run.last_rain);
+    const st = sectorStatus(sectorRock(s, bundle), s, run.weather, run.last_rain);
     return st.open ? { id: s.id, name: s.name, open: true } : { id: s.id, name: s.name, open: false, reason: st.reason };
   });
 }

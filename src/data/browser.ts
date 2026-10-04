@@ -24,7 +24,7 @@ export function bundle(): DataBundle {
   const ids = Object.keys(records).map((p) => /\/crags\/([a-z0-9_]+)\//.exec(p)![1]!).sort();
   cached = assembleBundle(
     { traits: traitsJson, backgrounds: backgroundsJson, travel: travelJson, manifest: manifestJson },
-    ids.map((id) => ({ crag: records[pathOf(id, 'crag')], styles: styles[pathOf(id, 'styles')], names: banks[pathOf(id, 'names')] })),
+    ids.map((id) => ({ id, crag: records[pathOf(id, 'crag')], styles: styles[pathOf(id, 'styles')], names: banks[pathOf(id, 'names')] })),
     validate,
   );
   return cached;

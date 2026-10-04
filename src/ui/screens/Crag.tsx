@@ -2,7 +2,7 @@
 import { canStartBlock, travelBlock } from '../../sim/run';
 import type { RunState } from '../../sim/state';
 import { destinations } from '../../sim/travel';
-import { cragDisciplines, sectorDiscipline } from '../../sim/discipline';
+import { cragDisciplines, sectorDiscipline, sectorRock } from '../../sim/discipline';
 import { sectorFloor } from '../../sim/routes';
 import { sectorStatus } from '../../sim/weather';
 import { Circuit, TabBar, Top } from '../components';
@@ -24,7 +24,7 @@ export function Crag({ run }: { run: RunState }) {
         {inSession && <button class="btn primary" onClick={() => goto({ name: 'routes' })}>Back to your session</button>}
         <span class="kicker">{roped ? 'Sectors' : 'Areas'}</span>
         {crag.sectors.map((s) => {
-          const st = sectorStatus(crag, s, run.weather, run.last_rain);
+          const st = sectorStatus(sectorRock(s, data), s, run.weather, run.last_rain);
           const check = canStartBlock(run, 'climb', s.id, data);
           const sigs = s.signature_routes.map((id) => [...data.signatures.values()].find((r) => r.id === id)?.name).filter(Boolean);
           const floor = sectorFloor(s, data);

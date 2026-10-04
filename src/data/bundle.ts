@@ -37,7 +37,7 @@ export function loadBundle(validate = true, dir = DATA_DIR): DataBundle {
   };
   const ids = cragIds(dir);
   const texts = ids.map((id) => cragTexts(dir, id).map((t) => JSON.parse(t) as unknown));
-  const b = assembleBundle(core, texts.map(([crag, styles, names]) => ({ crag, styles, names })), validate);
+  const b = assembleBundle(core, texts.map(([crag, styles, names], i) => ({ id: ids[i]!, crag, styles, names })), validate);
   ids.forEach((id, i) => addCragRoutes(b, id, { signatures: texts[i]![3], benchmarks: texts[i]![4] }, validate));
   return b;
 }

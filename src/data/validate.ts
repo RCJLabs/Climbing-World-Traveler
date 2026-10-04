@@ -3,7 +3,7 @@
 // added (27 M1). Node only: it reads the folder.
 import { readFileSync } from 'node:fs';
 import { phaseLive, traitEffectErrors, validateCreation } from '../sim/character';
-import { cragDisciplines, disciplineErrors, type Climb } from '../sim/discipline';
+import { cragDisciplines, disciplineErrors, rockErrors, type Climb } from '../sim/discipline';
 import { evolutionErrors } from '../sim/evolve';
 import { gradeRoute } from '../sim/grade';
 import { PRESETS, presetSpec } from '../sim/presets';
@@ -31,14 +31,14 @@ export function validateContent(dir = DATA_DIR): Validation {
   const attrs = new Set<string>(ALL_ATTRS);
   const holdTypes = new Set<string>(HOLD_TYPES);
 
-  // The manifest (docs/20 §1): a hash for every crag folder, each current; a folder is named for its crag.
+  // The manifest (docs/20 §1): a hash for every crag folder, each current. (A folder named otherwise than its crag
+  // fails to load, above.)
   const fresh = manifestOf(dir).crags;
   for (const id of cragIds(dir)) {
     if (!bundle.hashes.has(id)) err(`manifest: crag ${id} missing (run pnpm manifest)`);
     else if (bundle.hashes.get(id) !== fresh[id]) err(`manifest: crag ${id} is stale (run pnpm manifest)`);
   }
   for (const id of bundle.hashes.keys()) if (!fresh[id]) err(`manifest: crag ${id} has no folder`);
-  for (const c of bundle.crags.values()) if (!bundle.hashes.has(c.id)) err(`crag ${c.id}: its folder is named otherwise`);
 
   // Traits: effects reference real attributes and hold types; exclusions are symmetric where both exist.
   for (const t of bundle.traits.values()) {
@@ -90,9 +90,11 @@ export function validateContent(dir = DATA_DIR): Validation {
   }
 
   // Disciplines (06 §2.6, 27 M1): a sector climbs one, its styles' (bolted styles are sport, the rest boulders); a crag
-  // lists the disciplines its sectors climb, and a grading system only for one of them.
+  // lists the disciplines its sectors climb, and a grading system only for one of them. A sector is one rock, its
+  // styles', and a crag is known by the rock of one of its sectors.
   for (const c of bundle.crags.values()) {
     for (const e of disciplineErrors(c, bundle)) err(e);
+    for (const e of rockErrors(c, bundle)) err(e);
     const climbs = cragDisciplines(c, bundle);
     for (const d of Object.keys(c.grades ?? {})) if (!climbs.includes(d as Climb)) err(`crag ${c.id}: a grading system for ${d}, which it does not climb`);
   }

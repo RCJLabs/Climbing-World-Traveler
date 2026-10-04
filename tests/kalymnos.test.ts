@@ -115,18 +115,18 @@ describe('limestone and the seeping caves (10 §4)', () => {
   const cave = sectorById('grande_grotta');
 
   it('closes limestone only while it rains, and the caves for a week after heavy rain', () => {
-    expect(sectorStatus(kal, grey, { ...dry, sky: 'rain' }, { day: 10, mm: 4 }).open).toBe(false);
-    expect(sectorStatus(kal, grey, dry, { day: 9, mm: 40 }).open).toBe(true);
-    expect(sectorStatus(kal, cave, dry, { day: 9, mm: 12 }).open).toBe(true);
-    expect(sectorStatus(kal, cave, dry, { day: 9, mm: 40 })).toMatchObject({ open: false, reason: expect.stringMatching(/seeping/) });
-    expect(sectorStatus(kal, cave, { ...dry, day: 15 }, { day: 9, mm: 40 }).open).toBe(false);
-    expect(sectorStatus(kal, cave, { ...dry, day: 16 }, { day: 9, mm: 40 }).open).toBe(true);
+    expect(sectorStatus(kal.rock, grey, { ...dry, sky: 'rain' }, { day: 10, mm: 4 }).open).toBe(false);
+    expect(sectorStatus(kal.rock, grey, dry, { day: 9, mm: 40 }).open).toBe(true);
+    expect(sectorStatus(kal.rock, cave, dry, { day: 9, mm: 12 }).open).toBe(true);
+    expect(sectorStatus(kal.rock, cave, dry, { day: 9, mm: 40 })).toMatchObject({ open: false, reason: expect.stringMatching(/seeping/) });
+    expect(sectorStatus(kal.rock, cave, { ...dry, day: 15 }, { day: 9, mm: 40 }).open).toBe(false);
+    expect(sectorStatus(kal.rock, cave, { ...dry, day: 16 }, { day: 9, mm: 40 }).open).toBe(true);
   });
 
   it('keeps Font\'s rule: sandstone stays shut until it has dried', () => {
     const slow = font.sectors.find((s) => s.dry_lag_days >= 2)!;
-    expect(sectorStatus(font, slow, dry, { day: 9, mm: 4 }).open).toBe(false);
-    expect(sectorStatus(kal, grey, dry, { day: 9, mm: 4 }).open).toBe(true);
+    expect(sectorStatus(font.rock, slow, dry, { day: 9, mm: 4 }).open).toBe(false);
+    expect(sectorStatus(kal.rock, grey, dry, { day: 9, mm: 4 }).open).toBe(true);
   });
 });
 
