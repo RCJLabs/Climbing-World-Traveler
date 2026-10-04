@@ -9,8 +9,11 @@ import type {
   AttemptMode, AttrId, Attributes, BlockKind, Body, Discipline, EvolveCounter, Limb, MoveClass, RunOptions, RunSummary, Tick, WeekPlan,
 } from './types';
 
-/** Reducer version (18 §5). Bump when replaying an old log through the new reducer would change outcomes. */
-export const REDUCER_VERSION = 9;
+/**
+ * Reducer version (18 §5, 27 §4). Bump when the state's shape changes or an old log would play out differently, and
+ * add the adapter from the version before (save/adapt.ts) with a test on an archived save of it.
+ */
+export const REDUCER_VERSION = 10;
 
 export interface Resources {
   energy: number;

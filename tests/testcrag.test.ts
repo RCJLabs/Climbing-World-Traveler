@@ -136,6 +136,9 @@ describe('a crag added as a folder (27 M1)', () => {
     // The update adds the crag: the same save loads under the new data, to the same state.
     const after = await RunSession.load(backend, bundle, before.id);
     expect(after.state).toEqual(before.state);
+    // Nothing it played changed, so nothing was carried forward: no new base, the hashes it held.
+    expect(after.record.base).toBeUndefined();
+    expect(after.record.hashes).toEqual(before.record.hashes);
     const { actions } = await after.exportFile();
     expect(replay(actions, bundle)).toEqual(before.state);
     // And it carries on, to the new crag and its routes.

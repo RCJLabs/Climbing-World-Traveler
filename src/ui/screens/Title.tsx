@@ -3,6 +3,7 @@ import type { RunState } from '../../sim/state';
 import { Seg, Top } from '../components';
 import { grade, gradeAt } from '../format';
 import type { RunSummary } from '../../sim/types';
+import { cannotContinue } from '../../save/session';
 
 /** A finished run's best: its hardest boulder, its hardest route, or both (P1b). Older entries have no route fields. */
 const hardestLine = (s: RunSummary): string => {
@@ -27,9 +28,9 @@ export function Title({ current }: { current: RunState | null }) {
           <div key={r.id} class="card">
             <div class="row between"><span class="card-title">{r.title}</span><span class="tiny muted mono">day {r.day + 1}</span></div>
             <span class="tiny muted">{r.summary ? `Finished · ${r.summary.end_reason} · hardest ${hardestLine(r.summary)}` : `Last played ${new Date(r.last_played).toLocaleDateString()}`} · seed {r.run_seed}</span>
-            {r.data_version !== data.version && <span class="tiny warn">Made with an older version of the game, so it can't be continued. Its Hall of Fame entry is kept.</span>}
+            {cannotContinue(r, data) && <span class="tiny warn">{cannotContinue(r, data)} It can't be continued; its Hall of Fame entry is kept.</span>}
             <div class="row">
-              <button class="btn small" disabled={r.data_version !== data.version} onClick={() => continueRun(r.id)}>{r.summary ? 'View' : 'Continue'}</button>
+              <button class="btn small" disabled={!!cannotContinue(r, data)} onClick={() => continueRun(r.id)}>{r.summary ? 'View' : 'Continue'}</button>
               <button class="btn small" onClick={() => { if (confirm(`Delete ${r.title}? This cannot be undone.`)) void deleteRun(r.id); }}>Delete</button>
             </div>
           </div>
