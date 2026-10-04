@@ -378,6 +378,45 @@ A trait's `acquire.injury` trigger (schemas §4.4) is evaluated at each day's en
 
 Waiting: Longevity and Early Decline (their value is `decline_onset_shift`, M3), Insomniac (M3's day planner), Addictive Personality (M8's events), Bounce Back and Brittle (M3), and the hidden pool (M8).
 
+**Costs.** The re-costing that follows a milestone's new traits (27 §1), on the default week as decided: `pnpm recost --n 48 --days 1095 --seed 7 --policy plan` for all 118 live creation traits (5,985 careers, 53 min on 4 workers), then the M2 traits again over 96 bases (`--n 96 --traits …`, 1,712 more careers, 15 min), with every impact at the first run's price level, 0.26 score points a trait point (the M2 traits alone set 0.22). Careers are three years long: a year holds too few injuries to show an injury trait at all, and three hold one or two.
+
+| Trait | docs/03 | 48 bases | 96 bases (check) | Now |
+|---|---|---|---|---|
+| Bad Back | −4 | −18.8 ± 4.8, clear | −17.5 ± 3.9 (−18.0), clear | **−10** |
+| Unlucky | −5 | −13.8 ± 5.1 | −12.1 ± 4.4 (−11.6) | −5 |
+| Glass Pulleys | −8 | −9.2 ± 4.1 | −7.7 ± 3.1 (−8.4) | −8 |
+| Iron Tendons | +8 | 7.3 ± 4.3 | 5.1 ± 3.1 (4.5) | +8 |
+| Weak Ankles | −3 | −6.0 ± 2.9 | −5.0 ± 2.2 (−5.9) | −3 |
+| Bad Knee | −5 | −3.2 ± 4.3 | −4.1 ± 3.1 (−4.6) | −5 |
+| Slow Healer | −6 | −3.3 ± 4.7 | −4.1 ± 3.8 (−3.9) | −6 |
+| Tweaky Elbows | −4 | −4.7 ± 2.4 | −3.7 ± 1.4 (−4.0) | −4 |
+| Old Shoulder | −5 | −7.9 ± 5.2 | −3.5 ± 4.0 (−3.5) | −5 |
+| Delicate Stomach | −4 | −3.9 ± 3.6 | −3.5 ± 2.4 (−3.0) | −4 |
+| Iron Stomach | +4 | 5.5 ± 3.8 | 3.4 ± 3.0 (3.9) | +4 |
+| Lucky | +5 | 3.6 ± 6.9 | 3.3 ± 4.7 (3.0) | +5 |
+| Cat Feet | +3 | −0.2 ± 1.3, clear at 2 | 3.1 ± 1.7 (0.8) | +3 |
+| Asthma | −4 | −1.3 ± 4.0 | −2.6 ± 3.0 (−3.5) | −4 |
+| Never Sick | +4 | 4.5 ± 3.2 | 1.9 ± 2.5 (1.9) | +4 |
+| Bendy Shoulders | +3 | 2.2 ± 4.6 | 1.8 ± 4.1 (1.7) | +3 |
+| Chalk Allergy | −3 | −3.0 ± 2.8 | −1.4 ± 1.6 (−1.0) | −3 |
+| Fast Healer | +6 | −1.8 ± 4.2 | 0.7 ± 3.3 (0.6) | +6 |
+| Pain Tolerant | +3 | −1.2 ± 5.4 | −1.3 ± 3.7 (−1.7) | +3 |
+| Sickly | −4 | 0.0 ± 4.2 | 0.3 ± 3.1 (0.1) | −4 |
+| Risk Blind | −4 | −1.0 ± 1.0, clear | −1.1 ± 0.6 (−0.7), clear | **−2** |
+| Cool Head | +4 | −0.5 ± 0.5, *no-op* | 0.0 ± 0.4, *no-op* | **+2** |
+| Downclimber (quirk) | 0 | −13.1 ± 5.8 | −10.1 ± 3.8 (−10.7) | 0 |
+
+The rule is M1's (§2.8): a cost moves when its reading clears it by twice its error and the check agrees. Cat Feet's swing between the runs (clear at 2 on 48 bases, at its cost on 96) is the reason to read more than one.
+
+| Trait | Why |
+|---|---|
+| Bad Back −10 | its pad costs 10 energy on every Font climbing day, so a session often leaves too little for a second block (11 §1's 55): 67 fewer ticks and a personal best 0.4 DI lower over three years. The value is the pad's, so at a sport crag the trait is worth almost nothing (open questions) |
+| Risk Blind −2, Cool Head +2 | `risk_judgement` moves fall injury about 6% at ±12, and falls are a fifth of injuries at padded and bolted crags: nothing measurable. Live as decided before M2, at the floor, until highballs, trad and alpine give danger its weight |
+| Downclimber, as it is | a quirk is free; its taxes (×1.1 energy and skin on a boulder attempt) cost more than the safer landings save, about 10 points. With Perfectionist (−39 in the same run) it goes to M9's design pass |
+| The rest | within their noise; Unlucky (−12 against −5) and Fast Healer (+0.7 against +6) lean furthest. At one or two injuries in three years an injury trait's value is mostly noise |
+
+The first run read the older traits too; their prices wait for M9, as decided. It reads these clear of their costs: Kinesthetic Learner 6 → 10, Slow Learner −5 → −10, Fuelled 4 → 10, Junk Food −4 → −10, Hibernator 7 → 10, Rubber Hips 6 → 2, One-Arm Wonder 6 → 2, Eagle Eye 5 → 2, Imposter −4 → −2, Onsight Purist 3 → 2, Swagger 4 → 2. Core of Steel and Farm Strong read as harm, Desk Jockey and Skin Care Routine as nothing; Gecko Skin and Paper Skin change no Font career (as at M1: skin never runs short on Font's default week), nor do the sport traits Vertigo, Rope Gun and Guide's Apprentice.
+
 ### 3.7 Screens
 
 The climber sheet has a health card (today's injuries, what each bars and until when, rehab progress, losses for good); the crag and the planner say once what bars climbing; the report lists what began in a stretch; the summary counts injuries at −4 each in the score; trait cards name injury, site, healing and illness effects. Checked in Chromium at 390 px: a run simulated by four-week stretches stopped on a grade-2 cold and showed it on each screen, with no horizontal overflow.
@@ -437,4 +476,6 @@ Probe 4 sits inside every band but A2 : A4 (1.3), with pulleys in two years and 
 - **The career-ending age** (§3.4). 30, not the 40 of 11 §4 and of the option chosen before M2: with starts mostly at 18–28, an age of 40 and the 3–6% band cannot both hold (at 40 no ten-year career ends). Keep 30; or keep 40 and accept almost no careers ended by injury in P2; or start more careers older (19 §1's sampler)? If M3's aging and run ends bring longer or older careers, 40 may come back.
 - **Always compliant** (§3.3). The default week turns barred climbing into rehab, so harness careers always meet their rehab, and the neglect branch (full load 30% later, relapse ×2) fires only for a player who overrides the plan. Whether some bot policies should skip rehab, as some climbers do, is open.
 - **Unanchored rates** (§3.9). Flappers (counted apart from the injury mix), colds (about two a year, in line with adults' two to three) and days off the rock per career-year have no anchor in 13; they are set by feel.
+- **Crag-bound traits** (§3.6). Bad Back's value is its pad (−17.5 at Font, near nothing where nobody carries one), so at −10 a Kalymnos start takes it almost free. A pack cost on rope days too would make it worth about the same everywhere; or M9's re-costing at more crags prices it on the mix.
+- **The second block's cliff** (§3.6). A session that leaves the climber under 55 energy loses the day's second block (11 §1), so a small daily energy cost (Bad Back's pad, Downclimber's ×1.1) costs whole training blocks: most of both traits' measured harm. M3's day planner owns the rule.
 - **Growth plates** (§3.1). Only climbers of 16–17 can get the epiphyseal variant, and the sampler starts few that young, so its rate goes unmeasured; 13 §2's mean age of 14 is under the game's youngest start.
