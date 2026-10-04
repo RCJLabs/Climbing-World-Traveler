@@ -197,14 +197,14 @@ The remaining trait rows; a full re-costing at every crag with enough bases to d
 |---|---|---|---|
 | How many crags | 01 §4 "≥ 50"; 09 §2 tags 30 P2 rows (32 live) | **decided:** 32 in P2 (01 §4 now says so); every crag after them is data only (M1), so P3 and P4 add theirs, and later releases more, without code | M1, M6 |
 | Save survival | 18 §5: replay through versioned reducers and adapters; 22 §4: old runs stay listed and cannot continue | **decided:** state adapters from M2 on, when careers become years long; a run is rebased on its adapted snapshot rather than replayed (§4) | M1 |
-| Run-end targets | 19 §1: injury 15%, death ≤ 5%; 01 §7: injury 10%, death under 3%, median run 3–8 years | 01 §7's | M2 |
-| Forced retirement | 11 §4's triggers need a grade-3 spinal injury (13 has none), HACE or HAPE (P4) or a converted death (P3–P4); only a second grade-3 shoulder after 40 is left | add a back grade 3 that can end a career, or lower the target for P2 | M2 |
-| Injury rates | 13 §5.2's base rates give a 63% pulley chance in two years; 13 §1 says 13% | calibrate the base rates to 13 §1 with the harness | M2 |
-| Tendons | 12: a hidden tendon capacity that adapts; 13: a fixed `tendon_robustness`. Iron Tendons would count three times | one model: 12's capacity, with robustness as its rate | M2 |
-| Load state | schemas: `load_acute` and `load_chronic` per attribute; code: daily `counters.loads` | the code's, with a finger column | M2 |
-| Insurance names | schemas: `none`, `travel`, `full`; 13 and 14: `standard`, `expedition` | one set in schemas first | M2, M4 |
-| Acquired traits | defined in four docs; 13 §4 reuses `old_shoulder` and `bad_knee`, ids 03 gives to creation traits; Pulley Veteran's numbers differ between 13 and 03 | 03 owns acquired traits; 13's become rows there with new ids | M2 |
-| `injury_site_mult` | a `TraitEffect` field in schemas, a flag in 03 | the field | M2 |
+| Run-end targets | 19 §1: injury 15%, death ≤ 5%; 01 §7: injury 10%, death under 3%, median run 3–8 years | **decided:** 01 §7's for the full game; P2's injury share at Font and Kalymnos is a band of about 3–6% (M2, 28 §3) | M2 |
+| Forced retirement | 11 §4's triggers need a grade-3 spinal injury (13 has none), HACE or HAPE (P4) or a converted death (P3–P4); only a second grade-3 shoulder after 40 is left | **decided:** flags in the injury data (`InjurySeverity.career_ending`): a spinal grade-3 back, and a second grade 3 at a site, every site; the age lowered to 30 to reach P2's band (28 §3) | M2 |
+| Injury rates | 13 §5.2's base rates give a 63% pulley chance in two years; 13 §1 says 13% | **done:** calibrated to 13 §1 with the harness (28 §3) | M2 |
+| Tendons | 12: a hidden tendon capacity that adapts; 13: a fixed `tendon_robustness`. Iron Tendons would count three times | **done:** one model, 12's capacity with robustness as its rate (12 §5) | M2 |
+| Load state | schemas: `load_acute` and `load_chronic` per attribute; code: daily `counters.loads` | **done:** the code's, with a finger column (`counters.finger_loads`) | M2 |
+| Insurance names | schemas: `none`, `travel`, `full`; 13 and 14: `standard`, `expedition` | **done:** schemas now say `none`, `standard`, `expedition`; M4 implements | M2, M4 |
+| Acquired traits | defined in four docs; 13 §4 reuses `old_shoulder` and `bad_knee`, ids 03 gives to creation traits; Pulley Veteran's numbers differ between 13 and 03 | **done:** 03 owns them; 13's are Rebuilt Shoulder, Rebuilt Knee, Rebuilt Ankle and Glass Wrist there, with 03's Pulley Veteran | M2 |
+| `injury_site_mult` | a `TraitEffect` field in schemas, a flag in 03 | **done:** the field | M2 |
 | Second block | 11 §1: energy ≥ 55; code: 50 | the code's | M3 |
 | Trait money | Dirtbag ×0.8 (14) or ×0.7 (03, data); Gear Nerd ×1.3 or ×1.1; remote work $60/125/200 by connectivity (14) or $300 by community size (03) | 03's numbers, re-costed | M4 |
 | Gear shapes | 14's `GearInstance` and `GearDef` against schemas §7; background gear ids match neither; no `gear.json` | schemas first | M4 |
@@ -237,5 +237,5 @@ The remaining trait rows; a full re-costing at every crag with enough bases to d
 - Which crags make the first batch of M6. A candidate: the bouldering crags nearest Font in style and season (Albarracín, Magic Wood, Ticino), which reuse the most of what Font calibrated.
 - Whether the three mixed crags (Grampians, Red Rocks, Chattanooga) wait for M6c or one of them is M1's test crag.
 - How an event interrupts a simulated week: pause on every event, only on those with trait-gated options, or resolve by a policy the player sets (24 is silent; 15 §4 expects about 2.5 choices a week).
-- Whether `risk_judgement` gets a role on the wall in P2 (the climber's tactics avoiding bold falls, or the injury roll), which Cool Head and Risk Blind need to come back.
+- ~~Whether `risk_judgement` gets a role on the wall in P2~~ **Decided (M2):** in the fall injury roll, a climber who reads danger backs off and lands better (13 §5.5); Cool Head and Risk Blind are live. Its role in the climber's tactics (backing off bold falls) waits for P3's trad and highballs.
 - Whether P2's score (16 §6, which M2 changes anyway with its injury term) should weigh the grade pyramid as well as the hardest send: the hardest send is a maximum, so traits that add dice pay today (Scatterbrain helps a Font career, [26 §11.1](26-p1b-implementation-notes.md)), and the re-costing prices whatever the score rewards.

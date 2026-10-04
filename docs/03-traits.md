@@ -127,6 +127,8 @@ Points are **not** refunded or charged when a trait evolves; the refund was the 
 
 Acquired traits ([§2.10](#210-acquired)) are granted by play at cost 0, each with a trigger predicate the event or injury system evaluates once per day. They are the only traits allowed to use `attr_mult`, because a climber can never hold two acquired traits for the same attribute (the triggers are mutually exclusive by design). Some are temporary and carry an expiry.
 
+As built (P2 M2): an injury trigger is data, `Trait.acquire.injury` (schemas §4.4): at least `count` (default 1) of the climber's injuries match its `defs` (absent: any injury of kind `injury`), its `grade_min`, and, when set, `healed` (past the heal day) or `lingering`. The evaluator runs at each day's end; a trait gained applies its attribute adds once and its ceilings at once, as an evolution's acquired stage does. 13 §4's acquired traits are rows here with their own ids (27 §6): Old Shoulder, Bad Knee and Bad Ankle were creation-trait ids, so the injury versions are Rebuilt Shoulder, Rebuilt Knee and Rebuilt Ankle, and Glass Wrist carries its lingering loss as a ceiling. `scope` and `expires` wait for the first rows that need them (Sandbagged at M8, Acclimatised at P4).
+
 ### 1.9 How to read the catalogue
 
 Columns: **id** (snake_case, final) · **name** · **cost** (creation traits ±2..±10; quirks, hidden, acquired 0; hidden rows show `point_mass` in brackets) · **category** · **kind** · **phase** · **effect** (only `TraitEffect` fields) · **tags** (Tag vocabulary only) · **excludes** · **requires** · **flavour**.
@@ -143,7 +145,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | `tendon_robustness_add=±n` | 02 A.1 | shifts the hidden `tendon_robustness` slider |
 | `sending_temp_shift=±n` | 02 C.6 / 10 | shifts the sending-temperature window centre in °C |
 | `split_risk_cold=x` | 13 skin | split-tip probability multiplier in `cold` (P1b, until split tips exist: skin wear ×x on a cold day) |
-| `injury_site_mult:<site>=x` | 13 | injury probability multiplier for one `InjuryDef.site` |
+| `injury_site_mult` (a `TraitEffect` field from P2 M2, first written as the flag `injury_site_mult:<site>=x`) | 13 | injury probability multiplier for one `InjuryDef.site` |
 | `commit_window_width=x` | retired with the commit window ([24](24-simulation-game.md) §6) | — |
 | `feet_cut_recovery=+n` | 05b | percentage points added to the feet-cut recovery roll |
 | `reveal_kneebars` | 05b/06 | kneebar rests shown pre-attempt regardless of `route_reading` |
@@ -173,10 +175,10 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | `money_start_add=n`, `stipend_monthly=n`, `income_per_work_block=n`, `remote_income_mult=x`, `content_blocks_per_week=n`, `offline_stoke=−n` | 14 economy | as named |
 | `has_vehicle`, `drive_cost_mult=x`, `accommodation_free_drive` | 14 travel | as named |
 | `gear_wear_mult=x`, `gear_cost_mult=x`, `shoe_fit_friction=+f` | 14 gear | as named |
-| `illness_mult=x` | 13 | illness event probability ×x |
+| `illness_mult=x`, `illness_mult:<illness id>=x` | 13 | illness probability ×x; scoped to one illness after the colon (the stomach traits: the gut's travel bug and food poisoning, P2 M2) |
 | `morning_energy_mult=x`, `evening_energy_mult=x`, `dawn_patrol`, `nightlife_event_mult=x` | day planner | first/last block energy; unlocks dawn block; event weight |
 | `flight_stoke=−n`, `flight_energy=−n`, `jetlag_mult=x`, `surface_travel_energy=−n`, `boat_approach_penalty` | 14 travel | as named |
-| `liquid_chalk_only` | 14 | chalk purchases cost ×1.5 |
+| `liquid_chalk_only` | 14 | chalk purchases cost ×1.5 (inert until M4's gear) |
 | `city_stoke=−n`, `away_stoke=−n`, `new_country_stoke=+n`, `stale_stoke=−n` | stoke | weekly deltas by location context |
 | `reroll_bad_outcome=p`, `reroll_good_outcome=p`, `good_event_mult=x`, `bad_event_mult=x` | 05b dice / 15 | re-roll a sketchy/slip/fall (or clean) outcome with probability p once; event weights |
 | `skin_low_penalty_mult=x`, `injury_detect_delay` | 02 D / 13 | skin < 30 penalty ×x; grade-1 injuries surface 7 days late |
@@ -221,7 +223,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | slow_twitch | Slow Twitch | +3 | body | creation | P1b | ceiling_add: aerobic_capacity +8, finger_endurance +8, anaerobic_capacity +4, contact_strength −6, leg_power −6; adapt_rate_mult: finger_endurance 1.15, contact_strength 0.90 | endurance, sport, static | fast_twitch | — | Never fast, never pumped, never done. |
 | furnace | Furnace | +3 | body | creation | P2 | condition_mult: cold 1.06, heat 0.96; flags: sending_temp_shift=−4 | cold, friction, wind | cold_blooded, cold_hands | — | T-shirt in January. Suffers in Kalymnos in June. |
 | cold_blooded | Cold Blooded | +10 | body | creation | P2 | condition_mult: heat 1.06, cold 0.94; flags: sending_temp_shift=+4 | heat, humid | furnace | — | Thrives when everyone else has gone to the beach. |
-| bendy_shoulders | Bendy Shoulders | +3 | body | creation | P2 | attr_add: shoulder_mobility +8; ceiling_add: shoulder_mobility +10; hold_mult: gaston 1.04, undercling 1.04; flags: injury_site_mult:shoulder=1.15 | flexibility, compression, injury | stiff_shoulders, old_shoulder | — | Hypermobile. Reaches behind its own head; the labrum takes notes. |
+| bendy_shoulders | Bendy Shoulders | +3 | body | creation | P2 | attr_add: shoulder_mobility +8; ceiling_add: shoulder_mobility +10; hold_mult: gaston 1.04, undercling 1.04; injury_site_mult: shoulder 1.15 | flexibility, compression, injury | stiff_shoulders, old_shoulder | — | Hypermobile. Reaches behind its own head; the labrum takes notes. |
 | stiff_shoulders | Stiff Shoulders | −2 | body | creation | P1b | attr_add: shoulder_mobility −8; ceiling_add: shoulder_mobility −10; hold_mult: gaston 0.95, undercling 0.95 | flexibility | bendy_shoulders | — | Gastons feel like a dare. |
 | bellows | Bellows | +4 | body | creation | P1b | attr_add: aerobic_capacity +6; ceiling_add: aerobic_capacity +6; resource_mult: aerobic_reserve 1.10; condition_mult: altitude 1.04 | endurance, sport, altitude, recovery | asthma | — | Big lungs. Recovers on holds you would not call a rest. |
 | crusher_hands | Crusher Hands | +6 | body | creation | P1a | attr_add: finger_strength +6; ceiling_add: finger_strength +6 | crimp, edge, power | soft_fingers | — | Born on a 20 mm edge. |
@@ -337,8 +339,8 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | hibernator | Hibernator | +7 | lifestyle | creation | P2 | attr_add: sleep_hygiene +10 | sleep, recovery | insomniac | — | Nine hours in a tent on a slope. Refreshed. |
 | early_bird | Early Bird | +3 | lifestyle | creation | P2 | flags: morning_energy_mult=1.1, dawn_patrol | sleep, cold, friction | night_owl | — | Sends in the cold before the crowd arrives. |
 | night_owl | Night Owl | +2 | lifestyle | creation | P2 | flags: evening_energy_mult=1.1, morning_energy_mult=0.9, nightlife_event_mult=1.5 | sleep, social, gym | early_bird | — | Peak form at 10 p.m. under gym lights. Dawn patrol is theoretical. |
-| iron_stomach | Iron Stomach | +4 | lifestyle | creation | P2 | cost_mult: 0.97; flags: illness_mult=0.4 | health, travel, nutrition | delicate_stomach | — | Street food in three countries, zero regrets. |
-| delicate_stomach | Delicate Stomach | −4 | lifestyle | creation | P2 | cost_mult: 1.05; flags: illness_mult=1.8 | health, travel | iron_stomach | — | Lost the Hampi trip to a samosa. |
+| iron_stomach | Iron Stomach | +4 | lifestyle | creation | P2 | cost_mult: 0.97; flags: illness_mult:travel_bug=0.4, illness_mult:food_poisoning=0.4 | health, travel, nutrition | delicate_stomach | — | Street food in three countries, zero regrets. |
+| delicate_stomach | Delicate Stomach | −4 | lifestyle | creation | P2 | cost_mult: 1.05; flags: illness_mult:travel_bug=1.8, illness_mult:food_poisoning=1.8 | health, travel | iron_stomach | — | Lost the Hampi trip to a samosa. |
 | polyglot | Polyglot | +5 | lifestyle | creation | P2 | attr_add: languages +15; ceiling_add: languages +10; adapt_rate_mult: languages 1.3 | social, travel, learning | monoglot | — | Gets the local beta in the local language. |
 | monoglot | Monoglot | −3 | lifestyle | creation | P2 | attr_add: languages −10; ceiling_add: languages −20; adapt_rate_mult: languages 0.5 | travel | polyglot | — | Points at things. Loudly. |
 | nervous_flyer | Nervous Flyer | −3 | lifestyle | evolving | P2 | flags: flight_stoke=−5, flight_energy=−20, jetlag_mult=1.5; evolves_to: neutral after 12 flights | travel, fear | — | — | Fine on a 40 m runout. Not fine at 10,000 m. |
@@ -384,9 +386,9 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 
 | id | name | cost | category | kind | phase | effect | tags | excludes | requires | flavour |
 |---|---|---:|---|---|---|---|---|---|---|---|
-| bad_knee | Bad Knee | −5 | health | creation | P2 | move_mult: heel_hook 0.95, kneebar 0.92, high_step 0.97; flags: injury_site_mult:knee=1.5 | injury, health, footwork | — | — | Clicks on the approach. Complains on the heel hook. |
-| old_shoulder | Old Shoulder | −5 | health | creation | P2 | attr_add: lockoff −4, shoulder_mobility −6; hold_mult: gaston 0.96; flags: injury_site_mult:shoulder=1.5 | injury, health | bendy_shoulders | — | Something happened in 2014. It is still happening. |
-| asthma | Asthma | −4 | health | creation | P2 | attr_add: aerobic_capacity −6; ceiling_add: aerobic_capacity −6; condition_mult: cold 0.96, altitude 0.94 | health, endurance, cold, altitude | bellows | — | Inhaler in the chalk bag. |
+| bad_knee | Bad Knee | −5 | health | creation | P2 | move_mult: heel_hook 0.95, kneebar 0.92, high_step 0.97; injury_site_mult: knee 1.5 | injury, health, footwork | — | — | Clicks on the approach. Complains on the heel hook. |
+| old_shoulder | Old Shoulder | −5 | health | creation | P2 | attr_add: lockoff −4, shoulder_mobility −6; hold_mult: gaston 0.96; injury_site_mult: shoulder 1.5 | injury, health | bendy_shoulders | — | Something happened in 2014. It is still happening. |
+| asthma | Asthma | −4 | health | creation | P2 | attr_add: aerobic_capacity −6; ceiling_add: aerobic_capacity −6; condition_mult: cold 0.96, altitude 0.94; flags: illness_mult:common_cold=1.5 | health, endurance, cold, altitude | bellows | — | Inhaler in the chalk bag. |
 | lucky | Lucky | +5 | health | creation | P2 | injury_risk_mult: 0.90; flags: reroll_bad_outcome=0.15, good_event_mult=1.2 | health, injury, risk | unlucky | — | The foot pops. The other foot finds something. |
 | unlucky | Unlucky | −5 | health | creation | P2 | injury_risk_mult: 1.10; flags: reroll_good_outcome=0.15, bad_event_mult=1.2 | injury, risk | lucky | — | The one hold that snaps is the one you are on. |
 | fast_healer | Fast Healer | +6 | health | creation | P2 | recovery_mult: 1.25 | recovery, injury, health | slow_healer | — | Back on the board before the physio has finished the invoice. |
@@ -395,10 +397,10 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | never_sick | Never Sick | +4 | health | creation | P2 | resource_mult: health 1.20; flags: illness_mult=0.5 | health, travel | sickly | — | Shared a tent with the flu. Unbothered. |
 | sickly | Sickly | −4 | health | creation | P2 | resource_mult: health 0.85; flags: illness_mult=1.8 | health | never_sick | — | Catches whatever the crag has. |
 | pain_tolerant | Pain Tolerant | +3 | health | creation | P2 | injury_risk_mult: 1.05; flags: skin_low_penalty_mult=0.5, injury_detect_delay | skin, injury, health | — | — | Climbs through the flapper. Notices the pulley a week late. |
-| tweaky_elbows | Tweaky Elbows | −4 | health | creation | P2 | flags: injury_site_mult:elbow=1.8 | injury, tendon | — | — | Golfer's elbow on the left, tennis on the right. Plays neither. |
-| bad_back | Bad Back | −4 | health | creation | P2 | attr_add: core_tension −4; flags: injury_site_mult:back=1.5, pad_carry_energy=+10 | injury, core | — | — | The pad is the real project. |
-| weak_ankles | Weak Ankles | −3 | health | creation | P2 | flags: injury_site_mult:ankle=1.6 | injury, boulder, highball | cat_feet | — | Rolls it on the walk-in. |
-| cat_feet | Cat Feet | +3 | health | creation | P2 | flags: injury_site_mult:ankle=0.6, landing_injury_mult=0.85 | injury, boulder, highball | weak_ankles | — | Lands, bends, walks off. |
+| tweaky_elbows | Tweaky Elbows | −4 | health | creation | P2 | injury_site_mult: elbow 1.8 | injury, tendon | — | — | Golfer's elbow on the left, tennis on the right. Plays neither. |
+| bad_back | Bad Back | −4 | health | creation | P2 | attr_add: core_tension −4; flags: pad_carry_energy=+10; injury_site_mult: back 1.5 | injury, core | — | — | The pad is the real project. |
+| weak_ankles | Weak Ankles | −3 | health | creation | P2 | injury_site_mult: ankle 1.6 | injury, boulder, highball | cat_feet | — | Rolls it on the walk-in. |
+| cat_feet | Cat Feet | +3 | health | creation | P2 | flags: landing_injury_mult=0.85; injury_site_mult: ankle 0.6 | injury, boulder, highball | weak_ankles | — | Lands, bends, walks off. |
 | longevity | Longevity | +5 | health | creation | P2 | recovery_mult: 1.05; flags: decline_onset_shift=+3 | health, recovery | early_decline | — | Still crushing at forty-five. Nobody knows why. |
 | early_decline | Early Decline | −4 | health | creation | P2 | flags: decline_onset_shift=−3 | health | longevity | — | Peaked early. Knows it. |
 
@@ -418,7 +420,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | grade_sceptic | Grade Sceptic | 0 | quirk | creation | P2 | flags: self_report_di=−0.5, ethics_rep_mult=1.2, media_rep_mult=0.8 | ethics, reputation, media | — | — | "Probably 7b+." It was 7c. |
 | perfectionist | Perfectionist | 0 | quirk | creation | P1b | adapt_rate_mult: body_position 1.10, footwork 1.10; flags: sketchy_send_stoke=−3 | learning, flow, patience | — | — | Sent it. Re-doing it because the heel was ugly. |
 | heavy_chalker | Heavy Chalker | 0 | quirk | creation | P1a | resource_mult: chalk 0.70; flags: chalk_friction_base=+0.02, overchalk_penalty_mult=2.0 | friction, skin | — | — | Leaves a cloud. Leaves a mess. |
-| downclimber | Downclimber | 0 | quirk | creation | P1b | flags: always_downclimb | injury, boulder, patience | — | — | Has never jumped off anything. Ankles intact, skin not. |
+| downclimber | Downclimber | 0 | quirk | creation | P2 | flags: always_downclimb | injury, boulder, patience | — | — | Has never jumped off anything. Ankles intact, skin not. |
 
 ### 2.9 Hidden pool (opt-in roll, cost 0; `point_mass` in brackets; Σ positive = Σ negative = 30)
 
@@ -429,18 +431,18 @@ One draw from the positive half and one from the negative half, without replacem
 | natural_crimper | Natural Crimper | 0 [+5] | aptitude | hidden | P2 | hold_mult: crimp 1.05, edge 1.03 | crimp, edge | crimp_machine | — | "That edge felt bigger than it looked" → sheet shows the multiplier. |
 | secret_stamina | Secret Stamina | 0 [+4] | body | hidden | P2 | ceiling_add: finger_endurance +8, aerobic_capacity +4 | endurance, sport | slow_twitch, fast_twitch | — | A partner notes you are not pumped → ceilings revealed. |
 | head_for_heights | Head for Heights | 0 [+4] | mental | hidden | P2 | flags: fear_source_mult:height=0.7 | fear, highball, bigwall | vertigo, loves_air | — | Topped a highball without noticing the drop → fear source relabelled. |
-| hidden_hypermobility | Hidden Hypermobility | 0 [+2] | body | hidden | P2 | attr_add: shoulder_mobility +8; flags: injury_site_mult:shoulder=1.15 | flexibility, injury | bendy_shoulders, stiff_shoulders | — | Shoulder "clunks" in a gaston → physio names it. |
+| hidden_hypermobility | Hidden Hypermobility | 0 [+2] | body | hidden | P2 | attr_add: shoulder_mobility +8; injury_site_mult: shoulder 1.15 | flexibility, injury | bendy_shoulders, stiff_shoulders | — | Shoulder "clunks" in a gaston → physio names it. |
 | late_bloomer | Late Bloomer | 0 [+3] | body | hidden | P2 | adapt_rate_mult: all physical 0.90 until age 24, then 1.20 (flags: age-switched) | learning, power | — | — | Slow season → sudden spring. |
 | deep_well | Deep Well | 0 [+5] | mental | hidden | P2 | attr_add: resilience +8 | recovery, patience | bounce_back, brittle | — | Shrugged off a bad week → revealed on the sheet. |
 | natural_leader | Natural Leader | 0 [+4] | social | hidden | P2 | rep_mult: 1.10; flags: partner_find_mult=1.2 | social, reputation, partner | magnetic, awkward | — | Strangers ask you to organise the car-share → revealed. |
 | weather_witch | Weather Witch | 0 [+3] | lifestyle | hidden | P2 | attr_add: weather_sense +8 | wind, wet, friction | weather_nose | — | Called the dry window the forecast missed → revealed. |
-| latent_glass | Latent Glass | 0 [−6] | health | hidden | P2 | flags: injury_site_mult:finger=1.3 | tendon, injury, crimp | iron_tendons, glass_pulleys | — | A twinge on the warm-up crimp → physio screening or first grade-1 pulley strain. |
+| latent_glass | Latent Glass | 0 [−6] | health | hidden | P2 | injury_site_mult: finger 1.3 | tendon, injury, crimp | iron_tendons, glass_pulleys | — | A twinge on the warm-up crimp → physio screening or first grade-1 pulley strain. |
 | stage_fright | Stage Fright | 0 [−4] | mental | hidden | P2 | flags: stakes_mult=0.96 | competition, focus, comp | choker, clutch | — | Fell off the warm-up with an audience → revealed after the first stakes attempt. |
 | undiagnosed_asthma | Undiagnosed Asthma | 0 [−4] | health | hidden | P2 | attr_add: aerobic_capacity −4; condition_mult: cold 0.97 | health, endurance, cold | asthma, bellows | — | Wheezing on a cold approach → doctor event. |
 | brittle_ego | Brittle Ego | 0 [−5] | mental | hidden | P2 | flags: project_fall_confidence=−2 (per fall on a route at or above personal best) | fear, redpoint | swagger, imposter | — | A quiet drive home → revealed on the third project fall. |
 | cold_sensitive | Cold Sensitive | 0 [−3] | body | hidden | P2 | condition_mult: cold 0.95 | cold | furnace, cold_hands | — | Numb fingers at 9 °C → revealed on the first cold-day fall. |
 | sweet_tooth | Sweet Tooth | 0 [−2] | lifestyle | hidden | P2 | attr_add: nutrition −4 | nutrition, weight | fuelled, junk_food | — | Bakery detour → body-fat drift noticed at the monthly check. |
-| glass_ankle | Glass Ankle | 0 [−3] | health | hidden | P2 | flags: injury_site_mult:ankle=1.4 | injury, boulder, highball | weak_ankles, cat_feet | — | A roll on the walk-out → revealed on the first bad landing. |
+| glass_ankle | Glass Ankle | 0 [−3] | health | hidden | P2 | injury_site_mult: ankle 1.4 | injury, boulder, highball | weak_ankles, cat_feet | — | A roll on the walk-out → revealed on the first bad landing. |
 | night_terrors | Night Terrors | 0 [−3] | lifestyle | hidden | P2 | attr_add: sleep_hygiene −6 | sleep, recovery | insomniac, hibernator | — | Partner mentions you shouted in the tent → revealed on the sheet. |
 
 ### 2.10 Acquired (granted by play, cost 0)
@@ -449,13 +451,17 @@ One draw from the positive half and one from the negative half, without replacem
 |---|---|---:|---|---|---|---|---|---|---|---|
 | falls_ok | Falls OK | 0 | mental | acquired | P1a | none (marker; removes afraid_of_falling) | fear | — | afraid_of_falling stage 1 (§1.7) | Still not fun. Fine though. |
 | falls_well | Falls Well | 0 | mental | acquired | P1a | attr_add: composure +4; fear_add: −5; flags: fear_source_mult:last_fall=0.5 | fear, sport, boulder | afraid_of_falling | falls_ok stage 2 (§1.7) | Falls like it was the plan. |
-| pulley_veteran | Pulley Veteran | 0 | health | acquired | P2 | ceiling_add: finger_strength −2; attr_add: risk_judgement +3; flags: injury_site_mult:finger=0.85, warmup_required | tendon, injury, risk | — | a healed grade ≥ 2 finger pulley injury | Warms up for forty minutes now. Nobody argues. |
+| pulley_veteran | Pulley Veteran | 0 | health | acquired | P2 | ceiling_add: finger_strength −2; attr_add: risk_judgement +3; flags: warmup_required; injury_site_mult: finger 0.85 | tendon, injury, risk | — | a healed grade ≥ 2 finger pulley injury | Warms up for forty minutes now. Nobody argues. |
 | comp_yips | Comp Yips | 0 | mental | acquired | P3 | flags: stakes_mult=0.95 (comps only); removed after 2 clean finals | comp, competition, focus | — | 3 consecutive comp finals with a fall at margin > 0 | Cannot miss in training. Cannot catch in finals. |
 | sandbagged | Sandbagged | 0 | mental | acquired | P2 | attr_add: route_reading +3; flags: rock_scope=<rock of the crag> | reading, onsight, ethics | — | 3 onsight falls within 14 days on routes ≥ 1 DI below onsight estimate at the same crag | Learned humility from a 6b. |
 | crag_mayor | Crag Mayor | 0 | social | acquired | P2 | rep_mult: 1.20 (region only); flags: partner_find_mult=2.0 (local), beta_mult=1.5 (local) | social, reputation, partner | — | ≥ 120 climbing days at one crag within 730 days and regional reputation ≥ 60 | Knows the parking, the farmer and every sit start. |
 | grit_hardened | Grit Hardened | 0 | aptitude | acquired | P2 | hold_mult: smear 1.04; flags: fear_source_mult:runout=0.8, rock_scope=sandstone_grit | friction, slab, fear, trad | — | 50 climbing days on `sandstone_grit` | Pebbles are footholds. Cold is conditions. |
 | tufa_whisperer | Tufa Whisperer | 0 | aptitude | acquired | P2 | hold_mult: pinch 1.03, sloper 1.02; flags: rock_scope=limestone | pinch, sloper, sport | — | 40 climbing days on limestone with tufa features | Hugs the drip, finds the kneebar. |
 | injury_wise | Injury Wise | 0 | mental | acquired | P2 | attr_add: risk_judgement +6; injury_risk_mult: 0.92 | risk, injury, recovery | — | 3 healed injuries of grade ≥ 2 | Knows what a tweak sounds like before it happens. |
+| rebuilt_shoulder | Rebuilt Shoulder | 0 | health | acquired | P2 | injury_site_mult: shoulder 1.3 (13 §4's Old Shoulder; the ceilings are the injury's own losses) | injury, health | — | a grade 3 rotator cuff or labrum injury | Two scars and a resistance band that lives in the car. |
+| rebuilt_knee | Rebuilt Knee | 0 | health | acquired | P2 | injury_site_mult: knee 1.3 (13 §4's Bad Knee) | injury, health | — | a grade 3 knee injury | Heel hooks are a negotiation now. |
+| rebuilt_ankle | Rebuilt Ankle | 0 | health | acquired | P2 | injury_site_mult: ankle 1.3 (13 §4's Bad Ankle) | injury, health | — | a grade 3 ankle fracture | Checks every landing twice. |
+| glass_wrist | Glass Wrist | 0 | health | acquired | P2 | ceiling_add: tech_slopers −3 | injury, health, sloper | — | a TFCC tear whose lingering loss was rolled (a third of grade 2+) | Slopers ache in the wrong place. |
 | acclimatised | Acclimatised | 0 | body | acquired | P4 | condition_mult: altitude 1.15; expires 21 days after descending below 1,500 m | altitude, alpine | — | 14 consecutive days above 2,500 m | Temporary. Everything up there is. |
 | jaded | Jaded | 0 | mental | acquired | P2 | resource_mult: stoke 0.90; flags: novelty_stoke_mult=1.5 | patience, travel | — | burnout > 80 on two separate occasions | Been there. Sent that. Needs somewhere new. |
 | survivor | Survivor | 0 | mental | acquired | P4 | attr_add: composure +6, risk_judgement +6; fear_add: +4 | fear, risk, alpine | — | a death-eligible near miss survived | Came back from the thing most people do not come back from. |
@@ -607,7 +613,7 @@ The body-trait numbers above are deliberately conservative versions of effect si
 ## Open questions / proposed schema additions
 
 1. **`point_mass` field.** [schemas §9.2](schemas.md) says hidden traits "carry a `point_mass`" but the `Trait` interface has no such field. Proposed: `point_mass?: number` on `Trait`, required when `kind === 'hidden'`.
-2. **Site-specific injury multipliers.** Seven traits need per-site injury risk (knee, shoulder, elbow, back, ankle, finger). They use the documented flag `injury_site_mult:<site>=x`; proposed to promote it to `TraitEffect.injury_site_mult?: Partial<Record<InjuryDef['site'], number>>` when [13](13-injury-and-health.md) lands.
+2. **Site-specific injury multipliers.** Settled in P2 M2: the field `TraitEffect.injury_site_mult` (27 §6), additive across traits like the other multipliers; the rows above use it.
 3. **Age requirements.** Late Starter needs `age_start ≥ 28` and backgrounds need age windows ([04](04-backgrounds.md)). Proposed: `requires_age?: [min, max]` on `Trait` and `age_range: [min, max]` on `Background`; until then the flag `requires_age_min` carries it.
 4. **`resource_mult` semantics.** This doc assumes the multiplier applies to regeneration/gain (skin heal, energy regen, stoke deltas, burnout accrual, chalk restored per chalk-up, starting pools for `aerobic_reserve` and `power`). [02 §B.5](02-character-model.md) should state this explicitly or the field should be split. P1b implements these meanings ([26 §8.1](26-p1b-implementation-notes.md)); energy refills to its cap each morning, so `energy` has nothing to multiply until regeneration is partial.
 5. **Scoped effects.** Sandbagged, Crag Mayor, Grit Hardened and Tufa Whisperer restrict their effect to one rock type or region via `flags: rock_scope`. Proposed: `TraitEffect.scope?: { rock?: RockType; region?: string; discipline?: Discipline }`.

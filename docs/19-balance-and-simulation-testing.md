@@ -25,7 +25,7 @@ Related: [03 Traits](03-traits.md) · [05b Move Resolution](05b-move-resolution-
 | Section | Content |
 |---|---|
 | Grade distributions | peak DI per discipline by career year; percentiles by background and age band; share reaching IRCRA advanced/elite ([08](08-grades.md)) |
-| Injury rates | injuries per 1,000 climbing days by site and grade; career-ending rate; mean days lost; compared against [13](13-injury-and-health.md) anchors (upper-limb 77%, fingers 33–52%) |
+| Injury rates | injuries per 1,000 climbing days by site and grade; career-ending rate; mean days lost; compared against [13](13-injury-and-health.md) anchors (upper-limb 77%, fingers 33–52%). As built (P2 M2, [28 §3](28-p2-implementation-notes.md)): kind `injury` only (skin and illness apart), the rate per 1,000 climbing days and per career-year by start crag, grade and cause shares, relapses, days off to the heal day, a table against 13 §1's anchors (limb split, fingers, shoulder, elbow, pulleys, capsulitis for tenosynovitis, A2 : A4, ankle fractures among Fontainebleau fall injuries, careers with a pulley injury in two years) and one row per injury |
 | Run lengths | distribution of `RunSummary.days` and `end_reason` shares (target standard: retired 55%, forced_injury 15%, burnout 15%, bankrupt 10%, death ≤ 5% with death enabled **(tune)**) |
 | Money curves | median and 10th/90th percentile `money` by career month; bankruptcy timing; income mix |
 | Trait pick-rate vs outcome | per trait: pick-rate under the value-maximising builder (§4), mean Δ peak DI, Δ run length, Δ injuries, cost-efficiency |

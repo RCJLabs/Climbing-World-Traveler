@@ -319,6 +319,87 @@ After the change, 92 creation traits are live. Cold Blooded sits at the cap with
 
 Checks: typecheck, 246 tests, validate, calibrate `--quick` 14/14, build, size.
 
+## 3. M2: Injuries and health
+
+27 M2 asked for 13's injuries and illness rolled from falls, load, slips and the day, with their effects (site penalties fading to full load, fear, health, rehab, permanent ceiling losses, a return-to-load ramp), forced retirement, injuries in the summary and the score, acquired traits by a daily trigger, the injury and illness traits live, and 13 §5.2's base rates calibrated to 13 §1. Three decisions came first, with the user: careers end by injury through flags in the injury data, aiming at a P2 band of about 3–6% at Font and Kalymnos (01 §7's 10% stays the full game's); a milestone's new traits are priced on the default week, the older ones wait for M9; `risk_judgement` gets its role in the fall injury roll.
+
+### 3.1 Injuries as data
+
+`data/injuries.json` holds 13 §2's 24 injuries and the growth-plate variant as its own row (13 open question 2), validated by schemas §9 rule 22 (grades ascending, heal before full load, losses negative, career ends on grade 3 only, each roll's numbers with its trigger and none without; rehab names an activity). Each row carries a `kind` (`injury`, `skin`, `illness`: the harness's injury mix counts the first only, as Lutter's does) and a phase and milestone like a trait's: cold and heat rows (split tips, heat exhaustion) come with M5's weather, altitude, frostbite and hypothermia with P4. Rates live in the data; the code holds the shapes (`FALL_RISK`'s curve, the site penalty table, the age, leanness and rehab terms), each **(tune)**.
+
+### 3.2 The rolls
+
+| Roll | 13 | As built | Why |
+|---|---|---|---|
+| Fall | a base by fall kind and consequence class, times pad coverage and spotter | `a × κ^b` from the fall's κ (05b §11), which already holds pads, spotter, rope stretch and belay; b = 1.2 on a boulder (13 §5.1's 2 m : 3–4.5 m : highball shape), 2.6 on a rope (clean : ledge : ground); the injury drawn by each row's weight for the fall kind | κ is what the engine knows of a fall; applying coverage again would count it twice (27 M2) |
+| Move | 0.2–0.6% per sketchy or slip outcome on a straining hold | the same rule at about 1/100 of 13 §5.3's rates (a sketchy move at 0.2 of a slip) | the simulated climber slips or goes sketchy hundreds of times a week; at 13's rates moves caused 92% of all injuries at 16× 13 §1's rate |
+| Load | `base × m_acwr × Π risk mods × tendon_mod …` weekly | `load_base × m_load` against capacity (12 §5) × exposure as additive shares of the week's load by tag (03 §1.2's additive rule; a product over every tag present tripled every varied week) × age × leanness × fatigue × traits × prevention × relapse; at most one a week | 27 §6's one tendon model; a layoff's collapsed chronic load no longer reads as a spike |
+| Illness | per day block by cost tier and lodging | daily, one at a time, colds likelier in cold months and after a trip; the travel bug only at cost tiers 1–2 (neither crag) | lodging comes with M4 |
+
+Each roll has its own stream (`injury|fall|route|attempt|n`, `injury|move|route|attempt|move`, `injury|load|week`, `illness|day`), so a reload rolls the same and no roll moves another (19 §6). Lucky and Unlucky reroll a hit or a miss with their chance (03 §2's `reroll_bad_outcome`, `reroll_good_outcome`): the first time those flags do anything.
+
+### 3.3 What an injury does
+
+The heal and full-load days are drawn at onset and kept, divided by recovery, sleep, nutrition and age (13 §3). Grade 2+ bars climbing and attempts until the heal day, and the training that loads its site (each activity names the sites it loads); an illness bars all but rehab and mobility. Until full load the site's holds and moves lose `0.25 × grade × fade` of EffectiveStat, through the same hold and move multipliers traits use (fingers: crimps and pockets 1, pinches 0.7, slopers 0.5, jugs 0.3; an illness or a flapper costs every hold a little), so the week's estimate is worked out again at onset and the climber climbs easier problems while it heals. Health drops 5 a grade and comes back a point a day; "last injury" fear is +3 for four weeks after a grade-2+ injury heals. Rehab blocks count toward compliance (two a week); with sports physio near, each compliant week brings the heal day a quarter of a week forward; under a quarter of the blocks by the heal day, full load comes 30% later and a relapse is twice as likely again (relapse: the same injury within a year, ×2). Grade-3 losses go to `ceiling_loss`, which every ceiling rebuild (birthdays, evolutions, acquired traits) keeps off.
+
+**The plan.** Climbing an injury bars becomes its rehab (or rest), training that loads it too, and a free second block is rehab; between healed and full load, sessions are mileage. The bot policies do the same. Simulated days in the game stop after a day that brought a grade-2+ injury or illness.
+
+### 3.4 Careers it ends
+
+The flags are data (`InjurySeverity.career_ending`, 13's proposed schema addition): a grade-3 lower back is spinal 30% of the time, and every structural grade 3 ends a career when it is the second grade 3 at its site at or over an age. 11 §4's age, 40, ended no ten-year career in the harness: its builds start mostly at 18–28 (19 §1's sampler), so only 12 careers in 200 reach 40, and over ten years a second grade 3 at one site came to 11.5% of careers at any age, 6% at 30 and over, 1% at 35 and 0% at 40. The age is 30, set to reach the band (§3.9).
+
+### 3.5 Acquired traits
+
+A trait's `acquire.injury` trigger (schemas §4.4) is evaluated at each day's end: Pulley Veteran (a healed grade-2+ pulley injury), Injury Wise (three healed grade-2+ injuries), Rebuilt Shoulder, Rebuilt Knee and Rebuilt Ankle (a grade 3 there: 13 §4's Old Shoulder, Bad Knee and Bad Ankle under new ids, 27 §6) and Glass Wrist (a TFCC tear whose lingering loss was rolled). A trait gained applies its attribute adds once and its ceilings at once, as an evolution's acquired stage does. `scope` and `expires` wait for the rows that need them.
+
+### 3.6 Traits
+
+| Made live at M2 | Note |
+|---|---|
+| Iron Tendons, Glass Pulleys | robustness ±25 now sets the capacity's rate as well as the tendon clock's; their direct injury multiplier and finger-strength learning are their own clauses |
+| Bendy Shoulders, Bad Knee, Old Shoulder, Tweaky Elbows, Bad Back, Weak Ankles, Cat Feet | `injury_site_mult` as a field (27 §6); Bad Back's pad costs 10 energy on a boulder day; Cat Feet's landings ×0.85 |
+| Fast Healer, Slow Healer | `recovery_mult` divides every day count |
+| Never Sick, Sickly | illness ×0.5 and ×1.8; health regeneration ×1.2 and ×0.85 |
+| Iron Stomach, Delicate Stomach | 03's `illness_mult` scoped to the gut's illnesses (`illness_mult:travel_bug`, `:food_poisoning`); unscoped it would have made a cast-iron stomach immune to colds |
+| Asthma | 27 M2 names an illness clause 03 never wrote: colds ×1.5 (`illness_mult:common_cold=1.5`), added to its row |
+| Chalk Allergy | its skin and cost clauses are live; liquid chalk waits for M4's gear (its row carries no illness clause either) |
+| Pain Tolerant | climbs on worn skin at half the penalty; a grade 1 surfaces a week late, so it heals a week later |
+| Lucky, Unlucky | rerolls of injury and illness rolls; their event clauses wait for M8 |
+| Cool Head, Risk Blind | `risk_judgement` scales fall injury, 1.3 − 0.6 × risk_judgement/100 (the user's choice); Reckless and Cautious move it too |
+| Downclimber (quirk) | moved from P1b with its injuries: boulder landings ×0.7, the attempt's skin and energy ×1.1 |
+| Light Frame, Heavy Bones, Reckless, Cautious | their `injury_risk_mult`, live since P1, is read at last |
+
+Waiting: Longevity and Early Decline (their value is `decline_onset_shift`, M3), Insomniac (M3's day planner), Addictive Personality (M8's events), Bounce Back and Brittle (M3), and the hidden pool (M8).
+
+### 3.7 Screens
+
+The climber sheet has a health card (today's injuries, what each bars and until when, rehab progress, losses for good); the crag and the planner say once what bars climbing; the report lists what began in a stretch; the summary counts injuries at −4 each in the score; trait cards name injury, site, healing and illness effects. Checked in Chromium at 390 px: a run simulated by four-week stretches stopped on a grade-2 cold and showed it on each screen, with no horizontal overflow.
+
+### 3.8 Saves and versions
+
+`REDUCER_VERSION` 11: the run gains `injuries`, `ceiling_loss`, `capacity` and `finger_today`, its counters the finger column, the week's exposure, `tired_week`, `antagonists_until` and `arrived_day`, a session its exposure. The 10 → 11 adapter gives a carried run no injuries, capacities at its chronic load (never under a habitual climber's) and the day its weekly points last changed crag as its arrival; it is tested on a save written by `origin/main` at reducer 10 (`tests/fixtures/saves/v10-kalymnos.json`, made with `scripts/dev/archive-save.ts`, kept for the next step), on the memory and IndexedDB backends. The reducer-9 archive now goes through both adapters; replaying its log under this version is no check any more, because M2's injuries play the same actions out otherwise, which is why a run is rebased (27 §4). `DATA_VERSION` stays `p2-0`: no route is built differently, and the reducer step already carries every run forward.
+
+### 3.9 Calibration
+
+13 §1 gives shares, not a rate. Two of its anchors give one together: pulley injuries are 12.3% of all injuries and 13% of climbers have one in two years, so a climber has about 0.13 / 0.123 ≈ 1.06 injuries in two years, 0.53 a year (fewer if some climbers have two pulley injuries; the elite women's 53% injured a year, a share of climbers, agrees). At the default week's 135 climbing days a year that is about 3.9 per 1,000 climbing days.
+
+The bands the exit run is held to, set before the last probe and the exit run were read: 13 §1's ranges as written, each share within a few points of its anchor (about the spread between the studies 13 §1 draws on; at 1,000 careers' 5,000 or more injuries a share's sampling error is under half a point), and the P2 band for careers ended by injury (27 §6). **(tune)**
+
+| Measure | Anchor | Band |
+|---|---|---|
+| Injuries per career-year | about 0.53 (above) | 0.45–0.65 |
+| Upper limb | 77% | 73–81% |
+| Lower limb | 18% | 14–22% |
+| Fingers | 33–52% | as written |
+| Shoulder | about 17% | 13–21% |
+| Elbow | about 8% | 5–11% |
+| Pulleys | 12.3% | 9–16% |
+| Capsulitis (for tenosynovitis) | 10.6% | 7.5–14% |
+| A2 : A4 | 1.5–2 | as written |
+| Ankle fractures among Font fall injuries | 40% (indoor bouldering) | 32–48% |
+| Careers with a pulley injury in their first two years | 13% | 10–16% |
+| Careers ended by injury | P2's band | 3–6% |
+
 ## Open questions
 
 - **Catalogue sizes.** 400–800 problems an area at Font and 100–400 routes a sector at Kalymnos are guesses (**tune**); a real guidebook's counts per grade would set both the sizes and the grade shape per sector.
@@ -333,4 +414,9 @@ Checks: typecheck, 246 tests, validate, calibrate `--quick` 14/14, build, size.
 - **A mixed crag's week** (§2.4). The default week picks sectors by freshness whatever their discipline, so a climber at a mixed crag alternates boulders and routes. Whether the plan should name a discipline (a project block on routes, mileage on boulders) is open until a real mixed crag ships (M6).
 - **Grades after the run** (§2.8). The run summary and the Hall of Fame show Font and French grades: a `RunSummary` keeps no crag, so a climber who spent a career at a V-grade crag reads their best in Font. Keep the system with the best, or show every system?
 - **The share card** (§2.8). 17 §5 asks for a share card; the Journal shares a line of text. An image card waits for a design.
-- **Pricing on the default week** (§2.8). 27 §4 has each milestone's re-costing play the game's default week; on it, 27 of the traits P1b priced on the bot policies read clear of their costs, many by three points or more, and the yardstick (+5 on a physical attribute) reads 0.38 ± 0.25 points against 1.01 on the bot policies: a year of the default week moves a career less, so every trait's worth shrinks toward its noise. Re-price every trait on the default week, keep the bot policies as P1b did, or price on both? A decision before M2's re-costing.
+- ~~**Pricing on the default week** (§2.8).~~ **Decided before M2:** a milestone's new traits are priced on the default week; the older traits keep P1b's prices until M9's full re-costing at more bases, so they move once, on solid numbers (§3.6).
+- **Slips a week** (§3.2). The simulated climber slips or goes sketchy hundreds of times a week, which is why the move rates sit at about 1/100 of 13 §5.3's. Whether that many slips is true of a mileage day or 05b's sketchy band is wide is a question for the resolution engine; if it changes, the move rates change with it.
+- **The career-ending age** (§3.4). 30, not 11 §4's 40, so that careers starting mostly at 18–28 reach P2's band. If M3's aging and run ends bring longer or older careers, 40 may come back and the rule read as the design wrote it.
+- **Always compliant** (§3.3). The default week turns barred climbing into rehab, so harness careers always meet their rehab, and the neglect branch (full load 30% later, relapse ×2) fires only for a player who overrides the plan. Whether some bot policies should skip rehab, as some climbers do, is open.
+- **Unanchored rates** (§3.9). Flappers (counted apart from the injury mix), colds (about two a year, in line with adults' two to three) and days off the rock per career-year have no anchor in 13; they are set by feel.
+- **Growth plates** (§3.1). Only climbers of 16–17 can get the epiphyseal variant, and the sampler starts few that young, so its rate goes unmeasured; 13 §2's mean age of 14 is under the game's youngest start.
