@@ -33,6 +33,7 @@ export function Summary({ run }: { run: RunState }) {
           {s.hardest_route > 0 && <div class="row between"><span class="kicker">Hardest route</span><span class="mono">{gradeAt(s.hardest_route, 'sport')}</span></div>}
           {s.hardest_route > 0 && <div class="row between"><span class="kicker">Hardest onsight</span><span class="mono">{s.hardest_route_onsight ? gradeAt(s.hardest_route_onsight, 'sport') : '—'}</span></div>}
           <div class="row between"><span class="kicker">Ticks</span><span class="mono">{s.ticks}</span></div>
+          {(s.injuries ?? 0) > 0 && <div class="row between"><span class="kicker">Injuries</span><span class="mono">{s.injuries} <span class="tiny muted">−{4 * s.injuries} in the score</span></span></div>}
           {Object.keys(s.circuits).length > 0 && <span class="small muted">circuits: {Object.entries(s.circuits).map(([c, n]) => `${CIRCUIT_LABEL[c as keyof typeof CIRCUIT_LABEL]} ×${n}`).join(' · ')}</span>}
           {s.got_away && <div class="row between"><span class="kicker">The one that got away</span><span class="small">{gradeAt(s.got_away.di, s.got_away.discipline === 'sport' ? 'sport' : 'boulder')} {s.got_away.name} · {s.got_away.sessions} sessions</span></div>}
         </div>

@@ -11,6 +11,8 @@ import type { AttrId, BlockKind, PlanBlock, PlanDay, WeekPlan } from '../../sim/
 import { calendarDate, conditionsLabel, DAYS_IN_MONTH, nextWeather, sessionConditions, type DayWeather } from '../../sim/weather';
 import { Meter, Sheet, TabBar, Top } from '../components';
 import { ATTR_LABEL, money } from '../format';
+import { blockerLine } from '../injuries';
+import { climbBlocker } from '../../sim/injury';
 import { act, busy, data, goto, simulatePlan } from '../store';
 
 const SKY: Record<DayWeather['sky'], string> = { clear: 'Clear', cloudy: 'Cloudy', rain: 'Rain', storm: 'Storm' };
@@ -83,6 +85,7 @@ export function Planner({ run }: { run: RunState }) {
         </div>
 
         {onBreak && <p class="small warn">Forced break for burnout until day {run.counters.forced_break_until + 1}. No climbing or training.</p>}
+        {blockerLine(run, data) && <p class="small warn">{blockerLine(run, data)}</p>}
 
         <div class="card">
           <div class="row between"><span class="kicker">Training week</span><span class="tiny muted">tap a day to change it</span></div>
@@ -99,7 +102,7 @@ export function Planner({ run }: { run: RunState }) {
             <button class="chip-btn" aria-pressed={plan.auto_work} onClick={() => setPlan({ ...plan, auto_work: !plan.auto_work })}>Odd jobs when money is short</button>
             <button class="chip-btn" aria-pressed={plan.auto_rest} onClick={() => setPlan({ ...plan, auto_rest: !plan.auto_rest })}>Rest on worn skin or burnout</button>
           </div>
-          {deviates && <span class="tiny accent">Next up: {blockLabel(deviates)}, not {blockLabel(scheduled)} ({deviates.kind === 'work' ? 'money is short' : deviates.kind === 'rest' ? 'skin, burnout or a forced break' : 'the rock is wet'}).</span>}
+          {deviates && <span class="tiny accent">Next up: {blockLabel(deviates)}, not {blockLabel(scheduled)} ({deviates.kind === 'work' ? 'money is short' : climbBlocker(run) || (deviates.kind === 'train' && activityById(deviates.activity)?.rehab) ? 'an injury to look after' : deviates.kind === 'rest' ? 'skin, burnout or a forced break' : 'the rock is wet'}).</span>}
           <button class="btn small" disabled={busy.value || !!run.ended} onClick={() => void simulatePlan(28)}>Simulate four weeks</button>
         </div>
 

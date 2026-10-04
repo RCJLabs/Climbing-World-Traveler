@@ -73,6 +73,10 @@ export function effectText(t: Trait): string[] {
   }
   if (e.fear_add) out.push(`fear ${e.fear_add > 0 ? '+' : '−'}${Math.abs(e.fear_add)}`);
   if (e.cost_mult) out.push(`living costs ×${e.cost_mult}`);
+  // Injuries and illness (13, P2 M2).
+  if (e.injury_risk_mult) out.push(`injury risk ×${e.injury_risk_mult}`);
+  for (const [k, v] of Object.entries(e.injury_site_mult ?? {})) out.push(`${k} injuries ×${v}`);
+  if (e.recovery_mult) out.push(`${e.recovery_mult >= 1 ? 'heals faster' : 'heals slower'} (×${e.recovery_mult})`);
   for (const f of e.flags ?? []) {
     const [name, value = ''] = f.split('=');
     const v = Number(value.replace('+', ''));
@@ -87,6 +91,14 @@ export function effectText(t: Trait): string[] {
     else if (name === 'mass_shift') out.push(`${v > 0 ? '+' : '−'}${Math.abs(v)} kg`);
     else if (name === 'split_risk_cold') out.push(`skin wears faster on cold days (×${value})`);
     else if (name === 'beta_mult') out.push(`beta from others ×${value}`);
+    else if (name === 'illness_mult') out.push(`illness ×${value}`);
+    else if (name?.startsWith('illness_mult:')) out.push(`${name.split(':')[1]!.replace('_', ' ')} ×${value}`);
+    else if (name === 'tendon_robustness_add') out.push(`tendons ${v > 0 ? 'tougher' : 'weaker'}`);
+    else if (name === 'landing_injury_mult') out.push(`boulder landings ×${value}`);
+    else if (name === 'skin_low_penalty_mult') out.push('climbs on worn skin');
+    else if (name === 'injury_detect_delay') out.push('notices small injuries a week late');
+    else if (name === 'always_downclimb') out.push('downclimbs: fewer landing injuries, more skin and energy');
+    else if (name === 'pad_carry_energy') out.push(`carrying the pad costs ${v} energy`);
   }
   return out;
 }
