@@ -1980,7 +1980,7 @@
   "name": "Cool Head",
   "category": "mental",
   "kind": "creation",
-  "cost": 4,
+  "cost": 2,
   "phase": "P2",
   "milestone": 2,
   "tags": [
@@ -2005,7 +2005,7 @@
   "name": "Risk Blind",
   "category": "mental",
   "kind": "creation",
-  "cost": -4,
+  "cost": -2,
   "phase": "P2",
   "milestone": 2,
   "tags": [
@@ -2963,7 +2963,7 @@
   "name": "Bad Back",
   "category": "health",
   "kind": "creation",
-  "cost": -4,
+  "cost": -10,
   "phase": "P2",
   "milestone": 2,
   "tags": [

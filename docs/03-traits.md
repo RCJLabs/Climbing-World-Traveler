@@ -292,8 +292,8 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | imposter | Imposter | −4 | mental | creation | P1a | attr_add: confidence −10 | fear | swagger | — | Sent it. Assumes it is soft. |
 | laser_focus | Laser Focus | +6 | mental | creation | P1a | attr_add: focus +10 | focus, onsight, comp | scatterbrain | — | The crag could be on fire. |
 | scatterbrain | Scatterbrain | −2 | mental | creation | P1a | attr_add: focus −10 | focus | laser_focus | — | Mid-crux, remembers the parking meter. |
-| cool_head | Cool Head | +4 | mental | creation | P2 | attr_add: risk_judgement +12 | risk, highball, trad, alpine | risk_blind, reckless | — | Knows exactly how bad it is. Climbs anyway, or doesn't. |
-| risk_blind | Risk Blind | −4 | mental | creation | P2 | attr_add: risk_judgement −12 | risk | cool_head, cautious | — | "Looks fine" is a full risk assessment. |
+| cool_head | Cool Head | +2 | mental | creation | P2 | attr_add: risk_judgement +12 | risk, highball, trad, alpine | risk_blind, reckless | — | Knows exactly how bad it is. Climbs anyway, or doesn't. |
+| risk_blind | Risk Blind | −2 | mental | creation | P2 | attr_add: risk_judgement −12 | risk | cool_head, cautious | — | "Looks fine" is a full risk assessment. |
 | all_in | All In | +4 | mental | creation | P1b | attr_add: commitment +10 | dynamic, fear | hesitant | — | Does not know how to half-jump. |
 | hesitant | Hesitant | −4 | mental | creation | P1b | attr_add: commitment −10 | dynamic, fear | all_in | — | Three false starts per dyno, then the hands open. |
 | unflappable | Unflappable | +2 | mental | creation | P1b | attr_add: composure +10 | fear, focus | jittery, ice_in_the_veins | — | Belayer is screaming. Climber is chalking up. |
@@ -398,7 +398,7 @@ Effect shorthand: `attr_add: finger_strength +6` is `effect.attr_add.finger_stre
 | sickly | Sickly | −4 | health | creation | P2 | resource_mult: health 0.85; flags: illness_mult=1.8 | health | never_sick | — | Catches whatever the crag has. |
 | pain_tolerant | Pain Tolerant | +3 | health | creation | P2 | injury_risk_mult: 1.05; flags: skin_low_penalty_mult=0.5, injury_detect_delay | skin, injury, health | — | — | Climbs through the flapper. Notices the pulley a week late. |
 | tweaky_elbows | Tweaky Elbows | −4 | health | creation | P2 | injury_site_mult: elbow 1.8 | injury, tendon | — | — | Golfer's elbow on the left, tennis on the right. Plays neither. |
-| bad_back | Bad Back | −4 | health | creation | P2 | attr_add: core_tension −4; flags: pad_carry_energy=+10; injury_site_mult: back 1.5 | injury, core | — | — | The pad is the real project. |
+| bad_back | Bad Back | −10 | health | creation | P2 | attr_add: core_tension −4; flags: pad_carry_energy=+10; injury_site_mult: back 1.5 | injury, core | — | — | The pad is the real project. |
 | weak_ankles | Weak Ankles | −3 | health | creation | P2 | injury_site_mult: ankle 1.6 | injury, boulder, highball | cat_feet | — | Rolls it on the walk-in. |
 | cat_feet | Cat Feet | +3 | health | creation | P2 | flags: landing_injury_mult=0.85; injury_site_mult: ankle 0.6 | injury, boulder, highball | weak_ankles | — | Lands, bends, walks off. |
 | longevity | Longevity | +5 | health | creation | P2 | recovery_mult: 1.05; flags: decline_onset_shift=+3 | health, recovery | early_decline | — | Still crushing at forty-five. Nobody knows why. |
