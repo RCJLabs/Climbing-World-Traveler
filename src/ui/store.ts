@@ -22,6 +22,7 @@ export type Screen =
   | { name: 'result' }
   | { name: 'report' }
   | { name: 'character' }
+  | { name: 'journal' }
   | { name: 'summary' }
   | { name: 'hall' };
 

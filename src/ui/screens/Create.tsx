@@ -1,7 +1,7 @@
 // Create Climber (16 §1, 17 §2): background → body → allocation → traits → identity, with Quick-build chips.
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { athleteOf } from '../../sim/attempt';
-import { ageMoneyBonus, ALLOC_MAX_PER_ATTR, buildAttributes, creationBudget, deriveMass, phaseLive, refFat, refMass, validateCreation } from '../../sim/character';
+import { ageMoneyBonus, ALLOC_MAX_PER_ATTR, buildAttributes, creationBudget, deriveMass, isLive, refFat, refMass, validateCreation } from '../../sim/character';
 import { mainDiscipline } from '../../sim/discipline';
 import { estimateAt } from '../../sim/estimate';
 import { DEFAULT_OPTIONS, PRESETS, presetSpec } from '../../sim/presets';
@@ -118,7 +118,7 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
   // The start crag's estimate in the discipline it is known by (27 M1), in its own grades.
   const startClimb = startCrag ? mainDiscipline(startCrag, data) : 'boulder';
   const attrs = useMemo(() => buildAttributes(spec, ctx), [spec]);
-  const backgrounds = [...data.backgrounds.values()].filter((b) => phaseLive(b.phase));
+  const backgrounds = [...data.backgrounds.values()].filter((b) => isLive(b));
   const presets = PRESETS.filter((p) => { const b = data.backgrounds.get(p.spec.background); return !b?.unlock || unlocked.has(b.unlock); });
 
   const pickBackground = (id: string) => {
@@ -224,7 +224,7 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
             </div>
             <Seg label="Trait category" value={cat} onChange={setCat} options={[['all', 'All'], ['body', 'Body'], ['aptitude', 'Aptitude'], ['mental', 'Mental'], ['history', 'History'], ['lifestyle', 'Life'], ['health', 'Health'], ['quirk', 'Quirk']]} />
             {[...data.traits.values()]
-              .filter((t) => phaseLive(t.phase) && (t.kind === 'creation' || t.kind === 'evolving') && (cat === 'all' || t.category === cat))
+              .filter((t) => isLive(t) && (t.kind === 'creation' || t.kind === 'evolving') && (cat === 'all' || t.category === cat))
               .filter((t) => !bg.locked_traits.includes(t.id))
               .sort((a, b) => Number(d.traits.includes(b.id)) - Number(d.traits.includes(a.id)) || b.cost - a.cost)
               .map((t) => {

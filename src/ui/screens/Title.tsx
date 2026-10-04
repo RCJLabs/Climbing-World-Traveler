@@ -4,6 +4,7 @@ import { Seg, Top } from '../components';
 import { grade, gradeAt } from '../format';
 import type { RunSummary } from '../../sim/types';
 import { cannotContinue } from '../../save/session';
+import { CURRENT_MILESTONE, CURRENT_PHASE, isLive } from '../../sim/character';
 
 /** A finished run's best: its hardest boulder, its hardest route, or both (P1b). Older entries have no route fields. */
 const hardestLine = (s: RunSummary): string => {
@@ -12,11 +13,17 @@ const hardestLine = (s: RunSummary): string => {
 };
 import { act, continueRun, data, deleteRun, goto, meta, runs, saveSettings, settings, storageNote } from '../store';
 
+/** The build and its world, for the title: the phase and milestone, and the live crags by name while they are few. */
+function buildLine(): string {
+  const crags = [...data.crags.values()].filter(isLive);
+  return `${CURRENT_PHASE} M${CURRENT_MILESTONE} · ${crags.length <= 3 ? crags.map((c) => c.name).join(' · ') : `${crags.length} crags`}`;
+}
+
 export function Title({ current }: { current: RunState | null }) {
   const s = settings.value;
   return (
     <div class="screen">
-      <Top kicker="P1a · Fontainebleau" title="Climbing World Traveler">
+      <Top kicker={buildLine()} title="Climbing World Traveler">
         <span class="small muted">Build a climber. Plan the training. Watch the sends.</span>
       </Top>
       <div class="scroll">
