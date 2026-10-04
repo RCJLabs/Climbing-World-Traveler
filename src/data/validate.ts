@@ -2,7 +2,7 @@
 // signature grades (05c C7), over a data folder. `pnpm validate` runs it on data/; tests run it on a copy with a crag
 // added (27 M1). Node only: it reads the folder.
 import { readFileSync } from 'node:fs';
-import { phaseLive, traitEffectErrors, validateCreation } from '../sim/character';
+import { isLive, traitEffectErrors, validateCreation } from '../sim/character';
 import { cragDisciplines, disciplineErrors, rockErrors, type Climb } from '../sim/discipline';
 import { evolutionErrors } from '../sim/evolve';
 import { gradeRoute } from '../sim/grade';
@@ -60,8 +60,18 @@ export function validateContent(dir = DATA_DIR): Validation {
     for (const id of b.forced_traits) if (!bundle.traits.has(id)) err(`background ${b.id}: forced trait ${id} missing`);
     if (!bundle.crags.has(b.start_crag)) err(`background ${b.id}: start crag ${b.start_crag} missing`);
     for (const k of Object.keys(b.attr_add)) if (!attrs.has(k)) err(`background ${b.id}: unknown attribute ${k}`);
-    if (phaseLive(b.phase) && b.forced_traits.some((id) => { const t = bundle.traits.get(id); return t && !phaseLive(t.phase); })) {
+    if (isLive(b) && b.forced_traits.some((id) => { const t = bundle.traits.get(id); return t && !isLive(t); })) {
       err(`background ${b.id}: a forced trait is not live in this phase`);
+    }
+  }
+
+  // Sector ids are unique across crags: a signature route, a tick or a project is placed at its crag by its sector (save/adapt.ts).
+  const sectorCrag = new Map<string, string>();
+  for (const c of bundle.crags.values()) {
+    for (const s of c.sectors) {
+      const other = sectorCrag.get(s.id);
+      if (other) err(`crag ${c.id}/${s.id}: sector id also used at ${other}`);
+      else sectorCrag.set(s.id, c.id);
     }
   }
 
@@ -83,10 +93,10 @@ export function validateContent(dir = DATA_DIR): Validation {
       }
     }
     const bench = bundle.benchmarks.get(c.id);
-    if (phaseLive(c.phase) && (!bench || bench.length < 12)) err(`crag ${c.id}: benchmark set missing or short (run pnpm benchmarks)`);
+    if (isLive(c) && (!bench || bench.length < 12)) err(`crag ${c.id}: benchmark set missing or short (run pnpm benchmarks)`);
     for (const r of bench ?? []) if (r.crag !== c.id) err(`crag ${c.id}: benchmark ${r.id} belongs to ${r.crag}`);
     // Rule 18: a live crag's sectors each have a catalogue of fixed routes (06 §5, P2).
-    for (const e of catalogueErrors(c, phaseLive(c.phase))) err(e);
+    for (const e of catalogueErrors(c, isLive(c))) err(e);
   }
 
   // Disciplines (06 §2.6, 27 M1): a sector climbs one, its styles' (bolted styles are sport, the rest boulders); a crag
@@ -125,7 +135,7 @@ export function validateContent(dir = DATA_DIR): Validation {
   // A live background starts at a live crag.
   for (const b of bundle.backgrounds.values()) {
     const c = bundle.crags.get(b.start_crag);
-    if (phaseLive(b.phase) && c && !phaseLive(c.phase)) err(`background ${b.id}: starts at ${c.id}, which is not live in this phase`);
+    if (isLive(b) && c && !isLive(c)) err(`background ${b.id}: starts at ${c.id}, which is not live in this phase`);
   }
 
   // Presets are valid builds with every unlock held.

@@ -57,6 +57,11 @@ describe('the manifest (docs/20 §1)', () => {
     expect(validateContent(dir).errors).toContain('manifest: crag kalymnos has no folder');
   });
 
+  it('wants sector ids unique across crags', () => {
+    const d = copyWith('kalymnos', 'crag', (c) => { (c.sectors as { id: string }[])[0]!.id = font.sectors[0]!.id; });
+    expect(validateContent(d).errors).toContain(`crag kalymnos/${font.sectors[0]!.id}: sector id also used at fontainebleau`);
+  });
+
   it('wants a crag to hang off a hub the travel data has', () => {
     const d = copyWith('kalymnos', 'crag', (c) => { c.hub = 'hub_nowhere'; });
     expect(validateContent(d).errors).toContain('crag kalymnos: unknown hub hub_nowhere');
