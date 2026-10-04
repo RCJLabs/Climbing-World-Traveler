@@ -110,7 +110,7 @@ Every roll comes from `stream(run_seed, route, attempt, move)` as before, so the
 | Mileage on routes ([26 §5.3](26-p1b-implementation-notes.md)) | as on boulders | above estimate + 1 | 1 |
 | Project on routes ([26 §9](26-p1b-implementation-notes.md)) | known, signature, project, push, mid, warm-up | above estimate + 4.5 | 3 (warm-up 1); a route more than 1.5 over the estimate and never tried is worked first |
 
-A problem is left once it goes this session, or once it is sent for good (warm-ups excepted). The session ends when the climber is tired: energy < 22 or skin < 12. **(tune)** A first try is a flash on a signature problem (there is beta to watch) and an onsight elsewhere; later tries are redpoints.
+A problem is left once it goes this session, or once it is sent for good (warm-ups excepted, and since P2 the routes a Mileage session's slots hold once a sector is climbed out at its grade: those are repeats, 06 §5); a route with a move out of the climber's reach is left for 90 days (06 §5). The session ends when the climber is tired: energy < 22 or skin < 12. **(tune)** A first try is a flash on a signature problem (there is beta to watch) and an onsight elsewhere; later tries are redpoints.
 
 On routes (P1b) a pitch costs about a fifth of a day's energy (`6 + 0.25 × metres climbed + 1 per fall`, [26 §5](26-p1b-implementation-notes.md)), so the tables change in one column: Project gives a route 3 attempts (warm-up 1), Mileage 1. A Project route more than 1.5 DI above the estimate that has never been tried gets a working first go (`work`, hanging on the rope to learn it, `WORK_FIRST_ABOVE`) instead of an onsight; later goes are redpoints. A session at a sport crag offers six routes (warm-up, two mid, two push, one project) instead of eight problems **(tune)**.
 
@@ -133,7 +133,7 @@ The player can still decide the session in detail. None of it touches a move.
 | Climber sheet | The estimate and hardest send by week (a chart); each attribute's change over the last four weeks; tendon gains still arriving |
 | Journal | New hardest sends, long projects done, burnout, money, birthdays |
 
-A `WeekPoint` ([schemas](schemas.md) §8) is written at creation and at every week boundary: the day, the estimate from the latest session, the hardest send, the tick count and every attribute's value. The estimate comes from the session's start (05c), so recording it costs nothing extra.
+A `WeekPoint` ([schemas](schemas.md) §8) is written at creation and at every week boundary: the day, the estimate, the hardest send, the tick count and every attribute's value. Since P2 the estimate is worked out at each week boundary (and at creation and on arrival at a crag), and sessions use the week's (06 §5).
 
 ## 5. Watching
 

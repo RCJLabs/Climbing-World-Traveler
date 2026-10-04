@@ -5,8 +5,8 @@ import { ageMoneyBonus, aggregateMods, buildAttributes, ceilingFor, clamp, phase
 import { ageOf, athleteOf, doWallAction, InvalidAction, modsOf, routeEntry, sectorOf, simulateAttempt } from './attempt';
 import { estimateBoulderDI } from './estimate';
 import { countEvolve, evolveTraits, PRACTICE_FALLS_PER_SESSION } from './evolve';
-import { cyrb53, stream } from './rng';
-import { routeSeed, sectorFloor } from './routes';
+import { stream } from './rng';
+import { sectorCatalogue, sectorRange } from './routes';
 import { REDUCER_VERSION, type Counters, type DaySummary, type RouteSlot, type RunState, type SessionState, type WeekPoint } from './state';
 import {
   activityById, acwr, applyStimulus, applyTechniqueXp, dailyAdaptation, nutritionMult, sleepMult, type GainContext,
@@ -157,27 +157,72 @@ const ROUTE_SLOT_BANDS: typeof SLOT_BANDS = [
   ['warmup', -4, -3], ['mid', -2, 0], ['mid', -2, 0], ['push', 0, 2], ['push', 0, 2], ['project', 3, 4],
 ];
 
+/** A slot takes a route this close to its target grade before a closer one the climber has already tried (06 §5). **(tune)** */
+export const SLOT_TOLERANCE = 0.5;
+
 /**
- * Route list for a session at a sector: procedural slots around E (8 problems, 6 routes), signatures, and known
- * projects. Slots stay inside the crag's grades and above the sector's floor: a cave has no easy routes.
+ * Which routes a slot prefers, by the climber's history with them (06 §5): a new route first; then a warm-up or a
+ * mileage slot takes one already sent, and a route tried and never sent last, since one the climber keeps failing
+ * below its grade is not its kind of route (a reach it cannot make stays out of reach); a push or project slot takes
+ * the unfinished route before a repeat.
+ */
+export const SLOT_PREFERENCE: Record<RouteSlot['kind'], Record<'fresh' | 'sent' | 'unsent' | 'out_of_reach', number>> = {
+  warmup: { fresh: 0, sent: 1, unsent: 2, out_of_reach: 3 },
+  mid: { fresh: 0, sent: 1, unsent: 2, out_of_reach: 3 },
+  push: { fresh: 0, unsent: 1, sent: 2, out_of_reach: 3 },
+  project: { fresh: 0, unsent: 1, sent: 2, out_of_reach: 3 },
+  signature: { fresh: 0, unsent: 1, sent: 2, out_of_reach: 3 },
+  known: { fresh: 0, unsent: 1, sent: 2, out_of_reach: 3 },
+};
+
+/**
+ * Route list for a session at a sector: one of the sector's fixed routes per slot around E (8 problems, 6 routes;
+ * 06 §5), signatures, and known projects. Each slot draws a target grade in its band, as sessions always have,
+ * inside the crag's grades and above the sector's floor (a cave has no easy routes), and takes the sector's route
+ * that ranks first by: within SLOT_TOLERANCE of the target, the climber's history with it (`SLOT_PREFERENCE`), the
+ * nearest, then the session's own order; no route twice.
  */
 export function sessionSlots(run: RunState, sectorId: string, E: number, bundle: DataBundle): RouteSlot[] {
   const crag = bundle.crags.get(run.crag)!;
   const sector = sectorOf(run, bundle, sectorId);
   const rng = stream('slots', run.seed, crag.id, sectorId, run.day);
   const out: RouteSlot[] = [];
-  const floor = Math.max(crag.di_range[0] + 1, sectorFloor(sector, bundle));
-  (crag.disciplines.includes('boulder') ? SLOT_BANDS : ROUTE_SLOT_BANDS).forEach(([kind, lo, hi], i) => {
-    const di = clamp(Math.round(rng.range(E + lo, E + hi) * 2) / 2, floor, crag.di_range[1]);
-    const slot = cyrb53(`${run.seed}|${i}`) % 100000;
-    out.push({ seed: routeSeed(crag.id, sectorId, run.day, slot, di), kind, di_target: di });
+  const [lo, hi] = sectorRange(crag, sector, bundle);
+  const catalogue = sectorCatalogue(crag, sector, bundle);
+  const ord = stream('slots', run.seed, crag.id, sectorId, run.day, 'order');
+  const order = catalogue.map(() => ord.next());
+  const history = catalogue.map((e) => {
+    const p = run.projects[e.id];
+    return !p ? 'fresh' : (p.reach_until ?? -1) > run.day ? 'out_of_reach' : p.sent ? 'sent' : 'unsent';
   });
+  const taken = new Set<number>();
+  for (const [kind, blo, bhi] of crag.disciplines.includes('boulder') ? SLOT_BANDS : ROUTE_SLOT_BANDS) {
+    const target = clamp(Math.round(rng.range(E + blo, E + bhi) * 2) / 2, lo, hi);
+    const pref = SLOT_PREFERENCE[kind];
+    // The smallest key (distance past the tolerance, preference, distance, order), compared field by field.
+    let best = -1;
+    let b0 = Infinity; let b1 = Infinity; let b2 = Infinity; let b3 = Infinity;
+    for (let i = 0; i < catalogue.length; i++) {
+      if (taken.has(i)) continue;
+      const d = Math.abs(catalogue[i]!.di - target);
+      const k0 = Math.max(0, d - SLOT_TOLERANCE);
+      const k1 = pref[history[i]!];
+      const k3 = order[i]!;
+      if (k0 < b0 || (k0 === b0 && (k1 < b1 || (k1 === b1 && (d < b2 || (d === b2 && k3 < b3)))))) {
+        best = i;
+        b0 = k0; b1 = k1; b2 = d; b3 = k3;
+      }
+    }
+    if (best < 0) break;
+    taken.add(best);
+    out.push({ seed: catalogue[best]!.seed, kind, di_target: catalogue[best]!.di });
+  }
   for (const id of sector.signature_routes) {
     const sig = [...bundle.signatures.values()].find((r) => r.id === id);
     if (sig) out.push({ seed: sig.seed ?? sig.id, kind: 'signature', di_target: sig.di_target });
   }
   const known = Object.values(run.projects)
-    .filter((p) => p.area === sectorId && !p.signature && !out.some((s) => s.seed === p.seed))
+    .filter((p) => p.area === sectorId && !p.signature && !out.some((s) => s.seed === p.seed) && !((p.reach_until ?? -1) > run.day))
     .filter((p) => (p.attempts >= 3 && !p.sent && run.day - p.first_day <= 365) || run.day - p.last_day <= 30)
     .sort((a, b) => b.last_day - a.last_day)
     .slice(0, 8);
@@ -186,7 +231,8 @@ export function sessionSlots(run: RunState, sectorId: string, E: number, bundle:
 }
 
 function startSession(run: RunState, sectorId: string, bundle: DataBundle): SessionState {
-  run.est = estimateDI(run, bundle);
+  // The estimate is the week's (06 §5, P2): worked out at creation, on arrival and when a week starts.
+  run.est ??= estimateDI(run, bundle);
   const E = Math.round(run.est * 2) / 2;
   return {
     sector: sectorId, E, slots: sessionSlots(run, sectorId, E, bundle), attempts: 0, sends: 0, di_sum: 0, hard_moves: 0,
@@ -413,7 +459,11 @@ function endDay(run: RunState, bundle: DataBundle): void {
     : nextWeather(run.seed, crag, run.weather, run.day, date.month, run.options.difficulty);
   if (run.weather.sky === 'rain' || run.weather.sky === 'storm') run.last_rain = { day: run.day, mm: run.weather.precip_mm };
   run.res.energy = energyCap(run);
-  if (run.day % 7 === 0) run.history.push(weekPoint(run));
+  if (run.day % 7 === 0) {
+    // A new week: the climber takes stock of their level (06 §5, P2), and the progress chart gets its point.
+    run.est = estimateDI(run, bundle);
+    run.history.push(weekPoint(run));
+  }
 
   // Birthday (11 §3).
   if (run.day % 365 === 0) {

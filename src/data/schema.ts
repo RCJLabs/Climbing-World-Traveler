@@ -102,6 +102,7 @@ export const CragSchema = z.object({
     shade: z.boolean(),
     style_profiles: z.array(z.string()).min(1),
     signature_routes: z.array(z.string()),
+    routes: z.number().int().min(1).max(2000).optional(),
   }).strict()).min(1),
 }).strict();
 

@@ -99,6 +99,14 @@ export function evWalk(geom: RouteGeom, ath: Athlete, opts: WalkOptions = {}): W
   let skipped = false;
   let shakes = 0;
   let chalk = 100;
+  // The conditions with the hands' chalk, one object per chalk level the walk meets: chalk moves in steps of
+  // CHALK_RULE's wear and gain, so a route's hundred-odd moves meet a score of levels.
+  const condAt = new Map<number, Conditions>();
+  const condFor = (c: number): Conditions => {
+    let x = condAt.get(c);
+    if (!x) { x = { ...cond, chalk_term: chalkTerm(c) }; condAt.set(c, x); }
+    return x;
+  };
   const comY = (s: ClimbState): number => yOfS(route.wall, bodyPoints(geom, ath, s).CoM.s);
   for (let i = 0; i < route.beta_line.length; i++) {
     const step = route.beta_line[i]!;
@@ -143,7 +151,7 @@ export function evWalk(geom: RouteGeom, ath: Athlete, opts: WalkOptions = {}): W
       ?? (step.class === 'mantle' ? null : prepareMove(geom, ath, st, step.limb, step.hold));
     if (!chosen) { out.ungradeable = true; out.p_send = 0; return out; }
     out.kappa_max = Math.max(out.kappa_max, roped ? ropeKappa(route, y, lastClipY, GRADE_BELAY_QUALITY, skipped) : boulderKappa(geom, ath, st, spot));
-    const condNow = roped ? { ...cond, chalk_term: chalkTerm(chalk) } : cond;
+    const condNow = roped ? condFor(chalk) : cond;
     const e = evaluate(ath, chosen.spec, ms, condNow);
     const dynamic = chosen.cls === 'deadpoint' || chosen.cls === 'dyno';
     if (chosen.spec.kind === 'hand') out.hand_moves++;

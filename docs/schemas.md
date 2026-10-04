@@ -342,7 +342,7 @@ interface Route {
   length_m: number;
   style_tags: Tag[];
   signature: boolean;
-  seed?: string;                    // procedural only
+  seed?: string;                    // procedural only: `${crag}/${sector}#${index}:${di}` for a sector's catalogue route (06 §5, P2); `${crag}/${sector}:${day}:${slot}:${di}` for a one-off (calibration, tests)
   beta_line?: { limb: Limb; hold: string }[];   // the generator's intended sequence; revealed by route_reading or beta (06)
   components?: { hardest_move: number; crux_density: number; pump_peak: number; rests: number; dynamic_share: number };   // surfaced by the grade engine (05c)
   aid_grade?: string;               // 'A0'..'A5' | 'C1'..'C5' (P3)
@@ -431,6 +431,7 @@ interface Crag {
     dry_lag_days?: number;
     seep_lag_days?: number;              // P1b: a tufa cave seeps this many days (1..30) after rain over 15 mm (10 §4). Climate.seep_lag_days, per sector, because only the caves seep
     shade: boolean; style_profiles: string[]; signature_routes: string[];   // as implemented since P1a: profiles and signatures per sector
+    routes?: number;                     // P2: the sector's catalogue, its fixed procedural routes (06 §5); 1..2000, required at a live crag's sectors
   }[];
   signature_routes: string[];            // route ids
   style_profiles: string[];              // CragStyleProfile ids
@@ -620,13 +621,15 @@ interface WeekPlan {
 
 // A weekly progress point in RunState.history (docs/24 §4), written at creation and every seventh day.
 interface WeekPoint { day: number; E: number | null; pb: number; ticks: number; attrs: Partial<Record<AttrId, number>>; crag?: string; pb_route?: number }
-// RunState also carries plan: WeekPlan, est: number | null (the latest session's unrounded estimate, a route grade at a
-// sport crag) and history: WeekPoint[]. SessionState carries tried: Record<route_seed, { n: number; sent: boolean }> for
+// RunState also carries plan: WeekPlan, est: number | null (the week's unrounded estimate, a route grade at a sport
+// crag: worked out at creation, on arrival and at each week's start since P2, 06 §5) and history: WeekPoint[]. SessionState carries tried: Record<route_seed, { n: number; sent: boolean }> for
 // the tactics. P1b adds pb_route: number (the hardest route sent; pb stays the boulder one), visited: string[] (crag ids
 // in the order first reached), counters.pyramid_route (the route pyramid beside counters.pyramid), DaySummary.travel?:
 // string (the destination on a day on the move) and ProjectState.discipline?: Discipline (set on routes).
 // counters.evolve: Partial<Record<EvolveCounter, { n: number; first_day: number }>> keeps what evolving traits count
 // (03 §1.7); counts are kept for every climber and never reset, so a second stage counts from the first.
+// P2 adds ProjectState.reach_until?: number, the day until which a route with a move out of the climber's reach is
+// left alone (06 §5).
 
 interface RunSummary {                   // P1a shape (src/sim/types.ts); later phases make hardest per discipline
   climber: string; background: string; days: number; age_end: number;
@@ -670,6 +673,7 @@ interface RunSummary {                   // P1a shape (src/sim/types.ts); later 
 15. The travel graph: hub ids match `^hub_`, hub countries are two letters, edge `days` are whole numbers 0..10; every edge joins known crags or hubs, and every live crag can reach every other live crag (P1b, `travelGraphErrors`).
 16. A live background starts at a live crag, and every live crag ships a benchmark set of at least 12 problems or routes (P1b).
 17. `evolves_to` appears only on `evolving` and `acquired` traits; each evolution names an existing trait or null, at least one need, each need a known `EvolveCounter` with `n ≥ 1`, and `min_weeks ≥ 0`; an evolving trait has at least one evolution.
+18. Every sector of a live crag has a catalogue: `routes` in 1..2000 (06 §5, P2).
 
 ## Open questions
 

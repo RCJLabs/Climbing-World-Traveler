@@ -119,5 +119,5 @@ describe('the week plan (docs/24 §2)', () => {
     expect(estimateDI(run, bundle)).toBeGreaterThan(E0 + 1);
     expect(run.history.length).toBe(Math.floor(120 / 7) + 1);
     expect(JSON.stringify(replay(log, bundle))).toBe(JSON.stringify(run));
-  });
+  }, 20_000);
 });

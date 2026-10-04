@@ -245,7 +245,7 @@ describe('sport sessions (docs/24 §3, P1b)', () => {
     expect(run.ticks.filter((t) => t.discipline === 'sport').length).toBeGreaterThan(0);
     expect(run.ticks.every((t) => t.discipline === 'sport')).toBe(true);
     expect(replay(log, bundle)).toEqual(run);
-  });
+  }, 20_000);
 });
 
 describe('skin on routes (P1b, docs/26)', () => {

@@ -57,6 +57,8 @@ Related: [01 §4](01-pillars-scope-roadmap.md) · [18](18-tech-architecture.md) 
 
 ### M0 Harness at scale
 
+Implemented; as built and measured: [28 §1](28-p2-implementation-notes.md). Exit test met: 1,000 ten-year careers at both crags in 1 h 33 min on 4 workers, with run-end shares and money curves in the report (28 §1.6).
+
 | Item | Detail |
 |---|---|
 | Long careers | `--years`; the bot retires by 19 §1's rule (burnout over 85 for 60 days, or age 55) and travels at the end of a crag's season; the report gains run-end shares and money p10/median/p90 by month |

@@ -296,3 +296,12 @@ export const MATRIX_FOOT: Partial<Record<MoveClass, Partial<Record<HoldType, Wei
 export function matrixCell(kind: 'hand' | 'foot', cls: MoveClass, type: HoldType): Weights | undefined {
   return (kind === 'hand' ? MATRIX_HAND : MATRIX_FOOT)[cls]?.[type];
 }
+
+const cellEntryCache = new WeakMap<Weights, readonly (readonly [AttrId, number])[]>();
+
+/** A cell's weights in their key order, listed once per cell: the cells never change, and every move reads one. */
+export function cellEntries(cell: Weights): readonly (readonly [AttrId, number])[] {
+  let e = cellEntryCache.get(cell);
+  if (!e) { e = Object.entries(cell) as [AttrId, number][]; cellEntryCache.set(cell, e); }
+  return e;
+}

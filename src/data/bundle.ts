@@ -17,7 +17,7 @@ import type { Background, Crag, CragStyleProfile, DataBundle, NameBank, Route, T
  * Content and rules version (18 §5). Bump when the same seed would build a different problem, or the same actions
  * would play out differently: P1a keeps no old generators or reducers, so such a run cannot be replayed.
  */
-export const DATA_VERSION = 'p1b-6';
+export const DATA_VERSION = 'p2-0';
 
 const byId = <T extends { id: string }>(items: T[]): Map<string, T> => new Map(items.map((x) => [x.id, x]));
 
