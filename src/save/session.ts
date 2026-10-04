@@ -25,6 +25,15 @@ export interface ExportFile {
   base?: { index: number; state: RunState };
 }
 
+/**
+ * The crags whose routes must be loaded before a saved run is: where the climber is, or for a run saved before records
+ * said so, every crag it has played, or every crag.
+ */
+export function cragsToLoad(record: RunRecord, bundle: Pick<DataBundle, 'crags'>): string[] {
+  const ids = record.crag ? [record.crag] : Object.keys(record.hashes ?? {});
+  return (ids.length ? ids : [...bundle.crags.keys()]).filter((id) => bundle.crags.has(id));
+}
+
 /** Why a saved run cannot be continued in this build, or null; the run list shows it without loading the run. */
 export function cannotContinue(record: RunRecord, bundle: Pick<DataBundle, 'version' | 'hashes'>): string | null {
   const need = carryNeed(record, bundle);
@@ -51,7 +60,7 @@ export class RunSession {
     const first: Action = { t: 'new_run', seed, spec };
     const id = runId(seed, now);
     const record: RunRecord = {
-      id, version: REDUCER_VERSION, run_seed: seed, data_version: bundle.version, hashes: contentHashes(state, bundle), created: now.toISOString(),
+      id, version: REDUCER_VERSION, run_seed: seed, data_version: bundle.version, hashes: contentHashes(state, bundle), crag: state.crag, created: now.toISOString(),
       title: spec.name, last_played: now.toISOString(), action_count: 1, day: 0,
     };
     const s = new RunSession(backend, bundle, record, state, [first], 0, 1);
@@ -97,7 +106,7 @@ export class RunSession {
     const chunkIndex = Math.floor(index / CHUNK);
     const head = ((await backend.getChunks(record.id, chunkIndex))[0] ?? []).slice(0, index - chunkIndex * CHUNK);
     const next: RunRecord = {
-      ...record, version: REDUCER_VERSION, data_version: bundle.version, hashes: contentHashes(state, bundle), base: index, action_count: index, day: state.day,
+      ...record, version: REDUCER_VERSION, data_version: bundle.version, hashes: contentHashes(state, bundle), crag: state.crag, base: index, action_count: index, day: state.day,
     };
     await backend.rebase(next, chunkIndex, head, state);
     return new RunSession(backend, bundle, next, state, head, chunkIndex, 0);
@@ -134,7 +143,7 @@ export class RunSession {
     writes.push([chunkIndex, chunk]);
     const record: RunRecord = {
       ...this.record, last_played: now.toISOString(), action_count: this.record.action_count + actions.length, day: next.day,
-      hashes: contentHashes(next, this.bundle), ...(next.ended ? { summary: next.ended } : {}),
+      hashes: contentHashes(next, this.bundle), crag: next.crag, ...(next.ended ? { summary: next.ended } : {}),
     };
     await this.backend.appendChunks(record, writes);
     this.chunk = chunk;

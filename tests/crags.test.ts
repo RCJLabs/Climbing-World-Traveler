@@ -7,12 +7,16 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CRAG_FILES, cragHash } from '../src/data/assemble';
 import { cragIds, cragTexts, loadBundle, manifestOf } from '../src/data/bundle';
+import { decodeRoutes, encodeRoutes, ROUTE_FORMAT } from '../src/data/routefile';
 import { validateContent } from '../src/data/validate';
+import { bundle as appBundle, loadCrag } from '../src/data/browser';
+import { cragsToLoad } from '../src/save/session';
+import type { RunRecord } from '../src/save/backend';
 import { cragDisciplines, disciplineErrors, mainDiscipline, rockErrors, sectorDiscipline, sectorRock } from '../src/sim/discipline';
 import { presetSpec } from '../src/sim/presets';
-import { applyAction, createRun, InvalidAction, travelBlock } from '../src/sim/run';
+import { applyAction, createRun, InvalidAction, routesLoaded, travelBlock } from '../src/sim/run';
 import { edgeId, tripAlong, tripTo, travelAction } from '../src/sim/travel';
-import type { Crag, DataBundle, TravelEdge } from '../src/sim/types';
+import type { Crag, DataBundle, Route, TravelEdge } from '../src/sim/types';
 
 const bundle = loadBundle();
 const font = bundle.crags.get('fontainebleau')!;
@@ -132,5 +136,72 @@ describe('replay safety (27 M1)', () => {
     ];
     const trips = [edges, [...edges].reverse(), [edges[2]!, edges[4]!, edges[0]!, edges[3]!, edges[1]!]].map((e) => tripTo('a', 'b', { travel: { hubs: [], edges: e } })!);
     for (const t of trips) expect(t.legs.map(edgeId)).toEqual(['a__h1__bus', 'h1__b__bus']);
+  });
+});
+
+describe('the compact route file (27 M1, 18 §7)', () => {
+  it('stores the shipped benchmarks as columns and reads them back as they were, to the byte', () => {
+    for (const id of cragIds()) {
+      const file = JSON.parse(readFileSync(`data/crags/${id}/benchmarks.json`, 'utf8')) as { format: string };
+      expect(file.format).toBe(ROUTE_FORMAT);
+      const routes = decodeRoutes(file) as Route[];
+      expect(routes).toEqual(bundle.benchmarks.get(id));
+      expect(JSON.stringify(decodeRoutes(JSON.parse(JSON.stringify(encodeRoutes(routes)))))).toBe(JSON.stringify(routes));
+    }
+  });
+
+  it('reads a plain array of routes as it is, and refuses what it cannot store or read', () => {
+    const sigs = [...bundle.signatures.values()].filter((r) => r.crag === 'fontainebleau');
+    expect(decodeRoutes(sigs)).toBe(sigs);
+    expect(() => decodeRoutes({ format: 'other', routes: [] })).toThrow(/not a route file/);
+    const bad = structuredClone(sigs[0]!) as unknown as { holds: Record<string, unknown>[] };
+    bad.holds[0]!.friction = null;
+    expect(() => encodeRoutes([bad as unknown as Route])).toThrow(/cannot store null/);
+  });
+});
+
+describe('data on arrival (27 M1)', () => {
+  // The build as the app has it before a crag's chunk arrives: the crag's record, but not its routes.
+  const without = (id: string): DataBundle => {
+    const benchmarks = new Map(bundle.benchmarks);
+    benchmarks.delete(id);
+    return { ...bundle, benchmarks };
+  };
+
+  it('never starts, plays or sets off at a crag whose routes are not loaded', () => {
+    expect(routesLoaded(bundle, 'kalymnos')).toBe(true);
+    expect(() => createRun('arrive', presetSpec('dirtbag'), without('fontainebleau'))).toThrow('Fontainebleau has not been loaded.');
+    const run = createRun('arrive', presetSpec('dirtbag'), bundle);
+    expect(() => applyAction(run, { t: 'end_day' }, without('fontainebleau'))).toThrow(InvalidAction);
+    expect(() => applyAction(run, travelAction('fontainebleau', 'kalymnos', bundle)!, without('kalymnos'))).toThrow('Kalymnos has not been loaded.');
+    // Nor leaves one: the days on the way pass where the climber is, and a week can start on them.
+    expect(() => applyAction(run, travelAction('fontainebleau', 'kalymnos', bundle)!, without('fontainebleau'))).toThrow(InvalidAction);
+    expect(run.day).toBe(0);
+    applyAction(run, travelAction('fontainebleau', 'kalymnos', bundle)!, bundle);
+    expect(run.crag).toBe('kalymnos');
+  });
+
+  it('knows from a saved run\'s record which crags to load before loading it', () => {
+    const rec = { crag: 'kalymnos', hashes: { fontainebleau: 'a', kalymnos: 'b' } } as unknown as RunRecord;
+    const { crag: _crag, ...older } = rec;
+    const { hashes: _hashes, ...oldest } = older;
+    expect(cragsToLoad(rec, bundle)).toEqual(['kalymnos']);
+    expect(cragsToLoad(older, bundle)).toEqual(['fontainebleau', 'kalymnos']);
+    expect(cragsToLoad(oldest, bundle)).toEqual([...bundle.crags.keys()]);
+    expect(cragsToLoad({ ...rec, crag: 'gone' }, bundle)).toEqual([]);
+  });
+
+  it('the app\'s bundle holds every crag\'s record at once and fetches a crag\'s routes once, on demand', async () => {
+    const app = appBundle();
+    expect([...app.crags.keys()]).toEqual([...bundle.crags.keys()]);
+    expect(app.benchmarks.size).toBe(0);
+    expect(app.signatures.size).toBe(0);
+    const first = loadCrag('kalymnos');
+    expect(loadCrag('kalymnos')).toBe(first);
+    await first;
+    expect(app.benchmarks.get('kalymnos')).toEqual(bundle.benchmarks.get('kalymnos'));
+    expect([...app.signatures.values()].every((r) => r.crag === 'kalymnos')).toBe(true);
+    expect(app.benchmarks.has('fontainebleau')).toBe(false);
+    await expect(loadCrag('nowhere')).rejects.toThrow(/no data for crag nowhere/);
   });
 });

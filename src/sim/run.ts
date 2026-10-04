@@ -130,6 +130,7 @@ export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle, op
   const bg = bundle.backgrounds.get(spec.background)!;
   const crag = bundle.crags.get(bg.start_crag);
   if (!crag) throw new InvalidAction(`no start crag ${bg.start_crag}`);
+  needRoutes(bundle, crag.id);
   const traits = [...new Set([...bg.forced_traits, ...spec.traits])];
   const attrs = buildAttributes({ ...spec, traits }, ctx);
   // A trait can add mass at creation (Weightlifter, 03 §2 flags), after the body has passed its bands.
@@ -587,10 +588,22 @@ function endRun(run: RunState, reason: RunSummary['end_reason'], bundle: DataBun
 
 // ---------------------------------------------------------------- the reducer
 
+/**
+ * Whether a crag's routes are in the bundle (27 M1). A run never advances at a crag whose data is not loaded, nor sets
+ * off for one: the routes and the estimate it would play with would differ from the ones it plays with online.
+ */
+export const routesLoaded = (bundle: Pick<DataBundle, 'benchmarks'>, crag: string): boolean => bundle.benchmarks.has(crag);
+
+function needRoutes(bundle: DataBundle, crag: string): void {
+  if (!routesLoaded(bundle, crag)) throw new InvalidAction(`${bundle.crags.get(crag)?.name ?? crag} has not been loaded.`);
+}
+
 /** Apply one action to a draft state in place. Throws InvalidAction for actions the UI should never send. */
 export function applyAction(run: RunState, a: Action, bundle: DataBundle): void {
   if (a.t === 'new_run') throw new InvalidAction('new_run starts a run; use createRun');
   if (run.ended) throw new InvalidAction('the run is over');
+  needRoutes(bundle, run.crag);
+  if (a.t === 'travel' && bundle.crags.has(a.to)) needRoutes(bundle, a.to);
   switch (a.t) {
     case 'block_start': startBlock(run, a.kind, a.target, bundle); break;
     case 'block_end': endBlock(run, bundle); break;

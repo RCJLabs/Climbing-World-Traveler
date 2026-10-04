@@ -7,7 +7,7 @@ import { sectorFloor } from '../../sim/routes';
 import { sectorStatus } from '../../sim/weather';
 import { Circuit, TabBar, Top } from '../components';
 import { climbsLabel, COUNTRY_LABEL, gradeAt, money, ROCK_LABEL } from '../format';
-import { act, data, goto } from '../store';
+import { act, data, goto, travel } from '../store';
 
 export function Crag({ run }: { run: RunState }) {
   const crag = data.crags.get(run.crag)!;
@@ -53,7 +53,7 @@ export function Crag({ run }: { run: RunState }) {
           const legs = t.legs.map(edgeId);
           const why = travelBlock(run, t.to, data, legs);
           return (
-            <button key={t.to} class={`card ${why ? 'dim' : ''}`} disabled={!!why} onClick={async () => { if (await act({ t: 'travel', to: t.to, legs })) goto({ name: 'crag' }); }}>
+            <button key={t.to} class={`card ${why ? 'dim' : ''}`} disabled={!!why} onClick={async () => { if (await travel(t.to, legs)) goto({ name: 'crag' }); }}>
               <div class="row between">
                 <span class="card-title">{dest.name}</span>
                 <span class="small mono">{money(t.cost)} · {t.days} {t.days === 1 ? 'day' : 'days'}</span>

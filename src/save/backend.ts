@@ -13,6 +13,8 @@ export interface RunRecord {
   data_version: string;
   /** The content hash of each crag the run has played (27 §4, data/manifest.json). Absent on runs saved before P2 M1. */
   hashes?: Record<string, string>;
+  /** Where the climber is, so the app can load that crag's routes before it loads the run (27 M1). Absent before P2 M1. */
+  crag?: string;
   /** The action index of the run's base state, a snapshot carried forward from an older version: the actions before it are kept for export but never replayed (27 §4). Absent: 0. */
   base?: number;
   created: string;

@@ -1,5 +1,5 @@
 // Create Climber (16 §1, 17 §2): background → body → allocation → traits → identity, with Quick-build chips.
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { athleteOf } from '../../sim/attempt';
 import { ageMoneyBonus, ALLOC_MAX_PER_ATTR, buildAttributes, creationBudget, deriveMass, phaseLive, refFat, refMass, validateCreation } from '../../sim/character';
 import { mainDiscipline } from '../../sim/discipline';
@@ -13,7 +13,7 @@ import {
 } from '../../sim/types';
 import { Seg, Top } from '../components';
 import { ATTR_LABEL, gradeAt, LATER_ATTRS, money } from '../format';
-import { data, goto, meta, startRun } from '../store';
+import { data, ensureCrag, goto, meta, startRun } from '../store';
 
 const STEPS = ['Background', 'Body', 'Allocate', 'Traits', 'Identity'];
 
@@ -141,6 +141,9 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
     patch({ alloc: next });
   };
 
+  // The estimate reads the start crag's benchmarks, which come with its routes (27 M1).
+  const [loaded, setLoaded] = useState(0);
+  useEffect(() => { void ensureCrag(bg.start_crag).then((ok) => ok && setLoaded((n) => n + 1)); }, [bg.start_crag]);
   const estimate = useMemo(() => {
     if (step !== 4 || errors.length) return null;
     try {
@@ -149,7 +152,7 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
     } catch {
       return null;
     }
-  }, [step, spec, errors.length]);
+  }, [step, spec, errors.length, loaded]);
 
   const stepErrors = step === 3 ? errors.filter((e) => /trait|budget|refund|conflict|negative|fit/i.test(e)) : step === 2 ? errors.filter((e) => /Allocat|attribute/i.test(e)) : [];
 
@@ -162,7 +165,7 @@ export function Create(props: { seed?: string | undefined; preset?: string | und
         {step === 0 && (
           <>
             <h1>Where did you come from?</h1>
-            <p class="muted small">Your background sets trait points, money, starting attributes and one trait you can't refuse. Everyone starts in Fontainebleau.</p>
+            <p class="muted small">Your background sets trait points, money, starting attributes, one trait you can't refuse, and where you start.</p>
             <div class="row wrap">
               {presets.map((p) => (
                 <button key={p.id} class="chip-btn" onClick={() => { setD(fromPreset(p.id, d.seed)); setStep(4); }}>Quick: {p.name}</button>
