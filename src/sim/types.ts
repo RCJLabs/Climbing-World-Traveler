@@ -146,6 +146,8 @@ export interface Trait {
   kind: TraitKind;
   cost: number;
   phase: Phase;
+  /** The milestone of its phase that makes it live (27 §2, character.ts `isLive`). */
+  milestone?: number;
   tags: Tag[];
   effect: TraitEffect;
   excludes: string[];
@@ -159,6 +161,8 @@ export interface Background {
   id: string;
   name: string;
   phase: Phase;
+  /** The milestone of its phase that makes it live (27 §2). */
+  milestone?: number;
   /** Meta unlock required to pick this background (16 §4.1). */
   unlock?: string;
   point_bonus: number;
@@ -356,6 +360,8 @@ export interface Crag {
   grades?: { boulder?: 'font' | 'v'; sport?: 'french' | 'yds' };
   sectors: Sector[];
   phase: Phase;
+  /** The milestone of its phase that makes it live (27 §2). */
+  milestone?: number;
 }
 
 export interface NameBank {

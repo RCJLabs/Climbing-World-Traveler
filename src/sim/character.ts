@@ -7,9 +7,20 @@ import {
   type NewRunSpec, type Phase, type Trait,
 } from './types';
 
-/** The build this code ships as. Traits and backgrounds from later phases are not selectable. */
-export const CURRENT_PHASE: Phase = 'P1b';
-export const phaseLive = (p: Phase): boolean => PHASE_ORDER.indexOf(p) <= PHASE_ORDER.indexOf(CURRENT_PHASE);
+/** The build this code ships as: a phase, and the milestone of it that is done (27 §2). */
+export const CURRENT_PHASE: Phase = 'P2';
+export const CURRENT_MILESTONE = 1;
+
+/**
+ * Whether a trait, background or crag is live in this build: its phase is past, or it is of this phase and its
+ * milestone has come (27 §1: content comes live with its system). A row of this phase with no milestone waits for the
+ * phase's end; a later phase's waits for that phase. Anything not live is not selectable.
+ */
+export function isLive(row: { phase: Phase; milestone?: number }): boolean {
+  const i = PHASE_ORDER.indexOf(row.phase);
+  const now = PHASE_ORDER.indexOf(CURRENT_PHASE);
+  return i < now || (i === now && row.milestone !== undefined && row.milestone <= CURRENT_MILESTONE);
+}
 
 export function attrGroup(id: AttrId): AttrGroup {
   if ((PHYSICAL_ATTRS as readonly string[]).includes(id)) return 'physical';
@@ -199,7 +210,7 @@ export const INERT_RESOURCES: Readonly<Record<string, Phase>> = { energy: 'P2', 
  * Content errors in a trait's effect (schemas §9 rule 11, docs/26 §8): flags the engine does not know, resources it does
  * not have, and, on a live trait, resources no system regenerates yet.
  */
-export function traitEffectErrors(t: Pick<Trait, 'id' | 'effect'> & { phase?: Phase }): string[] {
+export function traitEffectErrors(t: Pick<Trait, 'id' | 'effect'> & { phase?: Phase; milestone?: number }): string[] {
   const out: string[] = [];
   for (const f of t.effect.flags ?? []) {
     const name = parseFlag(f)[0].split(':')[0]!;
@@ -207,7 +218,7 @@ export function traitEffectErrors(t: Pick<Trait, 'id' | 'effect'> & { phase?: Ph
   }
   for (const k of Object.keys(t.effect.resource_mult ?? {})) {
     if (!RESOURCE_KEYS.has(k)) out.push(`trait ${t.id}: unknown resource ${k}`);
-    else if (t.phase && phaseLive(t.phase) && k in INERT_RESOURCES) out.push(`trait ${t.id}: resource ${k} waits for ${INERT_RESOURCES[k]}`);
+    else if (t.phase && isLive({ phase: t.phase, ...(t.milestone !== undefined ? { milestone: t.milestone } : {}) }) && k in INERT_RESOURCES) out.push(`trait ${t.id}: resource ${k} waits for ${INERT_RESOURCES[k]}`);
   }
   return out;
 }
@@ -309,7 +320,7 @@ export function validateCreation(spec: NewRunSpec, ctx: CreationContext): string
   const errs: string[] = [];
   const bg = ctx.backgrounds.get(spec.background);
   if (!bg) return [`Unknown background ${spec.background}`];
-  if (!phaseLive(bg.phase)) errs.push(`${bg.name} is not available yet.`);
+  if (!isLive(bg)) errs.push(`${bg.name} is not available yet.`);
   if (bg.unlock && ctx.unlocked && !ctx.unlocked.has(bg.unlock)) errs.push(`${bg.name} unlocks after your first finished run.`);
   const b = spec.body;
   if (b.age_start < bg.age_range[0] || b.age_start > bg.age_range[1]) errs.push(`${bg.name} starts between ${bg.age_range[0]} and ${bg.age_range[1]}.`);
@@ -323,7 +334,7 @@ export function validateCreation(spec: NewRunSpec, ctx: CreationContext): string
     const t = ctx.traits.get(id);
     if (!t) { errs.push(`Unknown trait ${id}`); continue; }
     const forced = bg.forced_traits.includes(id);
-    if (!forced && !phaseLive(t.phase)) errs.push(`${t.name} is not available yet.`);
+    if (!forced && !isLive(t)) errs.push(`${t.name} is not available yet.`);
     if (!forced && t.kind !== 'creation' && t.kind !== 'evolving') errs.push(`${t.name} cannot be chosen at creation.`);
     if (bg.locked_traits.includes(id)) errs.push(`${t.name} does not fit a ${bg.name} background.`);
     if (t.cost < 0 && !forced) negPerCat.set(t.category, (negPerCat.get(t.category) ?? 0) + 1);

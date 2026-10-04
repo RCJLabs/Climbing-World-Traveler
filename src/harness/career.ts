@@ -4,7 +4,7 @@
 
 import { athleteOf } from '../sim/attempt';
 import { BotDriver, PLAN_POLICY, PROJECT_POLICY, VOLUME_POLICY, type BotPolicy } from '../sim/bot';
-import { phaseLive } from '../sim/character';
+import { isLive } from '../sim/character';
 import { CLIMBS, cragDisciplines, mainDiscipline, type Climb } from '../sim/discipline';
 import { estimateAt } from '../sim/estimate';
 import { cyrb53 } from '../sim/rng';
@@ -33,7 +33,7 @@ export function referenceCrags(bundle: DataBundle): Partial<Record<Climb, string
   if (out) return out;
   out = {};
   for (const d of CLIMBS) {
-    const c = [...bundle.crags.values()].filter((x) => phaseLive(x.phase) && cragDisciplines(x, bundle).includes(d))
+    const c = [...bundle.crags.values()].filter((x) => isLive(x) && cragDisciplines(x, bundle).includes(d))
       .sort((a, b) => PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase) || (a.id < b.id ? -1 : 1))[0];
     if (c) out[d] = c.id;
   }

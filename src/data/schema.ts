@@ -34,6 +34,7 @@ export const TraitSchema = z.object({
   kind: z.enum(['creation', 'hidden', 'acquired', 'evolving']),
   cost: z.number().int(),
   phase,
+  milestone: z.number().int().min(0).max(9).optional(),
   tags: z.array(tag),
   effect: TraitEffectSchema,
   excludes: z.array(z.string()),
@@ -60,6 +61,7 @@ export const BackgroundSchema = z.object({
   id: z.string().regex(/^[a-z0-9_]+$/),
   name: z.string(),
   phase,
+  milestone: z.number().int().min(0).max(9).optional(),
   unlock: z.string().optional(),
   point_bonus: z.number().int().min(0).max(6),
   age_range: z.tuple([z.number().min(16), z.number().max(45)]),
@@ -99,6 +101,7 @@ export const CragSchema = z.object({
   season: z.array(z.number().int().min(0).max(3)).length(12),
   cost_tier: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
   phase,
+  milestone: z.number().int().min(0).max(9).optional(),
   climate: z.array(z.object({
     t_mean: z.number(), t_sd: z.number(), rh_mean: z.number(), precip_days: z.number(), wind_mean: z.number(), snow: z.boolean(),
   }).strict()).length(12),

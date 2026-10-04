@@ -3,7 +3,7 @@
 // travel action names its legs (27 M1), so a replay takes the trip the climber took even after an update adds a
 // cheaper way; ties break by id, never by the order of the data files.
 
-import { phaseLive } from './character';
+import { isLive } from './character';
 import type { Action, DataBundle, TravelEdge } from './types';
 
 export interface Trip {
@@ -91,7 +91,7 @@ export function travelGraphErrors(bundle: Pick<DataBundle, 'crags' | 'travel'>):
   for (const e of bundle.travel.edges) {
     for (const end of [e.from, e.to]) if (!nodes.has(end)) errors.push(`travel edge ${edgeId(e)}: unknown crag or hub ${end}`);
   }
-  const live = [...bundle.crags.values()].filter((c) => phaseLive(c.phase)).map((c) => c.id);
+  const live = [...bundle.crags.values()].filter((c) => isLive(c)).map((c) => c.id);
   for (const to of live.slice(1)) if (!tripTo(live[0]!, to, bundle)) errors.push(`travel: no way from ${live[0]} to ${to}`);
   return errors;
 }
@@ -100,7 +100,7 @@ export function travelGraphErrors(bundle: Pick<DataBundle, 'crags' | 'travel'>):
 export function destinations(from: string, bundle: Pick<DataBundle, 'crags' | 'travel'>): Trip[] {
   const out: Trip[] = [];
   for (const c of bundle.crags.values()) {
-    if (c.id === from || !phaseLive(c.phase)) continue;
+    if (c.id === from || !isLive(c)) continue;
     const trip = tripTo(from, c.id, bundle);
     if (trip) out.push(trip);
   }

@@ -17,7 +17,7 @@ import { HARNESS_ROUTE_CACHE, runCareer, type CareerConfig } from '../src/harnes
 import { capsOver, divergedDelta, mean, pickRates, priceSlope, sd, toggled, verdict, type Lite, type Verdict } from '../src/harness/recost';
 import { sampleBuild } from '../src/harness/sampler';
 import { setRouteCacheMax } from '../src/sim/attempt';
-import { phaseLive } from '../src/sim/character';
+import { isLive } from '../src/sim/character';
 import { DEFAULT_OPTIONS } from '../src/sim/presets';
 import { cyrb53, stream } from '../src/sim/rng';
 import { PHYSICAL_ATTRS, type AttrId, type DataBundle, type NewRunSpec, type Trait } from '../src/sim/types';
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   const workers = Math.max(1, Number(opt('workers', String(cpus().length))));
   const bundle = loadBundle();
   const traits = [...bundle.traits.values()]
-    .filter((t) => phaseLive(t.phase) && (t.kind === 'creation' || t.kind === 'evolving') && (!only.length || only.includes(t.id)));
+    .filter((t) => isLive(t) && (t.kind === 'creation' || t.kind === 'evolving') && (!only.length || only.includes(t.id)));
   const { jobs, sign } = plan(bundle, { n, days, seed, crag, traits });
 
   mkdirSync(out, { recursive: true });
@@ -167,7 +167,7 @@ function analyse(bundle: DataBundle, traits: Trait[], done: Map<string, Lite>, s
   L.push('');
   const rates = pickRates(bundle, new Map(rows.map((r) => [r.t.id, r.impact])));
   const hot = [...rates].sort((a, b) => b[1] - a[1]).filter(([, r]) => r > 0.6).map(([id, r]) => `${id} ${(100 * r).toFixed(0)}%`);
-  const live = [...bundle.backgrounds.values()].filter((b) => phaseLive(b.phase)).length;
+  const live = [...bundle.backgrounds.values()].filter((b) => isLive(b)).length;
   L.push(`**Pick rates (19 §4 step 3)**, one greedy build per live background (${live}), valuing traits at their measured impact: picked by more than 60%: ${hot.join(', ') || 'none'}; picked at all: ${rates.size} of ${rows.length}.`);
   L.push('');
   const caps = capsOver(bundle);

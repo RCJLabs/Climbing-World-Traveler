@@ -6,7 +6,7 @@
 // stakes context.
 //   npx tsx scripts/dev/trait-onwall.ts [DI=17]
 import { loadBundle } from '../../src/data/bundle';
-import { aggregateMods, phaseLive, type Athlete } from '../../src/sim/character';
+import { aggregateMods, isLive, type Athlete } from '../../src/sim/character';
 import { evWalk, referenceAthlete } from '../../src/sim/grade';
 import { ALL_ATTRS, type AttrId, type Route } from '../../src/sim/types';
 import { routeGeom, type RouteGeom } from '../../src/sim/wall';
@@ -39,7 +39,7 @@ function withTrait(base: Athlete, id: string): Athlete {
 console.log(`DI ${DI}: ${sets.map(([k, gs], i) => `${k} ${gs.length} lines, P ${p0[i]!.toFixed(2)}, ${(perDI[i]! * 100).toFixed(1)} points of P per DI`).join('; ')}\n`);
 console.log('| Trait | phase | cost | DI on Font | DI on Kalymnos |');
 console.log('|---|---|---|---|---|');
-const traits = [...bundle.traits.values()].filter((t) => phaseLive(t.phase) && (t.kind === 'creation' || t.kind === 'evolving'))
+const traits = [...bundle.traits.values()].filter((t) => isLive(t) && (t.kind === 'creation' || t.kind === 'evolving'))
   .sort((a, b) => a.phase.localeCompare(b.phase) || a.id.localeCompare(b.id));
 for (const t of traits) {
   const [f, k] = worth(withTrait(ref, t.id));

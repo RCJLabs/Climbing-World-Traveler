@@ -8,7 +8,7 @@ import { CAL_SIZES, cragGates, spaced, steepestSport, type CalMode, type Check, 
 import { referenceCrags } from '../src/harness/career';
 import { evWalk, gradeRoute } from '../src/sim/grade';
 import { mean, spearman, tiltedBuilds, workedExampleBuilds } from '../src/harness/sim';
-import { phaseLive } from '../src/sim/character';
+import { isLive } from '../src/sim/character';
 import { sectorDiscipline } from '../src/sim/discipline';
 import { stream } from '../src/sim/rng';
 import { generateSport, routeFromSeed, routeSeed } from '../src/sim/routes';
@@ -35,7 +35,7 @@ const record = (id: string, pass: boolean, text: string, gate = true, detail: st
 const t0 = performance.now();
 
 // ---------------------------------------------------------------- each crag's own gates: C1–C4 per discipline, C7
-const crags = only ? [only] : [...bundle.hashes.keys()].filter((id) => phaseLive(bundle.crags.get(id)!.phase));
+const crags = only ? [only] : [...bundle.hashes.keys()].filter((id) => isLive(bundle.crags.get(id)!));
 const samples = new Map<string, ReturnType<typeof cragGates>['samples']>();
 for (const id of crags) {
   const g = cragGates(bundle, id, S, c1min);

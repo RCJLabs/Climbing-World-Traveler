@@ -1,7 +1,7 @@
 // The run reducer (docs/11, 12, 14, 16, 18 §5). A run is its `new_run` action plus every later action; the
 // state is a cache. `applyAction` mutates a draft in place (replay, harness); `reduce` clones first (UI).
 
-import { ageMoneyBonus, aggregateMods, buildAttributes, ceilingFor, clamp, phaseLive, resourceMult, validateCreation, type Athlete } from './character';
+import { ageMoneyBonus, aggregateMods, buildAttributes, ceilingFor, clamp, isLive, resourceMult, validateCreation, type Athlete } from './character';
 import { ageOf, athleteOf, doWallAction, InvalidAction, modsOf, routeEntry, sectorOf, simulateAttempt } from './attempt';
 import { cragDisciplines, mainDiscipline, sectorDiscipline, sectorRock, type Climb } from './discipline';
 import { estimateAt } from './estimate';
@@ -511,7 +511,7 @@ export function travelBlock(run: RunState, to: string, bundle: DataBundle, legs?
   if (run.ended) return 'The run is over.';
   if (run.block || run.blocks_today.length) return 'Travel takes whole days: set off before the day\'s first block.';
   const crag = bundle.crags.get(to);
-  if (!crag || !phaseLive(crag.phase)) return 'Nowhere to go.';
+  if (!crag || !isLive(crag)) return 'Nowhere to go.';
   const trip = tripOf(run, to, legs, bundle);
   if (!trip) return `${legs ? 'No such way' : 'No way'} to ${crag.name} from here.`;
   if (run.res.money < trip.cost) return `The trip costs $${trip.cost}.`;

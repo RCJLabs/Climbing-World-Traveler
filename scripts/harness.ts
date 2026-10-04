@@ -16,7 +16,7 @@ import { toggled } from '../src/harness/recost';
 import { buildReport } from '../src/harness/report';
 import { sampleBuild } from '../src/harness/sampler';
 import { setRouteCacheMax } from '../src/sim/attempt';
-import { phaseLive } from '../src/sim/character';
+import { isLive } from '../src/sim/character';
 import { DEFAULT_OPTIONS } from '../src/sim/presets';
 import { stream } from '../src/sim/rng';
 
@@ -57,7 +57,7 @@ async function main(): Promise<void> {
   const out = opt('out', '');
   const crag = opt('crag', 'fontainebleau');
   const bundle = loadBundle();
-  const live = [...bundle.crags.values()].filter((c) => phaseLive(c.phase)).map((c) => c.id);
+  const live = [...bundle.crags.values()].filter((c) => isLive(c)).map((c) => c.id);
   const startCrag = (i: number): string | undefined =>
     crag === 'any' ? undefined : crag === 'both' ? live[Math.floor(i / policies.length) % live.length] : crag;
   if (crag !== 'any' && crag !== 'both' && !live.includes(crag)) throw new Error(`unknown crag ${crag}`);
@@ -104,7 +104,7 @@ async function main(): Promise<void> {
     feed();
   })));
   if (n < 100) process.stderr.write('\n');
-  const evolving = [...bundle.traits.values()].filter((t) => t.kind === 'evolving' && phaseLive(t.phase)).map((t) => t.id);
+  const evolving = [...bundle.traits.values()].filter((t) => t.kind === 'evolving' && isLive(t)).map((t) => t.id);
   const ok = results.filter((r): r is CareerResult => !!r);
   let report = buildReport(ok, { n: ok.length, days, seed, policy: policyArg, crag, life, secs: (performance.now() - t0) / 1000, workers, force, evolving });
   if (failed.length) {
