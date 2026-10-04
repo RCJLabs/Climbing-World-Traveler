@@ -10,7 +10,7 @@ Related: [27 P2 Plan](27-p2-plan.md) · [06 §5](06-procedural-routes.md) · [19
 
 | Milestone | State |
 |---|---|
-| M0 Harness at scale | implemented (§1); the exit run missed its time target, 2 h 36 min against 2 hours (§1.6) |
+| M0 Harness at scale | implemented (§1); exit test met: 1,000 ten-year careers at both crags in 1 h 33 min on 4 workers, after a first run of 2 h 36 min (§1.6) |
 | M1–M9 | not started |
 
 ## 1. M0: Harness at scale
@@ -47,6 +47,9 @@ A sport route takes about 100 ms to build: the tracer rebuilds the whole route's
 | `pnpm harness` and `pnpm recost` run one esbuild bundle (`scripts/bundled.ts`) instead of tsx's per-module transform | exact | 1.3–1.4× |
 | A sector's routes are fixed (§1.3): a worker builds each route once | game rule | routes cost nothing after a worker's first careers |
 | The estimate is worked out weekly (§1.3) | game rule | the benchmark walk runs a seventh as often |
+| After the first exit run (§1.6): the route cache hands back the route last asked for without moving it; a move is prepared once, not again when it is made; `isVisible` finds a hold through an index; the reveal scan walks only hidden holds, against a set beside the revealed list, and works out the limbs' reach only when a hidden hold is left to look at | exact | identical |
+| `bodyPoints` and `positionQuality` keep their last eight results by the objects they came from (states, anchor sets, geometries and athletes are never changed once built); matrix cells list their weights once; terrain tags are shared sets; the grade walk keeps one conditions object per chalk level; slots compare their keys without building them | exact | identical; warm ten-year careers 1.5–1.7× at Kalymnos, 1.3–1.4× at Font; the exit run 1.67× (§1.6) |
+| A memo of freed states on a `WeakMap` | exact | dropped: its garbage collection cost what the extra body-point hits saved |
 
 The golden check: 13 generated routes, 8 estimates and 4 careers of 50–150 days at both crags, hashed; identical before and after each exact change. With a bundle the check's careers went from 17.6 s to 14.2 s.
 
@@ -98,18 +101,18 @@ With two crags, a Kalymnos climber winters at Font (December to March) and goes 
 
 ### 1.6 The exit run
 
-`pnpm harness --n 1000 --years 10 --crag both --policy all --workers 4 --seed 7` on a four-core machine. Start crags alternate: 501 careers at Font over its six backgrounds and 499 at Kalymnos, all Rower/Swimmer (the one background that starts there); a third play each policy.
+`pnpm harness --n 1000 --years 10 --crag both --policy all --workers 4 --seed 7` on a four-core machine, twice: first with §1.2's changes down to the weekly estimate, then again after the exact changes the first run's profile pointed to (§1.2's last rows). The two runs played every career identically (every field of all 1,000 careers but its time), so everything below the time holds for both. Start crags alternate: 501 careers at Font over its six backgrounds and 499 at Kalymnos, all Rower/Swimmer (the one background that starts there); a third play each policy.
 
-| Measure | Result | Target (27 M0) |
-|---|---|---|
-| Time | 9,331 s (2 h 36 min) | under 2 hours: **missed**, 1.3× short |
-| CPU in careers | 37,220 s; the queue kept all four workers busy to the end | — |
-| A Font career | 17–21 s by policy (1.7–2.1 s a year) | — |
-| A Kalymnos career | 49–62 s by policy (4.9–6.2 s a year); 74% of the CPU | — |
-| Run-end shares and money curves | in the report | met |
-| Failed careers; replay | none; identical on the 2 careers checked | — |
+| Measure | First run | Second run | Target (27 M0) |
+|---|---|---|---|
+| Time | 9,331 s (2 h 36 min) | 5,584 s (1 h 33 min) | under 2 hours: **met** by the second |
+| CPU in careers | 37,220 s | 22,283 s; the queue kept all four workers busy to the end | — |
+| A Font career | 17–21 s by policy (1.7–2.1 s a year) | 12–15 s (1.2–1.5 s a year) | — |
+| A Kalymnos career | 49–62 s (4.9–6.2 s a year); 74% of the CPU | 28–36 s (2.8–3.6 s a year); 71% | — |
+| Run-end shares and money curves | in the report | the same report | met |
+| Failed careers; replay | none; identical on the 2 careers checked | the same | — |
 
-Where a ten-year Kalymnos career's time goes once its routes are built (profiles of three careers, 52–63 s each):
+Where a ten-year Kalymnos career's time went in the first run, once its routes were built (profiles of three careers, 52–63 s each):
 
 | Part | Share |
 |---|---|
@@ -118,7 +121,7 @@ Where a ten-year Kalymnos career's time goes once its routes are built (profiles
 | garbage collection | 8–11% |
 | building routes | none: a worker builds each route once, about 70 s in its first Kalymnos career |
 
-The largest functions by self time: `bodyPoints` 10%, the reveal scan 7–8%, `evaluate` 6–7%, `resolveMove` 6%, the route cache lookup 3–5%.
+The largest functions by self time were `bodyPoints` 10%, the reveal scan 7–8%, `evaluate` 6–7%, `resolveMove` 6% and the route cache lookup 3–5%, which is what the second round of §1.2 went after.
 
 **Run ends.** Every career reached the ten-year limit. Each end that 19 §1 and 27 §6 aim for (retired 55%, injury 10–15%, burnout 15%, bankrupt 10%; a median career of 3–8 years) is missing for a known reason:
 
@@ -171,5 +174,5 @@ Kalymnos starters travel twice a year (19.6 trips each: to Font in December, hom
 - **Out of reach.** The rule hides the reach problem rather than fixing it (26 open questions, Reach): a 150 cm climber still finds only 33 of 134 easy Kalymnos routes physically possible.
 - **Phone memory.** The game keeps 400 built routes; at Kalymnos that is about 80 MB, against 18 §7's 150 MB heap. With fixed routes a smaller cache costs little, since a route is rebuilt only when it comes back.
 - **A climber stuck working.** The same 150 cm build on the default week at Kalymnos climbed 163 days in ten years and took 2,518 odd jobs: failed sessions hold its burnout at 70–87, the week's automatic rest turns climbing days into rest, and the money stub keeps it short, so it never meets the 60-day retirement rule either. M3's burnout chain and M4's money model own the parts; the reach problem above is the cause.
-- **Closing the time gap** (§1.6: 1.3× short, three quarters of it in Kalymnos careers). From the profile: exact work on the attempt (fewer `bodyPoints` calls, fewer allocations, a cheaper route lookup), of unknown size, where the last round of exact changes gave 1.2×; starting the weekly walk two levels under last week's estimate and walking from the bottom only when that level already fails, which saves about half the estimate (13–15% of a Kalymnos career) and changes an estimate only when a level further down would have capped it (no exact shortcut exists: a lower level can still cap it); estimating fortnightly, about as much again; or a looser target (2.5 hours, or 2 hours on six workers).
+- **Harness speed beyond M0** (§1.6). At the second run's speed the P2a exit run of 2,000 ten-year careers (27 §5) takes about 3 hours on 4 workers, and 10,000 nightly about 15.5 hours. The next lever is the weekly estimate, a quarter to a third of a Kalymnos career: starting its walk two levels under last week's estimate, and from the bottom only when that level already fails, would save about half of it and change an estimate only when a level further down would have capped it (no exact shortcut exists); estimating fortnightly would save about as much again. Both change the game, so neither is taken without a decision. M2–M5 add work to every day, so each milestone's exit run re-measures the speed.
 - **Endurance never trains** (§1.6). Whether climbing should train aerobic and anaerobic capacity from the pump it costs (12 §1), and whether the bot and the default week should train the weakest family (19 §1's policy names that rule; the bot's wet-day lists ignore it), is for M3. Until then the route estimate stalls at 7c and caps the routes a strong climber is offered.
