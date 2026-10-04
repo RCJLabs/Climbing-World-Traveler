@@ -11,7 +11,7 @@ import { fork } from 'node:child_process';
 import { cpus } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadBundle } from '../src/data/bundle';
-import { HARNESS_ROUTE_CACHE, runCareer, type CareerConfig, type CareerPolicy, type CareerResult } from '../src/harness/career';
+import { HARNESS_ROUTE_CACHE, referenceCrags, runCareer, type CareerConfig, type CareerPolicy, type CareerResult } from '../src/harness/career';
 import { toggled } from '../src/harness/recost';
 import { buildReport } from '../src/harness/report';
 import { sampleBuild } from '../src/harness/sampler';
@@ -106,7 +106,8 @@ async function main(): Promise<void> {
   if (n < 100) process.stderr.write('\n');
   const evolving = [...bundle.traits.values()].filter((t) => t.kind === 'evolving' && isLive(t)).map((t) => t.id);
   const ok = results.filter((r): r is CareerResult => !!r);
-  let report = buildReport(ok, { n: ok.length, days, seed, policy: policyArg, crag, life, secs: (performance.now() - t0) / 1000, workers, force, evolving });
+  const refs = Object.fromEntries(Object.entries(referenceCrags(bundle)).map(([d, id]) => [d, bundle.crags.get(id)!.name]));
+  let report = buildReport(ok, { n: ok.length, days, seed, policy: policyArg, crag, life, secs: (performance.now() - t0) / 1000, workers, force, evolving, refs });
   if (failed.length) {
     report += `\n\n## Failed careers\n\n${failed.map((x) => `- ${x.seed} (#${x.index}): ${x.error.split('\n')[0]}`).join('\n')}`;
     for (const x of failed) process.stderr.write(`career ${x.seed} failed: ${x.error}\n`);

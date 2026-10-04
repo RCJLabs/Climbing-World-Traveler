@@ -1,7 +1,7 @@
 // Title / menu: continue a saved run, start a new climber, Hall of Fame, settings.
 import type { RunState } from '../../sim/state';
 import { Seg, Top } from '../components';
-import { grade, gradeAt } from '../format';
+import { climbsLabel, grade, gradeAt } from '../format';
 import type { RunSummary } from '../../sim/types';
 import { cannotContinue } from '../../save/session';
 import { CURRENT_MILESTONE, CURRENT_PHASE, isLive } from '../../sim/character';
@@ -50,7 +50,7 @@ export function Title({ current }: { current: RunState | null }) {
         {current && !current.ended && (
           <button class="btn" onClick={() => { if (confirm(`Retire ${current.name}? The run ends and goes into the Hall of Fame.`)) void act({ t: 'retire' }).then((ok) => ok && goto({ name: 'summary' })); }}>Retire {current.name}</button>
         )}
-        <p class="tiny muted">Build a climber, plan the training, and the climbing plays out by itself. Real places, fictional people. Bouldering at Fontainebleau and sport climbing on Kalymnos in this version; the rest of the world comes later.</p>
+        <p class="tiny muted">Build a climber, plan the training, and the climbing plays out by itself. Real places, fictional people. In this version: {[...data.crags.values()].filter(isLive).map((c) => `${climbsLabel(c, data)} at ${c.name}`).join(', ')}; the rest of the world comes later.</p>
         <p class="tiny muted mono">Version {__BUILD__.sha} · {__BUILD__.date}</p>
       </div>
     </div>

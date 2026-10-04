@@ -18,6 +18,8 @@ export interface ReportMeta {
   workers: number;
   force: string;
   evolving: string[];
+  /** The reference crags' names (career.ts `referenceCrags`): where each discipline's estimate is read. */
+  refs?: { boulder?: string; sport?: string };
 }
 
 /** Age bands at the start of a career (19 §1). */
@@ -65,7 +67,7 @@ export function buildReport(rs: CareerResult[], meta: ReportMeta): string {
   } else {
     L.push('## Careers by year');
     L.push('');
-    L.push('Estimates in each discipline (boulders on the Font benchmarks, routes on the Kalymnos ones) wherever the climber is, p10 / median / p90; personal bests are medians; money is at the year\'s last sample. A row counts the careers still going at the year\'s end.');
+    L.push(`Estimates in each discipline (boulders on ${meta.refs?.boulder ?? 'the boulder reference crag'}'s benchmarks, routes on ${meta.refs?.sport ?? 'the route reference crag'}'s) wherever the climber is, p10 / median / p90; personal bests are medians; money is at the year's last sample. A row counts the careers still going at the year's end.`);
     L.push('');
     L.push('| Year | careers | boulder E | route E | boulder PB | route PB | money p10 / median / p90 |');
     L.push('|---|---|---|---|---|---|---|');
