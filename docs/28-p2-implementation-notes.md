@@ -348,12 +348,14 @@ The heal and full-load days are drawn at onset and kept, divided by recovery, sl
 
 The flags are data (`InjurySeverity.career_ending`, 13's proposed schema addition): a grade-3 lower back is spinal 30% of the time, and every structural grade 3 ends a career when the same injury was grade 3 before (the same structure torn twice, the words of the option chosen before M2) and the climber is at or over an age. 11 §4's age, 40, ends no ten-year career in the harness: its builds start mostly at 18–28 (19 §1's sampler), so only 12 careers in 200 reach 40.
 
-| Careers with a second grade 3, ten years | any age | 30+ | 35+ | 40+ |
-|---|---|---|---|---|
-| Of the same injury: third probe, fourth probe (§3.9) | 4.5%, 5.5% | 2.5%, 3.5% | 0%, 0% | 0%, 0% |
-| At the same site, any structure: third, fourth | 11.5%, 8.5% | 6.0%, 5.5% | 1.0%, 0.5% | 0%, 0% |
+| Careers with a second grade 3, ten years | any age | 25+ | 30+ | 35+ | 40+ |
+|---|---|---|---|---|---|
+| Of the same injury: third probe, fourth probe, first exit run (§3.9) | 4.5%, 5.5%, 3.7% | 4.0%, 5.0%, 3.1% | 2.5%, 3.5%, 1.8% | 0%, 0%, 0.5% | 0%, 0%, 0.3% |
+| At the same site, any structure: the same runs | 11.5%, 8.5%, 6.7% | 10.5%, 7.0%, 5.8% | 6.0%, 5.5%, 3.6% | 1.0%, 0.5%, 1.2% | 0%, 0%, 0.7% |
 
-The age is 30, set to reach the band; it is the one place M2 departs from the chosen option, whose age, 40, and band cannot both hold with these starts (open questions). The first build counted any grade 3 at the same site, and the fourth probe ended 5.5% of careers that way, the band's top before any spinal back (6 grade-3 backs in its 200 careers, none spinal; at three in ten they add about 0.9%); the rule now counts the same injury, as the option said.
+The first exit run's careers stop at their first end, so its columns under 30 are floors.
+
+The age is set to reach the band; it is the one place M2 departs from the chosen option, whose age, 40, and band cannot both hold with these starts (open questions). The first build counted any grade 3 at the same site, at 30, and the fourth probe ended 5.5% of careers that way, the band's top before any spinal back (6 grade-3 backs in its 200 careers, none spinal; at three in ten they add about 0.9%); the rule then counted the same injury, as the option said. At 30 the first exit run ended 2.8% (10 spinal backs, 18 repeats), under the band; its own careers put 25 at about 4.1%, and the age is 25.
 
 ### 3.5 Acquired traits
 
@@ -455,7 +457,9 @@ The probes, all at both crags on the default week, seed 7:
 | 3 | 200 × 10 years | finger rates up for probe 2's low pulleys | 0.65 | 34 / 46 / 20 | 54.6% | 17.5% | 2.6 | 18.5% | 34% | 0% (rule at 40) |
 | 4 | 200 × 10 years | rates about ×0.85, the A2 pulley and pocket moves cut hardest; wrist, elbow, shoulder and lower limb up; the rule at 30, by site | 0.54 | 43 / 36 / 21 | 41.4% | 13.0% | 1.3 | 11.0% | 43% | 5.5% |
 
-Probe 4 sits inside every band but A2 : A4 (1.3), with pulleys in two years and careers ended near a band's edge. Before the exit run: the A2 pulley's rates ×1.25 and the A4's ×0.92 (about 1.75 at a tenth more pulley injuries), and the rule counts the same injury (§3.4).
+| Exit 1 | 1,000 × 10 years | A2 ×1.25, A4 ×0.92; the rule by the same injury | 0.57 | 43 / 36 / 21 | 41.4% | 12.9% | 3.0 | 12.6% | 41% | 2.8% |
+
+Probe 4 sat inside every band but A2 : A4 (1.3), with pulleys in two years and careers ended near a band's edge; before the exit run the A2 pulley's rates went ×1.25 and the A4's ×0.92 (about 1.75 at a tenth more pulley injuries), and the rule came to count the same injury (§3.4). The first exit run met ten bands and missed two. A2 : A4 read 3.0: probe 4's 23 slip-caused A4 injuries sat about four standard errors above what probe 3 and the exit run both imply, so pass 4 was sized on noise. And 2.8% of careers ended by injury. Pass 5 sized the pulleys on the exit run's own rates (A2 ×0.85, A4 ×1.45, for about 1.75 at the same total) and set the repeat age to 25 (§3.4); the second exit run, on the same seed and held to the same bands, is §3.10.
 
 ## Open questions
 
@@ -473,7 +477,7 @@ Probe 4 sits inside every band but A2 : A4 (1.3), with pulleys in two years and 
 - **The share card** (§2.8). 17 §5 asks for a share card; the Journal shares a line of text. An image card waits for a design.
 - ~~**Pricing on the default week** (§2.8).~~ **Decided before M2:** a milestone's new traits are priced on the default week; the older traits keep P1b's prices until M9's full re-costing at more bases, so they move once, on solid numbers (§3.6).
 - **Slips a week** (§3.2). The simulated climber slips or goes sketchy hundreds of times a week, which is why the move rates sit at about 1/100 of 13 §5.3's. Whether that many slips is true of a mileage day or 05b's sketchy band is wide is a question for the resolution engine; if it changes, the move rates change with it.
-- **The career-ending age** (§3.4). 30, not the 40 of 11 §4 and of the option chosen before M2: with starts mostly at 18–28, an age of 40 and the 3–6% band cannot both hold (at 40 no ten-year career ends). Keep 30; or keep 40 and accept almost no careers ended by injury in P2; or start more careers older (19 §1's sampler)? If M3's aging and run ends bring longer or older careers, 40 may come back.
+- **The career-ending age** (§3.4). 25, not the 40 of 11 §4 and of the option chosen before M2: with starts mostly at 18–28, an age of 40 and the 3–6% band cannot both hold (at 40 almost no ten-year career ends). Keep 25; or keep 40 and accept almost no careers ended by injury in P2; or start more careers older (19 §1's sampler)? If M3's aging and run ends bring longer or older careers, a higher age may come back.
 - **Always compliant** (§3.3). The default week turns barred climbing into rehab, so harness careers always meet their rehab, and the neglect branch (full load 30% later, relapse ×2) fires only for a player who overrides the plan. Whether some bot policies should skip rehab, as some climbers do, is open.
 - **Unanchored rates** (§3.9). Flappers (counted apart from the injury mix), colds (about two a year, in line with adults' two to three) and days off the rock per career-year have no anchor in 13; they are set by feel.
 - **Crag-bound traits** (§3.6). Bad Back's value is its pad (−17.5 at Font, near nothing where nobody carries one), so at −10 a Kalymnos start takes it almost free. A pack cost on rope days too would make it worth about the same everywhere; or M9's re-costing at more crags prices it on the mix.

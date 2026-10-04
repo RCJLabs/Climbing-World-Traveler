@@ -151,7 +151,7 @@ The pipeline as implemented (`src/sim/injury.ts`, `data/injuries.json`; [28 §3]
 | Relapse | the same injury within 365 days: ×2 |
 | Ceilings | grade-3 losses go to `RunState.ceiling_loss` and stay through every rebuild |
 | Plan | climbing it bars becomes its rehab (or rest), training that loads it too, and a free second block is rehab; between heal and full load sessions are mileage |
-| Career end | `career_ending` on grade 3: lower back spinal 30% of the time; a second grade 3 of the same injury at 30+ (11 §4's 40, lowered to reach P2's band) |
+| Career end | `career_ending` on grade 3: lower back spinal 30% of the time; a second grade 3 of the same injury at 25+ (11 §4's 40, lowered to reach P2's band) |
 
 ---
 
