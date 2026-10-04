@@ -9,7 +9,7 @@ import type {
 } from './types';
 
 /** Reducer version (18 §5). Bump when replaying an old log through the new reducer would change outcomes. */
-export const REDUCER_VERSION = 8;
+export const REDUCER_VERSION = 9;
 
 export interface Resources {
   energy: number;
@@ -50,6 +50,11 @@ export interface ProjectState {
   fall_fear: number;
   /** Hidden holds found, by touch or by looking around on a rest. */
   revealed: string[];
+  /**
+   * The climber found a move on this route its body cannot make (no legal move for its reach, mobility or lock-off)
+   * and leaves the route alone until this day (06 §5, P2): mobility and lock-off can still come.
+   */
+  reach_until?: number;
   /** A route's discipline (P1b); absent on a boulder. */
   discipline?: Discipline;
 }

@@ -13,7 +13,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { cpus } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadBundle } from '../src/data/bundle';
-import { runCareer, type CareerConfig } from '../src/harness/career';
+import { HARNESS_ROUTE_CACHE, runCareer, type CareerConfig } from '../src/harness/career';
 import { capsOver, divergedDelta, mean, pickRates, priceSlope, sd, toggled, verdict, type Lite, type Verdict } from '../src/harness/recost';
 import { sampleBuild } from '../src/harness/sampler';
 import { setRouteCacheMax } from '../src/sim/attempt';
@@ -23,11 +23,12 @@ import { cyrb53, stream } from '../src/sim/rng';
 import { PHYSICAL_ATTRS, type AttrId, type DataBundle, type NewRunSpec, type Trait } from '../src/sim/types';
 
 interface Job { key: string; cfg: CareerConfig }
+/** This script's own file: a worker is a fork of it, under tsx when it is TypeScript (scripts/bundled.ts runs a bundle). */
+const SELF = fileURLToPath(import.meta.url);
 
 if (process.env.CWT_RECOST_WORKER) {
   const bundle = loadBundle(false);
-  // A year at Kalymnos builds over a thousand routes; a base's variants follow the same seed, so they share most.
-  setRouteCacheMax(3000);
+  setRouteCacheMax(HARNESS_ROUTE_CACHE);
   process.on('message', (msg: { jobs: Job[] }) => {
     for (const job of msg.jobs) {
       const r = runCareer(job.cfg, bundle);
@@ -95,7 +96,7 @@ async function main(): Promise<void> {
   const baseOf = (j: Job) => Number(j.key.split('|')[0]);
   await Promise.all(Array.from({ length: Math.min(workers, todo.length) }, (_, w) => new Promise<void>((resolve, reject) => {
     const mine = todo.filter((j) => baseOf(j) % workers === w);
-    const child = fork(fileURLToPath(import.meta.url), [], { execArgv: ['--import', 'tsx'], env: { ...process.env, CWT_RECOST_WORKER: '1' } });
+    const child = fork(SELF, [], { execArgv: SELF.endsWith('.ts') ? ['--import', 'tsx'] : [], env: { ...process.env, CWT_RECOST_WORKER: '1' } });
     child.on('message', (m: { done?: boolean; key?: string; lite?: Lite }) => {
       if (m.done) { child.kill(); resolve(); return; }
       done.set(m.key!, m.lite!);

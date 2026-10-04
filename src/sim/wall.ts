@@ -28,6 +28,45 @@ export interface RouteGeom {
   s_top: number;
 }
 
+/**
+ * A profile's per-segment terms, computed once per wall array: the sines, the lean terms and the running sums of
+ * surface length and lean, each summed in segment order exactly as the loops below once summed them on every call,
+ * so every coordinate comes out bit for bit the same. Walls are never mutated once built (the generator makes a new
+ * array for each profile it tries), which is what makes a cache keyed by the array safe.
+ */
+interface WallTable { sin: number[]; len: number[]; zfull: number[]; cot: number[]; s0: number[]; z0: number[] }
+const wallTables = new WeakMap<readonly WallSegment[], WallTable>();
+
+function tableOf(wall: readonly WallSegment[]): WallTable {
+  let t = wallTables.get(wall);
+  if (t) return t;
+  t = { sin: [], len: [], zfull: [], cot: [], s0: [], z0: [] };
+  let s = 0;
+  let z = 0;
+  for (const seg of wall) {
+    const sin = Math.sin(rad(seg.angle));
+    const cot = Math.cos(rad(seg.angle)) / Math.sin(rad(seg.angle));
+    t.sin.push(sin);
+    t.cot.push(cot);
+    t.len.push((seg.y1 - seg.y0) / sin);
+    t.zfull.push(-(seg.y1 - seg.y0) * cot);
+    t.s0.push(s);
+    t.z0.push(z);
+    s += (seg.y1 - seg.y0) / sin;
+    z += -(seg.y1 - seg.y0) * cot;
+  }
+  t.s0.push(s);
+  t.z0.push(z);
+  wallTables.set(wall, t);
+  return t;
+}
+
+/** Index of the first segment whose top is above y, or `wall.length` when y is at or above the top of the wall. */
+function segIndex(wall: readonly WallSegment[], y: number): number {
+  for (let i = 0; i < wall.length; i++) if (!(y >= wall[i]!.y1)) return i;
+  return wall.length;
+}
+
 export function segmentAt(wall: readonly WallSegment[], y: number): WallSegment {
   for (const seg of wall) if (y >= seg.y0 && y < seg.y1) return seg;
   return wall[wall.length - 1]!;
@@ -35,43 +74,28 @@ export function segmentAt(wall: readonly WallSegment[], y: number): WallSegment 
 
 /** Arc length up the profile to height y (05a §1.1). */
 export function sOfY(wall: readonly WallSegment[], y: number): number {
-  let s = 0;
-  for (const seg of wall) {
-    const sin = Math.sin(rad(seg.angle));
-    if (y >= seg.y1) s += (seg.y1 - seg.y0) / sin;
-    else {
-      s += Math.max(0, y - seg.y0) / sin;
-      break;
-    }
-  }
-  return s;
+  const t = tableOf(wall);
+  const i = segIndex(wall, y);
+  if (i === wall.length) return t.s0[i]!;
+  return t.s0[i]! + Math.max(0, y - wall[i]!.y0) / t.sin[i]!;
 }
 
 /** Horizontal offset of the wall face at height y (05a §1.1); positive leans out towards the climber. */
 export function zOfY(wall: readonly WallSegment[], y: number): number {
-  let z = 0;
-  for (const seg of wall) {
-    const cot = Math.cos(rad(seg.angle)) / Math.sin(rad(seg.angle));
-    if (y >= seg.y1) z += -(seg.y1 - seg.y0) * cot;
-    else {
-      z += -Math.max(0, y - seg.y0) * cot;
-      break;
-    }
-  }
-  return z;
+  const t = tableOf(wall);
+  const i = segIndex(wall, y);
+  if (i === wall.length) return t.z0[i]!;
+  return t.z0[i]! + -Math.max(0, y - wall[i]!.y0) * t.cot[i]!;
 }
 
 /** Inverse of sOfY: height for a surface coordinate. */
 export function yOfS(wall: readonly WallSegment[], s: number): number {
-  let acc = 0;
-  for (const seg of wall) {
-    const sin = Math.sin(rad(seg.angle));
-    const len = (seg.y1 - seg.y0) / sin;
-    if (s <= acc + len) return seg.y0 + (s - acc) * sin;
-    acc += len;
+  const t = tableOf(wall);
+  for (let i = 0; i < wall.length; i++) {
+    if (s <= t.s0[i]! + t.len[i]!) return wall[i]!.y0 + (s - t.s0[i]!) * t.sin[i]!;
   }
   const last = wall[wall.length - 1]!;
-  return last.y1 + (s - acc) * Math.sin(rad(last.angle));
+  return last.y1 + (s - t.s0[wall.length]!) * t.sin[wall.length - 1]!;
 }
 
 /** Rock does not kink at a hold's scale: within this distance of a segment boundary, along the surface, a hold's angle blends between the two segments (05a §1.2). **(tune)** */
@@ -79,11 +103,12 @@ export const ANGLE_BLEND_M = 0.10;
 
 /** Wall angle at height y, blended linearly across segment boundaries over ±ANGLE_BLEND_M of surface (05a §1.2). */
 export function angleAt(wall: readonly WallSegment[], y: number): number {
+  const t = tableOf(wall);
   const s = sOfY(wall, y);
-  let acc = 0;
   for (let i = 0; i < wall.length; i++) {
     const seg = wall[i]!;
-    const end = acc + (seg.y1 - seg.y0) / Math.sin(rad(seg.angle));
+    const acc = t.s0[i]!;
+    const end = acc + t.len[i]!;
     if (s < end || i === wall.length - 1) {
       const prev = wall[i - 1];
       const next = wall[i + 1];
@@ -92,14 +117,29 @@ export function angleAt(wall: readonly WallSegment[], y: number): number {
       if (next && end - s < ANGLE_BLEND_M) return next.angle + (seg.angle - next.angle) * (0.5 + 0.5 * (end - s) / ANGLE_BLEND_M);
       return seg.angle;
     }
-    acc = end;
   }
   return wall[wall.length - 1]!.angle;
 }
 
+/** A hold's place on a wall depends only on its height: computed once per wall and height. */
+interface PlaceG { s: number; z: number; angle: number; feature: Feature }
+const placeCache = new WeakMap<readonly WallSegment[], Map<number, PlaceG>>();
+
+function placeOf(wall: readonly WallSegment[], y: number): PlaceG {
+  let m = placeCache.get(wall);
+  if (!m) { m = new Map(); placeCache.set(wall, m); }
+  let p = m.get(y);
+  if (!p) {
+    p = { s: sOfY(wall, y), z: zOfY(wall, y), angle: angleAt(wall, y), feature: segmentAt(wall, y).feature };
+    m.set(y, p);
+  }
+  return p;
+}
+
 /** One hold's place on the wall: surface distance, lean, blended angle and feature (05a §1). */
 export function holdGeom(wall: readonly WallSegment[], h: Hold): HoldG {
-  return { ...h, s: sOfY(wall, h.y), z: zOfY(wall, h.y), angle: angleAt(wall, h.y), feature: segmentAt(wall, h.y).feature };
+  const p = placeOf(wall, h.y);
+  return { ...h, s: p.s, z: p.z, angle: p.angle, feature: p.feature };
 }
 
 export function routeGeom(route: Route): RouteGeom {
@@ -151,14 +191,15 @@ export interface BodyPoints {
   handsOn: number;
 }
 
-const centroid = (pts: Pt[]): Pt | null =>
-  pts.length === 0 ? null : { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, s: pts.reduce((s, p) => s + p.s, 0) / pts.length };
-
-/** The state with one limb released: reach is measured for a free limb (05a §5.1). */
+/**
+ * The state with one limb released: reach is measured for a free limb (05a §5.1); a hand stays on when the other
+ * hand is off. Built without `delete`, which leaves an object slow to read, in the same key order.
+ */
 export function freeState(st: ClimbState, limb: Limb): ClimbState {
-  const anchors = { ...st.anchors };
-  const otherOfKind = limbKind(limb) === 'hand' ? anchors[otherHand(limb)] : anchors[otherHand(limb)];
-  if (otherOfKind || limbKind(limb) === 'foot') delete anchors[limb];
+  const release = limbKind(limb) === 'foot' || !!st.anchors[otherHand(limb)];
+  if (!release) return { ...st, anchors: { ...st.anchors } };
+  const anchors: ClimbState['anchors'] = {};
+  for (const l in st.anchors) if (l !== limb) anchors[l as Limb] = st.anchors[l as Limb]!;
   return { ...st, anchors };
 }
 
@@ -178,20 +219,52 @@ export function lockDepth(ath: Athlete): number {
   return LOCKOFF.depth[0] + (LOCKOFF.depth[1] - LOCKOFF.depth[0]) * lo;
 }
 
+const LIMB_ORDER: readonly Limb[] = ['LH', 'RH', 'LF', 'RF'];
+
+/**
+ * The last few body points worked out, with what they were worked from. A move asks for one state's points several
+ * times (its reach, its position quality, its height and fear, the clipping tactic), and none of the inputs changes once
+ * built: not a state's anchors, nor a geometry's hold places (`refreshHold` changes a hold's kind, never its place), nor
+ * an athlete. So a match on the same objects is the same answer, and the points are shared, never written to.
+ */
+const BP_MEMO = 8;
+interface BpMemo { geom: RouteGeom | null; ath: Athlete | null; anchors: ClimbState['anchors'] | null; posture: Posture | null; feet_cut: boolean; bp: BodyPoints | null }
+const bpMemo: BpMemo[] = Array.from({ length: BP_MEMO }, () => ({ geom: null, ath: null, anchors: null, posture: null, feet_cut: false, bp: null }));
+let bpNext = 0;
+
 export function bodyPoints(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyPoints {
+  for (let i = 0; i < BP_MEMO; i++) {
+    const m = bpMemo[i]!;
+    if (m.anchors === st.anchors && m.posture === st.posture && m.feet_cut === st.feet_cut && m.geom === geom && m.ath === ath) return m.bp!;
+  }
+  const bp = pointsOf(geom, ath, st);
+  const m = bpMemo[bpNext]!;
+  m.geom = geom; m.ath = ath; m.anchors = st.anchors; m.posture = st.posture; m.feet_cut = st.feet_cut; m.bp = bp;
+  bpNext = (bpNext + 1) % BP_MEMO;
+  return bp;
+}
+
+function pointsOf(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyPoints {
   const k = kinematics(ath.body);
   const scale = k.height_m / 1.7;
-  const hands: Pt[] = [];
-  const feet: Pt[] = [];
-  for (const limb of ['LH', 'RH', 'LF', 'RF'] as Limb[]) {
-    const id = st.anchors[limb];
+  // The hands' and the feet's centroids, summed in limb order from zero exactly as a reduce over the anchored holds
+  // did, without building the arrays: this runs several times a move.
+  let hn = 0; let hx = 0; let hs = 0; let h0s = 0;
+  let fn = 0; let fx = 0; let fs = 0;
+  for (let i = 0; i < 4; i++) {
+    const id = st.anchors[LIMB_ORDER[i]!];
     if (!id) continue;
     const h = geom.holds.get(id);
     if (!h) continue;
-    (limbKind(limb) === 'hand' ? hands : feet).push({ x: h.x, s: h.s });
+    if (i < 2) {
+      if (hn === 0) h0s = h.s;
+      hn++; hx += h.x; hs += h.s;
+    } else {
+      fn++; fx += h.x; fs += h.s;
+    }
   }
-  const C_hands = centroid(hands);
-  const C_feet = st.feet_cut ? null : centroid(feet);
+  const C_hands: Pt | null = hn ? { x: hx / hn, s: hs / hn } : null;
+  const C_feet: Pt | null = st.feet_cut || !fn ? null : { x: fx / fn, s: fs / fn };
   let C: Pt;
   if (C_hands && C_feet) C = { x: 0.5 * C_hands.x + 0.5 * C_feet.x, s: 0.5 * C_hands.s + 0.5 * C_feet.s };
   else if (C_hands) C = { x: C_hands.x, s: C_hands.s - 0.45 * scale };
@@ -207,15 +280,15 @@ export function bodyPoints(geom: RouteGeom, ath: Athlete, st: ClimbState): BodyP
   }
   const shoulder = { x: C.x + side * off.sh[0] * scale, s: C.s + off.sh[1] * scale };
   const hip = { x: C.x + side * off.hip[0] * scale, s: C.s + off.hip[1] * scale };
-  if (hands.length === 1 && C_feet) {
+  if (hn === 1 && C_feet) {
     const torso = k.height_m - k.leg_len - 0.13 * k.height_m;
-    shoulder.s = Math.max(shoulder.s, Math.min(hands[0]!.s - lockDepth(ath) * scale, C_feet.s + LOCKOFF.stand * (k.leg_len + torso)));
+    shoulder.s = Math.max(shoulder.s, Math.min(h0s - lockDepth(ath) * scale, C_feet.s + LOCKOFF.stand * (k.leg_len + torso)));
   }
   return {
     C, C_hands, shoulder, hip,
     CoM: { x: hip.x, s: hip.s + 0.1 * scale },
-    feetOn: st.feet_cut ? 0 : feet.length,
-    handsOn: hands.length,
+    feetOn: st.feet_cut ? 0 : fn,
+    handsOn: hn,
   };
 }
 
@@ -270,6 +343,7 @@ function handednessOk(limb: Limb, hold: HoldG, bp: BodyPoints, ath: Athlete): bo
 /** A foot placed this far above the free-limb hip is a high step (05b §2; P1a tuning, see docs). */
 export const HIGH_STEP_ABOVE_HIP = 0.05;
 
+const NO_DYNO: readonly HoldType[] = ['pocket1', 'undercling', 'gaston'];
 const HEEL_TYPES: readonly HoldType[] = ['jug', 'edge', 'sloper', 'horn', 'volume', 'pocket3', 'sidepull', 'crack_hand', 'crack_fist', 'crack_offwidth'];
 const TOE_TYPES: readonly HoldType[] = ['jug', 'horn', 'volume', 'undercling', 'edge', 'crack_hand', 'crack_fist', 'crack_offwidth'];
 
@@ -282,9 +356,11 @@ export function classesFor(geom: RouteGeom, st: ClimbState, bp: BodyPoints, limb
     const other = st.anchors[otherHand(limb)];
     if (other === hold.id) return MATCHABLE(hold.type, hold.size) ? ['match'] : [];
     const feetOn = bp.feetOn;
-    const handHolds = (['LH', 'RH'] as Limb[]).map((l) => st.anchors[l]).filter((x): x is string => !!x).map((id) => geom.holds.get(id)!);
-    const deadpointLegal = feetOn >= 1 || (st.posture === 'hang' && handHolds.length === 2 && handHolds.every((h) => h.quality >= 0.5));
-    const dynoLegal = feetOn >= 1 && hold.hands_ok && !['pocket1', 'undercling', 'gaston'].includes(hold.type);
+    // Hanging from both hands, without feet, a deadpoint needs two good holds (the hands' holds, as the anchors name them).
+    const lh = st.anchors.LH;
+    const rh = st.anchors.RH;
+    const deadpointLegal = feetOn >= 1 || (st.posture === 'hang' && !!lh && !!rh && geom.holds.get(lh)!.quality >= 0.5 && geom.holds.get(rh)!.quality >= 0.5);
+    const dynoLegal = feetOn >= 1 && hold.hands_ok && !NO_DYNO.includes(hold.type);
     const cur = st.anchors[limb] ? geom.holds.get(st.anchors[limb]!) : undefined;
     if (r <= 0.9 && cur && dist(cur, hold) <= 0.35 && hold.s > cur.s && MATCHABLE(hold.type, hold.size)) out.push('bump');
     if (r <= 1.0) {
@@ -323,7 +399,9 @@ export function judgeOption(geom: RouteGeom, ath: Athlete, st: ClimbState, bp: B
   const opt: Option = { limb, hold, verdict: 'reachable', reason: '', d, R, classes: [] };
   if (st.anchors[limb] === hold.id) return { ...opt, verdict: 'occupied', reason: 'already there' };
   if (kind === 'hand' ? !hold.hands_ok : !hold.feet_ok) return { ...opt, verdict: 'blocked', reason: kind === 'hand' ? 'a foothold' : 'not a foothold' };
-  const occupiedBy = (Object.entries(st.anchors) as [Limb, string][]).find(([l, id]) => id === hold.id && l !== limb)?.[0];
+  // The first other limb on the hold, in the anchors' own key order.
+  let occupiedBy: Limb | undefined;
+  for (const l in st.anchors) if (l !== limb && st.anchors[l as Limb] === hold.id) { occupiedBy = l as Limb; break; }
   if (occupiedBy && (limbKind(occupiedBy) !== kind || kind === 'foot' || !MATCHABLE(hold.type, hold.size))) {
     return { ...opt, verdict: 'blocked', reason: `blocked: your ${LIMB_NAME[occupiedBy]}` };
   }
@@ -364,13 +442,17 @@ export function rawRestValue(hold: HoldG, posture: Posture): number {
   return Math.max(0, rv);
 }
 
-function handHolds(geom: RouteGeom, st: ClimbState): HoldG[] {
-  return (['LH', 'RH'] as Limb[]).map((l) => st.anchors[l]).filter((x): x is string => !!x).map((id) => geom.holds.get(id)!).filter(Boolean);
+/** The holds a pair of limbs is on, the left one's first; anchors whose hold the geometry lacks are skipped. */
+function pairHolds(geom: RouteGeom, a: string | undefined, b: string | undefined): HoldG[] {
+  const out: HoldG[] = [];
+  const ha = a ? geom.holds.get(a) : undefined;
+  if (ha) out.push(ha);
+  const hb = b ? geom.holds.get(b) : undefined;
+  if (hb) out.push(hb);
+  return out;
 }
-function footHolds(geom: RouteGeom, st: ClimbState): HoldG[] {
-  if (st.feet_cut) return [];
-  return (['LF', 'RF'] as Limb[]).map((l) => st.anchors[l]).filter((x): x is string => !!x).map((id) => geom.holds.get(id)!).filter(Boolean);
-}
+const handHolds = (geom: RouteGeom, st: ClimbState): HoldG[] => pairHolds(geom, st.anchors.LH, st.anchors.RH);
+const footHolds = (geom: RouteGeom, st: ClimbState): HoldG[] => (st.feet_cut ? [] : pairHolds(geom, st.anchors.LF, st.anchors.RF));
 
 /** Hands at least this far apart (m), one of them opposing, put the body in compression (05a §6). */
 export const COMPRESSION_WIDTH = 0.45;
@@ -403,8 +485,28 @@ export function choosePosture(geom: RouteGeom, ath: Athlete, st: ClimbState): Po
   return best;
 }
 
+/**
+ * The last few position qualities, kept as `bodyPoints` keeps points and for the same reason: the posture chosen after
+ * a move is rated again when the next move is prepared from it.
+ */
+interface PqMemo { geom: RouteGeom | null; ath: Athlete | null; anchors: ClimbState['anchors'] | null; posture: Posture | null; feet_cut: boolean; q: number }
+const pqMemo: PqMemo[] = Array.from({ length: BP_MEMO }, () => ({ geom: null, ath: null, anchors: null, posture: null, feet_cut: false, q: 0 }));
+let pqNext = 0;
+
 /** Position quality carried forward (05a §7). */
 export function positionQuality(geom: RouteGeom, ath: Athlete, st: ClimbState): number {
+  for (let i = 0; i < BP_MEMO; i++) {
+    const m = pqMemo[i]!;
+    if (m.anchors === st.anchors && m.posture === st.posture && m.feet_cut === st.feet_cut && m.geom === geom && m.ath === ath) return m.q;
+  }
+  const q = qualityOf(geom, ath, st);
+  const m = pqMemo[pqNext]!;
+  m.geom = geom; m.ath = ath; m.anchors = st.anchors; m.posture = st.posture; m.feet_cut = st.feet_cut; m.q = q;
+  pqNext = (pqNext + 1) % BP_MEMO;
+  return q;
+}
+
+function qualityOf(geom: RouteGeom, ath: Athlete, st: ClimbState): number {
   const bp = bodyPoints(geom, ath, st);
   const k = kinematics(ath.body);
   const footDeficit = bp.feetOn >= 2 ? 0 : bp.feetOn === 1 ? 0.5 : 1;

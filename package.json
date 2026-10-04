@@ -12,8 +12,8 @@
     "test": "vitest run",
     "validate": "tsx scripts/validate.ts",
     "calibrate": "tsx scripts/calibrate.ts",
-    "harness": "tsx scripts/harness.ts",
-    "recost": "tsx scripts/recost.ts",
+    "harness": "tsx scripts/bundled.ts scripts/harness.ts",
+    "recost": "tsx scripts/bundled.ts scripts/recost.ts",
     "benchmarks": "tsx scripts/build-benchmarks.ts"
   },
   "dependencies": {
@@ -26,6 +26,7 @@
   "devDependencies": {
     "@preact/preset-vite": "^2.10.0",
     "@types/node": "^22.0.0",
+    "esbuild": "^0.25.12",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",

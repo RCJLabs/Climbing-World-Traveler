@@ -8,6 +8,7 @@ import { phaseLive, traitEffectErrors, validateCreation } from '../src/sim/chara
 import { evolutionErrors } from '../src/sim/evolve';
 import { gradeRoute } from '../src/sim/grade';
 import { PRESETS, presetSpec } from '../src/sim/presets';
+import { catalogueErrors } from '../src/sim/routes';
 import { travelGraphErrors } from '../src/sim/travel';
 import { ALL_ATTRS, HOLD_TYPES } from '../src/sim/types';
 
@@ -64,6 +65,8 @@ for (const c of bundle.crags.values()) {
   }
   const bench = bundle.benchmarks.get(c.id);
   if (phaseLive(c.phase) && (!bench || bench.length < 12)) err(`crag ${c.id}: benchmark set missing or short (run pnpm benchmarks)`);
+  // Rule 18: a live crag's sectors each have a catalogue of fixed routes (06 §5, P2).
+  for (const e of catalogueErrors(c, phaseLive(c.phase))) err(e);
 }
 
 // Crags and profiles agree on the discipline (06 §2.6): a sport crag's sectors use bolted profiles, a bouldering

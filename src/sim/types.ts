@@ -296,6 +296,8 @@ export interface Sector {
   shade: boolean;
   style_profiles: string[];
   signature_routes: string[];
+  /** The sector's catalogue: how many fixed procedural routes it has (06 §5, P2). Required at a live crag. */
+  routes?: number;
 }
 
 export type CircuitColour = 'yellow' | 'orange' | 'blue' | 'red' | 'black' | 'white';

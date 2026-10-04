@@ -34,7 +34,7 @@
           { "colour": "blue", "di_range": [10, 12] }, { "colour": "red", "di_range": [12, 15] }
         ],
         "landing": "flat", "dry_lag_days": 1.5, "shade": true,
-        "style_profiles": ["font_sloper_slab", "font_sloper_bulge"], "signature_routes": []
+        "style_profiles": ["font_sloper_slab", "font_sloper_bulge"], "signature_routes": [], "routes": 600
       },
       {
         "id": "bas_cuvier", "name": "Bas Cuvier",
@@ -44,7 +44,7 @@
           { "colour": "red", "di_range": [12, 15] }, { "colour": "black", "di_range": [16, 20] }
         ],
         "landing": "flat", "dry_lag_days": 1.0, "shade": false,
-        "style_profiles": ["font_sloper_slab", "font_sloper_bulge"], "signature_routes": ["sig_marie_rose"]
+        "style_profiles": ["font_sloper_slab", "font_sloper_bulge"], "signature_routes": ["sig_marie_rose"], "routes": 500
       },
       {
         "id": "cuvier_rempart", "name": "Cuvier Rempart",
@@ -53,7 +53,7 @@
           { "colour": "red", "di_range": [12, 15] }, { "colour": "black", "di_range": [16, 20] }, { "colour": "white", "di_range": [20, 25] }
         ],
         "landing": "uneven", "dry_lag_days": 1.5, "shade": true,
-        "style_profiles": ["font_sloper_bulge", "font_roof"], "signature_routes": []
+        "style_profiles": ["font_sloper_bulge", "font_roof"], "signature_routes": [], "routes": 400
       },
       {
         "id": "franchard_isatis", "name": "Franchard Isatis",
@@ -63,7 +63,7 @@
           { "colour": "blue", "di_range": [10, 12] }, { "colour": "red", "di_range": [12, 15] }, { "colour": "black", "di_range": [16, 20] }
         ],
         "landing": "uneven", "dry_lag_days": 2.0, "shade": true,
-        "style_profiles": ["font_sloper_slab", "font_sloper_bulge", "font_roof"], "signature_routes": ["sig_rainbow_rocket"]
+        "style_profiles": ["font_sloper_slab", "font_sloper_bulge", "font_roof"], "signature_routes": ["sig_rainbow_rocket"], "routes": 600
       },
       {
         "id": "apremont", "name": "Apremont",
@@ -73,7 +73,7 @@
           { "colour": "red", "di_range": [12, 15] }, { "colour": "black", "di_range": [16, 20] }
         ],
         "landing": "uneven", "dry_lag_days": 2.0, "shade": true,
-        "style_profiles": ["font_sloper_bulge", "font_sloper_slab"], "signature_routes": []
+        "style_profiles": ["font_sloper_bulge", "font_sloper_slab"], "signature_routes": [], "routes": 800
       },
       {
         "id": "buthiers", "name": "Buthiers",
@@ -83,7 +83,7 @@
           { "colour": "red", "di_range": [12, 15] }, { "colour": "black", "di_range": [16, 20] }
         ],
         "landing": "flat", "dry_lag_days": 1.0, "shade": false,
-        "style_profiles": ["font_sloper_bulge", "font_roof"], "signature_routes": []
+        "style_profiles": ["font_sloper_bulge", "font_roof"], "signature_routes": [], "routes": 600
       },
       {
         "id": "trois_pignons_95_2", "name": "95.2",
@@ -93,7 +93,7 @@
           { "colour": "blue", "di_range": [10, 12] }, { "colour": "red", "di_range": [12, 15] }
         ],
         "landing": "flat", "dry_lag_days": 0.5, "shade": false,
-        "style_profiles": ["font_sloper_slab", "font_sloper_bulge"], "signature_routes": []
+        "style_profiles": ["font_sloper_slab", "font_sloper_bulge"], "signature_routes": [], "routes": 500
       },
       {
         "id": "cul_de_chien", "name": "Cul de Chien",
@@ -103,7 +103,7 @@
           { "colour": "red", "di_range": [12, 15] }, { "colour": "black", "di_range": [16, 20] }
         ],
         "landing": "flat", "dry_lag_days": 0.5, "shade": false,
-        "style_profiles": ["font_roof", "font_sloper_bulge", "font_sloper_slab"], "signature_routes": ["sig_toit_cul_de_chien"]
+        "style_profiles": ["font_roof", "font_sloper_bulge", "font_sloper_slab"], "signature_routes": ["sig_toit_cul_de_chien"], "routes": 400
       }
     ]
   },
@@ -143,7 +143,7 @@
         "dry_lag_days": 0.5, "seep_lag_days": 7,
         "shade": false,
         "style_profiles": ["kalymnos_tufa_sport"],
-        "signature_routes": ["sig_priapos", "sig_dna", "sig_aegialis"]
+        "signature_routes": ["sig_priapos", "sig_dna", "sig_aegialis"], "routes": 150
       },
       {
         "id": "odyssey",
@@ -154,7 +154,7 @@
         "dry_lag_days": 0.5,
         "shade": false,
         "style_profiles": ["kalymnos_tufa_sport", "kalymnos_grey_vertical"],
-        "signature_routes": []
+        "signature_routes": [], "routes": 300
       },
       {
         "id": "sikati_cave",
@@ -165,7 +165,7 @@
         "dry_lag_days": 0.5, "seep_lag_days": 7,
         "shade": true,
         "style_profiles": ["kalymnos_tufa_sport"],
-        "signature_routes": []
+        "signature_routes": [], "routes": 100
       },
       {
         "id": "arginonta_valley",
@@ -176,7 +176,7 @@
         "dry_lag_days": 0.5,
         "shade": false,
         "style_profiles": ["kalymnos_grey_vertical", "kalymnos_tufa_sport"],
-        "signature_routes": []
+        "signature_routes": [], "routes": 400
       },
       {
         "id": "spartacus",
@@ -187,7 +187,7 @@
         "dry_lag_days": 0.5,
         "shade": false,
         "style_profiles": ["kalymnos_tufa_sport", "kalymnos_grey_vertical"],
-        "signature_routes": []
+        "signature_routes": [], "routes": 250
       },
       {
         "id": "panorama",
@@ -198,7 +198,7 @@
         "dry_lag_days": 0.5,
         "shade": false,
         "style_profiles": ["kalymnos_grey_vertical", "kalymnos_tufa_sport"],
-        "signature_routes": []
+        "signature_routes": [], "routes": 200
       }
     ]
   }
