@@ -1,5 +1,7 @@
 // Display grades (docs/08 §2). The engine only ever uses DI; these tables are for people.
 
+import type { Crag, GradeSystem } from './types';
+
 const FONT = ['3', '4', '4+', '5', '5+', '6A', '6A+', '6B', '6B+', '6C', '6C+', '7A', '7A+', '7B', '7B+', '7C', '7C+', '8A', '8A+', '8B', '8B+', '8C', '8C+', '9A', '9A+'];
 const V = ['VB', 'V0–', 'V0', 'V0+', 'V1', 'V2', 'V3', 'V3+', 'V4', 'V5', 'V5', 'V6', 'V7', 'V8', 'V8+', 'V9', 'V10', 'V11', 'V12', 'V13', 'V14', 'V15', 'V16', 'V17', 'V18'];
 const FIRST = 8;
@@ -20,5 +22,17 @@ const ridx = (di: number): number => Math.max(0, Math.min(FRENCH.length - 1, Mat
 export const frenchGrade = (di: number): string => FRENCH[ridx(di)]!;
 export const ydsGrade = (di: number): string => YDS[ridx(di)]!;
 
-/** The grade a route is shown in (08 §1): French on routes, Font on boulders. */
-export const gradeFor = (di: number, discipline: string): string => (discipline === 'boulder' ? fontGrade(di) : frenchGrade(di));
+const SYSTEM: Record<GradeSystem, (di: number) => string> = { font: fontGrade, v: vGrade, french: frenchGrade, yds: ydsGrade };
+
+/** A grade in a grading system (08). */
+export const gradeIn = (di: number, system: GradeSystem): string => SYSTEM[system](di);
+
+/**
+ * The system a crag shows a discipline in (08, 27 M1: grades in the crag's own system): its own, else Font on boulders
+ * and French on routes, the systems of the two crags the game started with.
+ */
+export const systemFor = (discipline: string, crag?: Pick<Crag, 'grades'>): GradeSystem =>
+  crag?.grades?.[discipline === 'sport' ? 'sport' : 'boulder'] ?? (discipline === 'sport' ? 'french' : 'font');
+
+/** The grade a climb is shown in: its crag's system for its discipline (08 §1). */
+export const gradeFor = (di: number, discipline: string, crag?: Pick<Crag, 'grades'>): string => gradeIn(di, systemFor(discipline, crag));

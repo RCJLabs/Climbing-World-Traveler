@@ -2,8 +2,8 @@
 // and what happened along the way.
 import type { RunState } from '../../sim/state';
 import { Top } from '../components';
-import { ATTR_LABEL, gradeIn, money, pct, signed, tickGrade } from '../format';
-import { busy, goto, report, simulatePlan } from '../store';
+import { ATTR_LABEL, gradeAt, money, pct, signed, tickGrade } from '../format';
+import { busy, data, goto, report, simulatePlan } from '../store';
 
 const OUTCOME: Record<string, string> = { sent: 'sent', fell: 'fell', jumped: 'jumped off', pumped: 'pumped off', worked: 'worked' };
 
@@ -11,7 +11,7 @@ export function Report({ run }: { run: RunState }) {
   const r = report.value;
   if (!r) return <div class="screen"><div class="scroll"><button class="btn" onClick={() => goto({ name: 'planner' })}>Back</button></div></div>;
   const dE = r.estimate[1] - r.estimate[0];
-  const grade = (di: number) => gradeIn(di, r.sport);
+  const grade = (di: number) => gradeAt(di, r.discipline, data.crags.get(r.crag));
   const inSession = run.block?.kind === 'climb';
   return (
     <div class="screen">
@@ -47,7 +47,7 @@ export function Report({ run }: { run: RunState }) {
             <span class="kicker">Best sends</span>
             <div class="log">
               {r.ticks.slice(0, 8).map((t, i) => (
-                <div key={i} class="row between"><span class="small one-line">{tickGrade(t)} {t.name}</span><span class="small mono muted">{t.style}{t.attempts > 1 ? ` · ${t.attempts} tries` : ''}</span></div>
+                <div key={i} class="row between"><span class="small one-line">{tickGrade(t, data)} {t.name}</span><span class="small mono muted">{t.style}{t.attempts > 1 ? ` · ${t.attempts} tries` : ''}</span></div>
               ))}
               {r.ticks.length > 8 && <span class="tiny muted">and {r.ticks.length - 8} more</span>}
             </div>

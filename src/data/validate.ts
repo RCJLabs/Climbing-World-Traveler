@@ -3,6 +3,7 @@
 // added (27 M1). Node only: it reads the folder.
 import { readFileSync } from 'node:fs';
 import { phaseLive, traitEffectErrors, validateCreation } from '../sim/character';
+import { cragDisciplines, disciplineErrors, type Climb } from '../sim/discipline';
 import { evolutionErrors } from '../sim/evolve';
 import { gradeRoute } from '../sim/grade';
 import { PRESETS, presetSpec } from '../sim/presets';
@@ -88,17 +89,12 @@ export function validateContent(dir = DATA_DIR): Validation {
     for (const e of catalogueErrors(c, phaseLive(c.phase))) err(e);
   }
 
-  // Crags and profiles agree on the discipline (06 §2.6): a sport crag's sectors use bolted profiles, a bouldering
-  // crag's sectors use profiles without protection, which the generator builds as boulders.
+  // Disciplines (06 §2.6, 27 M1): a sector climbs one, its styles' (bolted styles are sport, the rest boulders); a crag
+  // lists the disciplines its sectors climb, and a grading system only for one of them.
   for (const c of bundle.crags.values()) {
-    const sport = c.disciplines.includes('sport');
-    for (const s of c.sectors) {
-      for (const id of s.style_profiles) {
-        const bolted = bundle.profiles.get(id)?.protection?.kind === 'bolt';
-        if (sport && !bolted) err(`crag ${c.id}/${s.id}: sport crag uses unbolted profile ${id}`);
-        if (!sport && bolted) err(`crag ${c.id}/${s.id}: bouldering crag uses bolted profile ${id}`);
-      }
-    }
+    for (const e of disciplineErrors(c, bundle)) err(e);
+    const climbs = cragDisciplines(c, bundle);
+    for (const d of Object.keys(c.grades ?? {})) if (!climbs.includes(d as Climb)) err(`crag ${c.id}: a grading system for ${d}, which it does not climb`);
   }
 
   // Profiles: name banks exist; hold weights use real hold types.

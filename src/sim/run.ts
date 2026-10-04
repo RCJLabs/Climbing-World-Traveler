@@ -3,7 +3,8 @@
 
 import { ageMoneyBonus, aggregateMods, buildAttributes, ceilingFor, clamp, phaseLive, resourceMult, validateCreation, type Athlete } from './character';
 import { ageOf, athleteOf, doWallAction, InvalidAction, modsOf, routeEntry, sectorOf, simulateAttempt } from './attempt';
-import { estimateBoulderDI } from './estimate';
+import { cragDisciplines, mainDiscipline, sectorDiscipline, type Climb } from './discipline';
+import { estimateAt } from './estimate';
 import { countEvolve, evolveTraits, PRACTICE_FALLS_PER_SESSION } from './evolve';
 import { stream } from './rng';
 import { sectorCatalogue, sectorRange } from './routes';
@@ -27,6 +28,9 @@ export const CLIMB_BLOCK_BASE_ENERGY = 10; // approach and warm-up
 export const SECOND_BLOCK_ENERGY = 50; // 11 §1 proposes 55; at default lifestyle (energy cap ≈ 79) that forbade a double work day (tune)
 export const CLIMB_STIM_SCALE = 0.25; // banked move stimulus → session stimulus units (tune)
 
+/** What a climber arrives with, by the disciplines of the start crag. */
+const KIT: Record<string, string> = { boulder: 'a crash pad', sport: 'a rope and a rack of quickdraws', 'boulder+sport': 'a crash pad, a rope and a rack of quickdraws' };
+
 const LIVING_MULT: Record<Difficulty, number> = { story: 0.75, standard: 1.0, hard: 1.25 };
 const START_MONEY_MULT: Record<Difficulty, number> = { story: 1.5, standard: 1.0, hard: 0.75 };
 const BANKRUPT_GRACE: Record<Difficulty, number> = { story: 60, standard: 30, hard: 20 };
@@ -34,9 +38,19 @@ const SCORE_MULT: Record<Difficulty, number> = { story: 0.5, standard: 1.0, hard
 
 // ---------------------------------------------------------------- estimates (02 §C.3)
 
-/** Estimated boulder DI for the run's climber at its crag (benchmark inversion, see estimate.ts). */
-export function estimateDI(run: RunState, bundle: DataBundle): number {
-  return estimateBoulderDI(athleteOf(run, bundle), run.crag, bundle);
+/**
+ * Estimated DI for the run's climber at its crag in one discipline (benchmark inversion, see estimate.ts): by default
+ * the one the crag is known by, its first.
+ */
+export function estimateDI(run: RunState, bundle: DataBundle, discipline: Climb = mainDiscipline(bundle.crags.get(run.crag)!, bundle)): number {
+  return estimateAt(athleteOf(run, bundle), run.crag, discipline, bundle);
+}
+
+/** The estimate in every discipline the run's crag climbs (27 M1): the week's, at creation, on arrival, at a week's start. */
+export function estimates(run: RunState, bundle: DataBundle): Partial<Record<Climb, number>> {
+  const out: Partial<Record<Climb, number>> = {};
+  for (const d of cragDisciplines(bundle.crags.get(run.crag)!, bundle)) out[d] = estimateDI(run, bundle, d);
+  return out;
 }
 
 /** Onsight gap below the redpoint estimate (02 §C.3). */
@@ -92,7 +106,7 @@ export function planError(plan: WeekPlan): string | null {
 function weekPoint(run: RunState): WeekPoint {
   const attrs: WeekPoint['attrs'] = {};
   for (const id of ALL_ATTRS) attrs[id] = Math.round(run.attrs[id].value * 10) / 10;
-  return { day: run.day, E: run.est, crag: run.crag, pb: run.pb, pb_route: run.pb_route, ticks: run.ticks.filter((t) => t.style !== 'repeat').length, attrs };
+  return { day: run.day, est: run.est ? { ...run.est } : null, crag: run.crag, pb: run.pb, pb_route: run.pb_route, ticks: run.ticks.filter((t) => t.style !== 'repeat').length, attrs };
 }
 
 export function energyCap(run: Pick<RunState, 'attrs' | 'res'>): number {
@@ -129,13 +143,13 @@ export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle, op
     weather: firstWeather(seed, crag, START_MONTH, spec.options.difficulty), last_rain: null,
     res: { energy: 0, skin: 100, stoke: 70, burnout: 0, money: Math.round(money), health: 100 },
     blocks_today: [], block: null, attempt: null, last_attempt: null, projects: {}, ticks: [], pb: 0, pb_route: 0, visited: [crag.id],
-    journal: [{ day: 0, text: `${spec.name} arrives in ${crag.name} with $${Math.round(money).toLocaleString('en-US')} and ${crag.disciplines.includes('boulder') ? 'a crash pad' : 'a rope and a rack of quickdraws'}.`, tone: 'info' }],
+    journal: [{ day: 0, text: `${spec.name} arrives in ${crag.name} with $${Math.round(money).toLocaleString('en-US')} and ${KIT[cragDisciplines(crag, bundle).join('+')] ?? KIT.boulder}.`, tone: 'info' }],
     today: emptyDay(0), yesterday: null, counters: emptyCounters(), load_today: 0, ended: null, actions: 1,
     plan: structuredClone(DEFAULT_PLAN), est: null, history: [],
   };
   if (run.weather.sky === 'rain' || run.weather.sky === 'storm') run.last_rain = { day: 0, mm: run.weather.precip_mm };
   run.res.energy = energyCap(run);
-  run.est = estimateDI(run, bundle);
+  run.est = estimates(run, bundle);
   run.history.push(weekPoint(run));
   return run;
 }
@@ -196,7 +210,7 @@ export function sessionSlots(run: RunState, sectorId: string, E: number, bundle:
     return !p ? 'fresh' : (p.reach_until ?? -1) > run.day ? 'out_of_reach' : p.sent ? 'sent' : 'unsent';
   });
   const taken = new Set<number>();
-  for (const [kind, blo, bhi] of crag.disciplines.includes('boulder') ? SLOT_BANDS : ROUTE_SLOT_BANDS) {
+  for (const [kind, blo, bhi] of sectorDiscipline(sector, bundle) === 'boulder' ? SLOT_BANDS : ROUTE_SLOT_BANDS) {
     const target = clamp(Math.round(rng.range(E + blo, E + bhi) * 2) / 2, lo, hi);
     const pref = SLOT_PREFERENCE[kind];
     // The smallest key (distance past the tolerance, preference, distance, order), compared field by field.
@@ -232,8 +246,8 @@ export function sessionSlots(run: RunState, sectorId: string, E: number, bundle:
 
 function startSession(run: RunState, sectorId: string, bundle: DataBundle): SessionState {
   // The estimate is the week's (06 §5, P2): worked out at creation, on arrival and when a week starts.
-  run.est ??= estimateDI(run, bundle);
-  const E = Math.round(run.est * 2) / 2;
+  run.est ??= estimates(run, bundle);
+  const E = Math.round(run.est[sectorDiscipline(sectorOf(run, bundle, sectorId), bundle)]! * 2) / 2;
   return {
     sector: sectorId, E, slots: sessionSlots(run, sectorId, E, bundle), attempts: 0, sends: 0, di_sum: 0, hard_moves: 0,
     hand_moves: 0, pump_total: 0, time_s: 0, progress_made: false, stim: {}, xp: {}, load: 6, energy_spent: CLIMB_BLOCK_BASE_ENERGY,
@@ -461,7 +475,7 @@ function endDay(run: RunState, bundle: DataBundle): void {
   run.res.energy = energyCap(run);
   if (run.day % 7 === 0) {
     // A new week: the climber takes stock of their level (06 §5, P2), and the progress chart gets its point.
-    run.est = estimateDI(run, bundle);
+    run.est = estimates(run, bundle);
     run.history.push(weekPoint(run));
   }
 
@@ -521,7 +535,7 @@ function travel(run: RunState, to: string, bundle: DataBundle): void {
     }
     endDay(run, bundle);
   }
-  if (!run.ended) run.est = estimateDI(run, bundle);
+  if (!run.ended) run.est = estimates(run, bundle);
 }
 
 // ---------------------------------------------------------------- run end, score, unlocks (11 §4–§5, 16 §4, §6)

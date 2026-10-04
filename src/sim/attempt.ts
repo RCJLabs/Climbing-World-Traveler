@@ -757,7 +757,7 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
     const style: Tick['style'] = project.sent ? 'repeat' : firstTry ? (at.mode === 'flash' ? 'flash' : 'onsight') : 'redpoint';
     tick = {
       route: route.id, route_seed: at.route_seed, name: route.name, day: run.day, style, attempts: project.attempts,
-      di: route.di_graded, area: route.area,
+      di: route.di_graded, area: route.area, crag: route.crag,
     };
     if (route.circuit) tick.circuit = route.circuit;
     if (roped) tick.discipline = route.discipline;

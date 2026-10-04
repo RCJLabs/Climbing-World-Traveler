@@ -319,6 +319,9 @@ export const NPC_ARCHETYPES = [
 ] as const;
 export type NpcArchetype = (typeof NPC_ARCHETYPES)[number];
 
+/** A grading system a crag shows its climbs in (08): Font or V on boulders, French or YDS on routes. */
+export type GradeSystem = 'font' | 'v' | 'french' | 'yds';
+
 /** How a crag is drawn round its rock on the cartoon wall (25 §10.8, schemas §6): its scenery. */
 export interface CragLook { scenery: 'forest' | 'sea' }
 
@@ -349,6 +352,8 @@ export interface Crag {
   climate_class: string;
   npc_archetypes: NpcArchetype[];
   look: CragLook;
+  /** The systems the crag shows its grades in (08, 27 M1); Font on boulders and French on routes where unset. */
+  grades?: { boulder?: 'font' | 'v'; sport?: 'french' | 'yds' };
   sectors: Sector[];
   phase: Phase;
 }
@@ -464,6 +469,8 @@ export interface Tick {
   area: string;
   /** A route's discipline (P1b); absent on a boulder. */
   discipline?: Discipline;
+  /** The crag it was climbed at (27 M1), whose grading system shows it. Absent on ticks from before. */
+  crag?: string;
 }
 
 export type EndReason = 'retired' | 'forced_injury' | 'death' | 'burnout' | 'bankrupt';

@@ -23,7 +23,7 @@ export const BENCH_PER_PROFILE = 4;
  */
 export const BENCH_PER_SPORT_PROFILE = 2;
 
-export interface Bench { level: number; di: number; geom: RouteGeom }
+export interface Bench { level: number; di: number; geom: RouteGeom; discipline: string }
 const benchCache = new Map<string, Bench[]>();
 
 /** Generate the benchmark set for a crag: `BENCH_PER_PROFILE` problems per style profile per level, from fixed seeds. `salt` builds another set, for probes. */
@@ -56,23 +56,31 @@ export function generateBenchmarks(cragId: string, bundle: DataBundle, salt = ''
   return out;
 }
 
-/** Benchmarks shipped in the bundle (scripts/build-benchmarks.ts), or generated on first use. */
-export function benchmarks(cragId: string, bundle: DataBundle): Bench[] {
-  const key = `${bundle.version}|${cragId}`;
+/**
+ * A crag's benchmarks in one discipline (scripts/build-benchmarks.ts). They come with the crag's data (27 M1): a run
+ * never plays at a crag whose data is not loaded, so a missing set is an error, never built on the spot, which would
+ * play differently online and offline.
+ */
+export function benchmarks(cragId: string, bundle: DataBundle, discipline: string): Bench[] {
+  const key = `${bundle.version}|${cragId}|${discipline}`;
   let out = benchCache.get(key);
   if (out) return out;
   const shipped = bundle.benchmarks.get(cragId);
-  const routes = shipped?.length ? shipped : generateBenchmarks(cragId, bundle);
-  out = benchFrom(routes);
+  if (!shipped) throw new Error(`the data for ${cragId} is not loaded`);
+  out = benchFrom(shipped).filter((b) => b.discipline === discipline);
+  if (!out.length) throw new Error(`${cragId} has no ${discipline} benchmarks`);
   benchCache.set(key, out);
   return out;
 }
 
-export const benchFrom = (routes: Route[]): Bench[] => routes.map((r) => ({ level: r.di_target, di: r.di_graded, geom: routeGeom(r) }));
+export const benchFrom = (routes: Route[]): Bench[] => routes.map((r) => ({ level: r.di_target, di: r.di_graded, geom: routeGeom(r), discipline: r.discipline }));
 
-/** Estimated DI (redpoint-style, per-attempt X_SEND) for an athlete at a crag: boulders at a bouldering crag, routes at a sport crag. */
-export function estimateBoulderDI(ath: Athlete, cragId: string, bundle: DataBundle): number {
-  return estimateFrom(ath, benchmarks(cragId, bundle));
+/**
+ * Estimated DI (redpoint-style, per-attempt X_SEND) for an athlete at a crag in one discipline (02 §C.3): the crag's
+ * benchmark problems for bouldering, its benchmark routes for sport (27 M1: one estimate per discipline).
+ */
+export function estimateAt(ath: Athlete, cragId: string, discipline: string, bundle: DataBundle): number {
+  return estimateFrom(ath, benchmarks(cragId, bundle, discipline));
 }
 
 /** The estimate against a given benchmark set. */

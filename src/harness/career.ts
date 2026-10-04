@@ -4,10 +4,12 @@
 
 import { athleteOf } from '../sim/attempt';
 import { BotDriver, PLAN_POLICY, PROJECT_POLICY, VOLUME_POLICY, type BotPolicy } from '../sim/bot';
-import { estimateBoulderDI } from '../sim/estimate';
+import { phaseLive } from '../sim/character';
+import { CLIMBS, cragDisciplines, mainDiscipline, type Climb } from '../sim/discipline';
+import { estimateAt } from '../sim/estimate';
 import { cyrb53 } from '../sim/rng';
 import { applyAction, createRun, estimateDI, replay } from '../sim/run';
-import type { Action, DataBundle, NewRunSpec, RunSummary } from '../sim/types';
+import { PHASE_ORDER, type Action, type DataBundle, type NewRunSpec, type RunSummary } from '../sim/types';
 
 /**
  * Routes a harness worker keeps built (06 §5, P2): every sector's catalogue at both crags (5,800 routes) and the
@@ -20,8 +22,24 @@ export const HARNESS_ROUTE_CACHE = 8000;
 export type CareerPolicy = 'project' | 'volume' | 'plan';
 const POLICIES: Record<CareerPolicy, BotPolicy> = { project: PROJECT_POLICY, volume: VOLUME_POLICY, plan: PLAN_POLICY };
 
-/** Where each discipline's estimate is read in a sample: the benchmark sets of the crags that define it today. */
-export const ESTIMATE_CRAGS = { boulder: 'fontainebleau', route: 'kalymnos' } as const;
+const refCache = new WeakMap<DataBundle, Partial<Record<Climb, string>>>();
+
+/**
+ * Where each discipline's estimate is read in a sample, so every career reads one benchmark set per discipline: the
+ * live crag that has climbed it longest, the earliest phase, ties by id (Font for boulders, Kalymnos for routes).
+ */
+export function referenceCrags(bundle: DataBundle): Partial<Record<Climb, string>> {
+  let out = refCache.get(bundle);
+  if (out) return out;
+  out = {};
+  for (const d of CLIMBS) {
+    const c = [...bundle.crags.values()].filter((x) => phaseLive(x.phase) && cragDisciplines(x, bundle).includes(d))
+      .sort((a, b) => PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase) || (a.id < b.id ? -1 : 1))[0];
+    if (c) out[d] = c.id;
+  }
+  refCache.set(bundle, out);
+  return out;
+}
 
 /**
  * Days between samples: monthly for a year's run (the report's monthly table), every 13 weeks beyond, where the
@@ -44,7 +62,7 @@ export interface CareerConfig {
 export interface CareerSample {
   day: number;
   crag: string;
-  /** The estimate at the crag the climber is at, and in each discipline (ESTIMATE_CRAGS) wherever the climber is. */
+  /** The estimate at the crag the climber is at, and in each discipline (referenceCrags) wherever the climber is. */
   E: number;
   Eb: number;
   Er: number;
@@ -101,7 +119,8 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
   const bot = new BotDriver(run, bundle, POLICIES[cfg.policy], { retire: !!cfg.life, travel: !!cfg.life });
   const E0 = estimateDI(run, bundle);
   const startCrag = run.crag;
-  const sport = !bundle.crags.get(startCrag)!.disciplines.includes('boulder');
+  const sport = mainDiscipline(bundle.crags.get(startCrag)!, bundle) === 'sport';
+  const refs = referenceCrags(bundle);
   const months: CareerSample[] = [];
   const traits = [...run.traits];
   const evolved: CareerResult['evolved'] = [];
@@ -128,12 +147,17 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
     if (run.day >= nextSample && !run.ended) {
       nextSample += every;
       const ath = athleteOf(run, bundle);
-      const atSport = !bundle.crags.get(run.crag)!.disciplines.includes('boulder');
-      // On a week's first day the week's estimate is this one (estimateDI on the same climber at the same crag), and the
-      // estimate here is one of the two disciplines' when the climber is at either crag.
-      const E = run.day % 7 === 0 && run.est !== null ? run.est : estimateDI(run, bundle);
-      const Eb = run.crag === ESTIMATE_CRAGS.boulder ? E : estimateBoulderDI(ath, ESTIMATE_CRAGS.boulder, bundle);
-      const Er = run.crag === ESTIMATE_CRAGS.route ? E : estimateBoulderDI(ath, ESTIMATE_CRAGS.route, bundle);
+      const main = mainDiscipline(bundle.crags.get(run.crag)!, bundle);
+      const atSport = main === 'sport';
+      // On a week's first day the week's estimates are these (estimateDI on the same climber at the same crag), and at a
+      // reference crag its estimate is that discipline's sample.
+      const week = run.day % 7 === 0 ? run.est : null;
+      const hereMemo: Partial<Record<Climb, number>> = {};
+      const here = (d: Climb): number => (hereMemo[d] ??= week?.[d] ?? estimateDI(run, bundle, d));
+      const E = here(main);
+      const at = (d: Climb): number => (run.crag === refs[d] ? here(d) : refs[d] ? estimateAt(ath, refs[d]!, d, bundle) : 0);
+      const Eb = at('boulder');
+      const Er = at('sport');
       months.push({
         day: run.day, crag: run.crag, E, Eb, Er,
         pb: atSport ? run.pb_route : run.pb, pb_boulder: run.pb, pb_route: run.pb_route,

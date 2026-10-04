@@ -1,7 +1,8 @@
 // Display helpers: names for attributes, money, grades, bands.
 
-import { fontGrade, frenchGrade, gradeFor } from '../sim/grades';
-import type { AttrId, CircuitColour, Crag, MoveClass, RockType, Tick } from '../sim/types';
+import { fontGrade, gradeFor } from '../sim/grades';
+import { cragDisciplines, type Climb } from '../sim/discipline';
+import type { AttrId, CircuitColour, Crag, DataBundle, MoveClass, RockType, Tick } from '../sim/types';
 
 export const ATTR_LABEL: Record<AttrId, string> = {
   finger_strength: 'Finger strength', finger_endurance: 'Finger endurance', pull_power: 'Pull power', lockoff: 'Lock-off',
@@ -26,12 +27,15 @@ export const CLASS_LABEL: Record<MoveClass, string> = {
 export const money = (n: number): string => `${n < 0 ? '−' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
 /** A boulder grade (Font). */
 export const grade = (di: number): string => fontGrade(di);
-/** A grade in the system of the discipline: French on routes, Font on boulders (08 §1). */
-export const gradeIn = (di: number, sport: boolean): string => (sport ? frenchGrade(di) : fontGrade(di));
-export const gradeOf = (r: { di_graded: number; discipline: string }): string => gradeFor(r.di_graded, r.discipline);
-export const tickGrade = (t: Pick<Tick, 'di' | 'discipline'>): string => gradeIn(t.di, !!t.discipline);
-/** A crag climbed on a rope (P1b): routes, French grades. */
-export const isSportCrag = (c: Pick<Crag, 'disciplines'>): boolean => !c.disciplines.includes('boulder');
+/** A grade in a discipline, in the system of the crag it is shown at (08, 27 M1); Font and French with no crag. */
+export const gradeAt = (di: number, discipline: Climb, crag?: Pick<Crag, 'grades'>): string => gradeFor(di, discipline, crag);
+export const gradeOf = (r: { di_graded: number; discipline: string }, crag?: Pick<Crag, 'grades'>): string => gradeFor(r.di_graded, r.discipline, crag);
+/** A tick in the system of the crag it was climbed at. */
+export const tickGrade = (t: Pick<Tick, 'di' | 'discipline' | 'crag'>, bundle: Pick<DataBundle, 'crags'>): string =>
+  gradeFor(t.di, t.discipline ?? 'boulder', t.crag ? bundle.crags.get(t.crag) : undefined);
+/** What a crag climbs, in words: bouldering, sport routes, or both. */
+export const climbsLabel = (c: Crag, bundle: Pick<DataBundle, 'profiles'>): string =>
+  cragDisciplines(c, bundle).map((d) => (d === 'sport' ? 'sport routes' : 'bouldering')).join(' and ');
 
 export const ROCK_LABEL: Partial<Record<RockType, string>> = { sandstone_font: 'fine sandstone', limestone: 'limestone' };
 export const COUNTRY_LABEL: Record<string, string> = { FR: 'France', GR: 'Greece' };

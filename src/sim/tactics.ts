@@ -3,6 +3,7 @@
 // the same functions, so a harness career is a career the game would play.
 
 import { routeEntry } from './attempt';
+import { sectorDiscipline, sessionDiscipline } from './discipline';
 import { isRoped } from './rope';
 import { sectorFloor } from './routes';
 import { applyAction, canStartBlock, dailyCost, sectorList } from './run';
@@ -61,8 +62,8 @@ export function firstMode(run: RunState, seed: string, bundle: DataBundle): Atte
 export function nextSessionAttempt(run: RunState, bundle: DataBundle, tactic: SessionTactic): { route_seed: string; mode: AttemptMode } | null {
   const s = run.block?.session;
   if (!s || tired(run)) return null;
-  // A sport crag's slots are all routes (sessionSlots): the table is known before any route is built.
-  const roped = !bundle.crags.get(run.crag)!.disciplines.includes('boulder');
+  // A sport sector's slots are all routes (sessionSlots): the table is known before any route is built.
+  const roped = sessionDiscipline(run, bundle) === 'sport';
   const t = (roped ? ROUTE_TACTICS : TACTICS)[tactic];
   for (const slot of sessionQueue(run, tactic, roped)) {
     if (slot.di_target > s.E + t.above) continue;
@@ -96,7 +97,10 @@ export function pickSector(run: RunState, bundle: DataBundle): string | null {
   const crag = bundle.crags.get(run.crag)!;
   const open = sectorList(run, bundle).filter((s) => s.open);
   if (!open.length) return null;
-  const near = open.filter((s) => sectorFloor(crag.sectors.find((x) => x.id === s.id)!, bundle) <= (run.est ?? Infinity) + SECTOR_REACH);
+  const near = open.filter((s) => {
+    const sector = crag.sectors.find((x) => x.id === s.id)!;
+    return sectorFloor(sector, bundle) <= (run.est?.[sectorDiscipline(sector, bundle)] ?? Infinity) + SECTOR_REACH;
+  });
   const pool0 = near.length ? near : open;
   const fresh = pool0.filter((s) => !run.counters.week_sectors.includes(s.id));
   const pool = fresh.length ? fresh : pool0;

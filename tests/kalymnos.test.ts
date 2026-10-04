@@ -11,7 +11,7 @@ import { atRoute, syntheticRun } from '../src/harness/sim';
 import { sampleBuild } from '../src/harness/sampler';
 import { routeEntry, ROUTE_ENERGY, simulateAttempt } from '../src/sim/attempt';
 import { frenchGrade } from '../src/sim/grades';
-import { estimateBoulderDI } from '../src/sim/estimate';
+import { estimateAt } from '../src/sim/estimate';
 import { gradeRoute, referenceAthlete } from '../src/sim/grade';
 import { DEFAULT_OPTIONS, presetSpec } from '../src/sim/presets';
 import { skinForce } from '../src/sim/resolve';
@@ -93,8 +93,8 @@ describe('travel (09 §8)', () => {
     // Font's rain stays at Font.
     expect(run.last_rain === null || run.last_rain.day === run.day).toBe(true);
     // The estimate is a route grade now.
-    expect(run.est).toBe(estimateDI(run, bundle));
-    expect(run.est).not.toBe(estimateBoulderDI(referenceAthlete(15), 'fontainebleau', bundle));
+    expect(run.est).toEqual({ sport: estimateDI(run, bundle) });
+    expect(run.est!.sport).not.toBe(estimateAt(referenceAthlete(15), 'fontainebleau', 'boulder', bundle));
   });
 
   it('sets off only before the day\'s first block, and only with the fare', () => {
@@ -145,7 +145,7 @@ describe('the sport styles (06 §2.1) and the route estimate (02 §C.3)', () => 
     expect(sectorFloor(sectorById('grande_grotta'), bundle)).toBe(14);
     expect(sectorFloor(sectorById('arginonta_valley'), bundle)).toBe(-Infinity);
     const run = atKalymnos('floor');
-    const E = run.est!;
+    const E = run.est!.sport!;
     expect(E).toBeLessThan(14);
     expect(sessionSlots(run, 'grande_grotta', E, bundle).every((x) => x.di_target >= 14)).toBe(true);
     expect(sessionSlots(run, 'arginonta_valley', E, bundle).some((x) => x.di_target < E - 2)).toBe(true);
@@ -173,7 +173,7 @@ describe('the sport styles (06 §2.1) and the route estimate (02 §C.3)', () => 
   });
 
   it('returns the Reference Climber about its own DI on routes', () => {
-    for (const d of [12, 16, 20]) expect(Math.abs(estimateBoulderDI(referenceAthlete(d), 'kalymnos', bundle) - d)).toBeLessThan(0.75);
+    for (const d of [12, 16, 20]) expect(Math.abs(estimateAt(referenceAthlete(d), 'kalymnos', 'sport', bundle) - d)).toBeLessThan(0.75);
   });
 
   it('grades no bolted benchmark deadly, and tags routes by shares, not by one move', () => {

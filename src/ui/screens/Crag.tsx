@@ -2,17 +2,18 @@
 import { canStartBlock, travelBlock } from '../../sim/run';
 import type { RunState } from '../../sim/state';
 import { destinations } from '../../sim/travel';
+import { cragDisciplines, sectorDiscipline } from '../../sim/discipline';
 import { sectorFloor } from '../../sim/routes';
 import { sectorStatus } from '../../sim/weather';
 import { Circuit, TabBar, Top } from '../components';
-import { COUNTRY_LABEL, gradeIn, isSportCrag, money, ROCK_LABEL } from '../format';
+import { climbsLabel, COUNTRY_LABEL, gradeAt, money, ROCK_LABEL } from '../format';
 import { act, data, goto } from '../store';
 
 export function Crag({ run }: { run: RunState }) {
   const crag = data.crags.get(run.crag)!;
   const sinceRain = run.last_rain ? run.day - run.last_rain.day : null;
   const inSession = run.block?.kind === 'climb';
-  const sport = isSportCrag(crag);
+  const roped = cragDisciplines(crag, data).includes('sport');
   const trips = destinations(run.crag, data);
   return (
     <div class="screen">
@@ -21,7 +22,7 @@ export function Crag({ run }: { run: RunState }) {
       </Top>
       <div class="scroll">
         {inSession && <button class="btn primary" onClick={() => goto({ name: 'routes' })}>Back to your session</button>}
-        <span class="kicker">{sport ? 'Sectors' : 'Areas'}</span>
+        <span class="kicker">{roped ? 'Sectors' : 'Areas'}</span>
         {crag.sectors.map((s) => {
           const st = sectorStatus(crag, s, run.weather, run.last_rain);
           const check = canStartBlock(run, 'climb', s.id, data);
@@ -35,16 +36,16 @@ export function Crag({ run }: { run: RunState }) {
               </div>
               <span class="small soft">{s.character}</span>
               <span class={`tiny ${st.open ? 'good' : 'warn'}`}>
-                {st.open ? 'dry' : st.reason}{s.shade ? ' · shaded' : ' · sunny'}{floor > -Infinity ? ` · routes from ${gradeIn(floor, sport)}` : ''}{sigs.length ? ` · ${sigs.join(', ')}` : ''}
+                {st.open ? 'dry' : st.reason}{s.shade ? ' · shaded' : ' · sunny'}{floor > -Infinity ? ` · ${sectorDiscipline(s, data) === 'sport' ? 'routes' : 'problems'} from ${gradeAt(floor, sectorDiscipline(s, data), crag)}` : ''}{sigs.length ? ` · ${sigs.join(', ')}` : ''}
                 {st.open && !check.ok && !inSession ? ` · ${check.reason}` : ''}
               </span>
             </button>
           );
         })}
         <p class="tiny muted">
-          {sport
-            ? 'Limestone dries in hours: a sector closes only while it rains. The tufa caves seep for days after heavy rain.'
-            : 'Damp sandstone breaks. Every sector closes in rain and stays shut until it dries.'}
+          {crag.rock.startsWith('sandstone')
+            ? 'Damp sandstone breaks. Every sector closes in rain and stays shut until it dries.'
+            : 'Limestone dries in hours: a sector closes only while it rains. The tufa caves seep for days after heavy rain.'}
         </p>
         {trips.length > 0 && <span class="kicker">Travel</span>}
         {trips.map((t) => {
@@ -56,7 +57,7 @@ export function Crag({ run }: { run: RunState }) {
                 <span class="card-title">{dest.name}</span>
                 <span class="small mono">{money(t.cost)} · {t.days} {t.days === 1 ? 'day' : 'days'}</span>
               </div>
-              <span class="small soft">{COUNTRY_LABEL[dest.country] ?? dest.country} · {ROCK_LABEL[dest.rock] ?? dest.rock} · {isSportCrag(dest) ? 'sport routes' : 'bouldering'}</span>
+              <span class="small soft">{COUNTRY_LABEL[dest.country] ?? dest.country} · {ROCK_LABEL[dest.rock] ?? dest.rock} · {climbsLabel(dest, data)}</span>
               <span class="tiny muted">{t.legs.map((l) => l.mode).join(', then ')} · living costs go on while you travel{why ? ` · ${why}` : ''}</span>
             </button>
           );

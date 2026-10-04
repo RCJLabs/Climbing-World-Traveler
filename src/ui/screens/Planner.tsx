@@ -2,6 +2,7 @@
 // by it, and today run by hand for when the player wants to pick the problems themselves.
 import { useState } from 'preact/hooks';
 import { athleteOf } from '../../sim/attempt';
+import { cragDisciplines } from '../../sim/discipline';
 import { canStartBlock, dailyCost, dateLabel, energyCap } from '../../sim/run';
 import type { RunState } from '../../sim/state';
 import { plannedBlock, scheduledBlock } from '../../sim/tactics';
@@ -115,7 +116,7 @@ export function Planner({ run }: { run: RunState }) {
         <div class="list">
           <button class="card" disabled={!climbCheck.ok} onClick={() => goto({ name: 'crag' })}>
             <div class="row between"><span class="card-title">Climb</span><span class="mono tiny muted">energy −10 + attempts</span></div>
-            <span class="small soft">{climbCheck.ok ? `Pick a sector, then the ${crag.disciplines.includes('boulder') ? 'problems' : 'routes'} to try. Travel from there too.` : climbCheck.reason}</span>
+            <span class="small soft">{climbCheck.ok ? `Pick a sector, then the ${cragDisciplines(crag, data).map((d) => (d === 'sport' ? 'routes' : 'problems')).join(' or ')} to try. Travel from there too.` : climbCheck.reason}</span>
           </button>
           <button class="card" disabled={onBreak || run.blocks_today.length >= 2} onClick={() => setTrain(true)}>
             <div class="row between"><span class="card-title">Train</span><span class="mono tiny muted">gym day pass $20</span></div>

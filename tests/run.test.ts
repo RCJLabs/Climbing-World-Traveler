@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
 import { athleteOf, doWallAction, routeEntry, startAttempt } from '../src/sim/attempt';
 import { BotDriver, PROJECT_POLICY } from '../src/sim/bot';
-import { BENCH_PER_PROFILE, estimateBoulderDI } from '../src/sim/estimate';
+import { BENCH_PER_PROFILE, estimateAt } from '../src/sim/estimate';
 import { workedExampleBuilds } from '../src/harness/sim';
 import { evWalk, gradeRoute, referenceAthlete } from '../src/sim/grade';
 import { DEFAULT_OPTIONS, PRESETS, presetSpec } from '../src/sim/presets';
@@ -69,7 +69,7 @@ describe('creation', () => {
 
 describe('estimate (02 §C.3)', () => {
   it('returns the Reference Climber its own DI', () => {
-    for (const d of [10, 14, 18, 22]) expect(Math.abs(estimateBoulderDI(referenceAthlete(d), 'fontainebleau', bundle) - d)).toBeLessThan(0.6);
+    for (const d of [10, 14, 18, 22]) expect(Math.abs(estimateAt(referenceAthlete(d), 'fontainebleau', 'boulder', bundle) - d)).toBeLessThan(0.6);
   });
 
   const shipped = bundle.benchmarks.get('fontainebleau')!;
@@ -217,7 +217,7 @@ describe('the week plan (docs/24 §2)', () => {
   it('records a progress point every week (docs/24 §4)', () => {
     const run = createRun('weeks', presetSpec('dirtbag'), bundle);
     expect(run.history).toHaveLength(1);
-    expect(run.history[0]!.E).toBeCloseTo(run.est!, 9);
+    expect(run.history[0]!.est).toEqual(run.est);
     for (let i = 0; i < 21; i++) applyAction(run, { t: 'end_day' }, bundle);
     expect(run.history.map((h) => h.day)).toEqual([0, 7, 14, 21]);
     expect(Object.keys(run.history[3]!.attrs)).toHaveLength(Object.keys(run.attrs).length);

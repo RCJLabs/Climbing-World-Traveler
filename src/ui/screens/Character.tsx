@@ -3,29 +3,31 @@
 import { useMemo } from 'preact/hooks';
 import { athleteOf } from '../../sim/attempt';
 import { EVOLVE_TEXT, evolutionProgress, PRACTICE_FALLS_PER_SESSION } from '../../sim/evolve';
-import { onsightGap, estimateDI } from '../../sim/run';
-import type { RunState, WeekPoint } from '../../sim/state';
+import { CLIMBS, cragDisciplines, type Climb } from '../../sim/discipline';
+import { estimates, onsightGap } from '../../sim/run';
+import type { RunState } from '../../sim/state';
 import { LIFESTYLE_ATTRS, MENTAL_ATTRS, PHYSICAL_ATTRS, TECHNIQUE_ATTRS, type AttrId } from '../../sim/types';
 import { Meter, TabBar, Top } from '../components';
-import { ATTR_LABEL, gradeIn, isSportCrag, LATER_ATTRS, ROCK_LABEL } from '../format';
+import { ATTR_LABEL, gradeAt, LATER_ATTRS, ROCK_LABEL } from '../format';
 import { data, exportCurrent } from '../store';
 
 export function Character({ run }: { run: RunState }) {
   const ath = athleteOf(run, data);
-  const E = useMemo(() => estimateDI(run, data), [run.day, run.actions]);
+  const ests = useMemo(() => estimates(run, data), [run.day, run.actions]);
   const gap = onsightGap(ath);
   const b = run.body;
   const bg = data.backgrounds.get(run.background);
   const crag = data.crags.get(run.crag)!;
-  const sport = isSportCrag(crag);
-  const grade = (di: number) => gradeIn(di, sport);
-  const pb = sport ? run.pb_route : run.pb;
-  const otherPb = sport ? run.pb : run.pb_route;
-  // The chart keeps to this crag's discipline: a boulder estimate and a route estimate are different numbers.
-  const sportAt = (id: string | undefined): boolean => isSportCrag(data.crags.get(id ?? run.crag) ?? crag);
-  const series = [...run.history, { day: run.day, E, crag: run.crag, pb: run.pb, pb_route: run.pb_route, ticks: 0, attrs: {} }]
-    .filter((p) => sportAt(p.crag) === sport)
-    .map((p) => ({ ...p, pb: sport ? p.pb_route ?? 0 : p.pb }));
+  // One estimate per discipline the crag climbs (27 M1), in the crag's own grading system; the chart follows the
+  // discipline the crag is known by: a boulder estimate and a route estimate are different numbers.
+  const here = cragDisciplines(crag, data);
+  const main = here[0]!;
+  const grade = (di: number, d: Climb = main) => gradeAt(di, d, crag);
+  const pbOf = (d: Climb): number => (d === 'sport' ? run.pb_route : run.pb);
+  const elsewhere = CLIMBS.filter((d) => !here.includes(d) && pbOf(d) > 0);
+  const series = [...run.history, { day: run.day, est: ests, pb: run.pb, pb_route: run.pb_route }]
+    .filter((p) => p.est?.[main] !== undefined)
+    .map((p) => ({ day: p.day, E: p.est![main]!, pb: main === 'sport' ? p.pb_route ?? 0 : p.pb }));
   // The change over the last four weeks, from the weekly progress points.
   const then = run.history[Math.max(0, run.history.length - 5)];
   const group = (label: string, ids: readonly AttrId[]) => (
@@ -53,13 +55,16 @@ export function Character({ run }: { run: RunState }) {
         <span class="small muted">{Math.floor(b.age_start + run.day / 365)} · {b.height_cm} cm · {b.mass_kg} kg · ape {b.ape_index.toFixed(2)} · skin {b.skin_thickness} · hands {b.skin_moisture}</span>
       </Top>
       <div class="scroll">
-        <div class="card">
-          <span class="kicker">{sport ? 'Route estimate' : 'Boulder estimate'}</span>
-          <span class="mono accent" style={{ fontSize: '32px', fontWeight: 600 }}>{grade(E)}</span>
-          <span class="small soft">Onsight about {grade(E - gap)}. Personal best {pb ? grade(pb) : '—'}.{otherPb ? ` Hardest ${sport ? 'boulder' : 'route'} ${gradeIn(otherPb, !sport)}.` : ''}</span>
-          <span class="tiny muted">The estimate is the climber's 35% line on a fixed set of {crag.name} benchmark {sport ? 'routes' : 'problems'}.</span>
-        </div>
-        <Progress points={series} grade={grade} />
+        {here.map((d) => (
+          <div class="card" key={d}>
+            <span class="kicker">{d === 'sport' ? 'Route estimate' : 'Boulder estimate'}</span>
+            <span class="mono accent" style={{ fontSize: '32px', fontWeight: 600 }}>{grade(ests[d]!, d)}</span>
+            <span class="small soft">Onsight about {grade(ests[d]! - gap, d)}. Personal best {pbOf(d) ? grade(pbOf(d), d) : '—'}.</span>
+            <span class="tiny muted">The climber's 35% line on a fixed set of {crag.name} benchmark {d === 'sport' ? 'routes' : 'problems'}.</span>
+          </div>
+        ))}
+        {elsewhere.length > 0 && <p class="small soft">{elsewhere.map((d) => `Hardest ${d === 'sport' ? 'route' : 'boulder'} ${gradeAt(pbOf(d), d)}.`).join(' ')}</p>}
+        <Progress points={series} grade={(v) => grade(v)} />
         <div class="meters">
           <Meter label="Energy" value={run.res.energy} colour="var(--good)" />
           <Meter label="Skin" value={run.res.skin} colour="var(--skin)" />
@@ -82,20 +87,20 @@ export function Character({ run }: { run: RunState }) {
 }
 
 /** Grade estimate (line) and hardest send (steps) by week (docs/24 §4), in one discipline's grades. */
-function Progress({ points, grade }: { points: WeekPoint[]; grade: (di: number) => string }) {
-  const pts = points.filter((p) => p.E !== null);
+function Progress({ points, grade }: { points: { day: number; E: number; pb: number }[]; grade: (di: number) => string }) {
+  const pts = points;
   if (pts.length < 2) return <p class="tiny muted">Progress shows here after the first week.</p>;
   const W = 320;
   const H = 120;
   const pad = { l: 34, r: 8, t: 8, b: 18 };
   const day0 = pts[0]!.day;
   const day1 = Math.max(day0 + 1, pts[pts.length - 1]!.day);
-  const vals = pts.flatMap((p) => [p.E!, ...(p.pb ? [p.pb] : [])]);
+  const vals = pts.flatMap((p) => [p.E, ...(p.pb ? [p.pb] : [])]);
   const lo = Math.floor(Math.min(...vals)) - 1;
   const hi = Math.ceil(Math.max(...vals)) + 1;
   const x = (d: number) => pad.l + ((d - day0) / (day1 - day0)) * (W - pad.l - pad.r);
   const y = (v: number) => pad.t + (1 - (v - lo) / (hi - lo)) * (H - pad.t - pad.b);
-  const line = pts.map((p) => `${x(p.day).toFixed(1)},${y(p.E!).toFixed(1)}`).join(' ');
+  const line = pts.map((p) => `${x(p.day).toFixed(1)},${y(p.E).toFixed(1)}`).join(' ');
   const pbPts = pts.filter((p) => p.pb > 0);
   const steps = pbPts.map((p, i) => `${i ? `${x(p.day).toFixed(1)},${y(pbPts[i - 1]!.pb).toFixed(1)} ` : ''}${x(p.day).toFixed(1)},${y(p.pb).toFixed(1)}`).join(' ');
   const ticksY = [lo + 1, Math.round((lo + hi) / 2), hi - 1];

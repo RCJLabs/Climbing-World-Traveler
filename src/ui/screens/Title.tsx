@@ -1,12 +1,12 @@
 // Title / menu: continue a saved run, start a new climber, Hall of Fame, settings.
 import type { RunState } from '../../sim/state';
 import { Seg, Top } from '../components';
-import { grade, gradeIn } from '../format';
+import { grade, gradeAt } from '../format';
 import type { RunSummary } from '../../sim/types';
 
 /** A finished run's best: its hardest boulder, its hardest route, or both (P1b). Older entries have no route fields. */
 const hardestLine = (s: RunSummary): string => {
-  const parts = [s.hardest ? grade(s.hardest) : '', s.hardest_route ? gradeIn(s.hardest_route, true) : ''].filter(Boolean);
+  const parts = [s.hardest ? grade(s.hardest) : '', s.hardest_route ? gradeAt(s.hardest_route, 'sport') : ''].filter(Boolean);
   return parts.length ? parts.join(' · ') : '—';
 };
 import { act, continueRun, data, deleteRun, goto, meta, runs, saveSettings, settings, storageNote } from '../store';

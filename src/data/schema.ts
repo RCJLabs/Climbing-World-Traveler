@@ -115,6 +115,7 @@ export const CragSchema = z.object({
   climate_class: z.string().regex(/^[a-z_]+$/),
   npc_archetypes: z.array(z.enum(NPC_ARCHETYPES)).min(1),
   look: z.object({ scenery: z.enum(['forest', 'sea']) }).strict(),
+  grades: z.object({ boulder: z.enum(['font', 'v']).optional(), sport: z.enum(['french', 'yds']).optional() }).strict().optional(),
   sectors: z.array(z.object({
     id: z.string().regex(/^[a-z0-9_]+$/),
     name: z.string(),

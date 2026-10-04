@@ -109,8 +109,8 @@ describe('the weekly estimate (06 §5)', () => {
     applyAction(run, { t: 'block_end' }, bundle);
     while (run.day % 7 !== 6) applyAction(run, { t: 'end_day' }, bundle);
     applyAction(run, { t: 'end_day' }, bundle);
-    expect(run.est).toBe(estimateDI(run, bundle));
-    expect(run.history.at(-1)!.E).toBe(run.est);
+    expect(run.est).toEqual({ boulder: estimateDI(run, bundle) });
+    expect(run.history.at(-1)!.est).toEqual(run.est);
   });
 });
 
