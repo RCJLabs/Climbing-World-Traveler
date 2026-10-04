@@ -38,7 +38,9 @@ export function Report({ run }: { run: RunState }) {
                 <span class="tiny muted">{injuryStatus(run, i, data)}</span>
               </div>
             ))}
-            {r.injuries.some((i) => i.grade >= 2) && r.kind === 'days' && <span class="tiny muted">The simulation stopped here so you can change the plan. Climbing days become rehab while it heals.</span>}
+            {r.injuries.some((i) => i.grade >= 2) && r.kind === 'days' && (
+              <span class="tiny muted">The simulation stopped here so you can change the plan. Climbing days become {r.injuries.some((i) => i.grade >= 2 && data.injuries.get(i.def)?.rehab.length) ? 'rehab' : 'rest'} while it heals.</span>
+            )}
           </div>
         )}
 

@@ -42,7 +42,7 @@ export function Health({ run, bundle }: { run: RunState; bundle: DataBundle }) {
   return (
     <div class="card">
       <span class="kicker">Health</span>
-      <Meter label="Health" value={run.res.health} colour="var(--good)" />
+      <Meter label="Overall" value={run.res.health} colour="var(--good)" />
       {live.length === 0 && <span class="small soft">Nothing hurts.</span>}
       {live.map((i, k) => (
         <div key={k} class="col">
