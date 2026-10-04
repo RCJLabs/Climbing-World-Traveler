@@ -86,6 +86,13 @@ describe('the report (19 §1)', () => {
     hardest: 15, hardest_onsight: 13, summary: summary(Math.round(years * 365), ended === 'bankrupt' ? 'bankrupt' : 'retired'),
     limit: ended === 'limit', ended_by: ended, trips: i % 2 ? 4 : 0, days_at: { fontainebleau: 300, kalymnos: i % 2 ? 300 : 0 },
     climb_days: 200, attempts: 1000, sends: 200, train_blocks: 50, work_blocks: 100, burnout_max: 10, actions: 5000, replay_ok: i === 0 ? true : null, ms: 1,
+    // Two injuries a career: a pulley strain in the first year, and an ankle off a boulder or a cold.
+    injuries: [
+      { def: 'a2_pulley', site: 'finger', kind: 'injury', grade: 2, cause: 'load', day: 100, heal: 40, full: 70, crag: 'fontainebleau', career_ending: false, relapse: false },
+      i % 2
+        ? { def: 'common_cold', site: 'systemic', kind: 'illness', grade: 1, cause: 'illness', day: 400, heal: 4, full: 5, crag: 'kalymnos', career_ending: false, relapse: false }
+        : { def: 'ankle_fracture', site: 'ankle', kind: 'injury', grade: 3, cause: 'fall', day: 500, heal: 90, full: 200, crag: 'fontainebleau', career_ending: false, relapse: false },
+    ],
   });
 
   it('has a row per career year, the run ends, the age bands, travel and the injury section', () => {
@@ -101,5 +108,10 @@ describe('the report (19 §1)', () => {
     expect(md).toContain('bankrupt 25%');
     expect(md).toContain('retired after 60 days burnt out 25%');
     expect(md).not.toContain('## Grade estimate and personal best by month');
+    // The injury section (P2 M2): 6 injuries in 800 climbing days; the mix against 13 §1's anchors; illness apart.
+    expect(md).toContain('6 injuries in 800 climbing days: 7.5 per 1,000');
+    expect(md).toMatch(/\| Pulleys \(A2, A4\) \| 66\.7% \| 12\.3% \|/);
+    expect(md).toMatch(/\| Ankle fractures among Fontainebleau fall injuries \| 100\.0% \|/);
+    expect(md).toContain('common_cold');
   });
 });

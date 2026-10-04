@@ -3,7 +3,7 @@
 // (gym tier 2 via the Paris region, 12 §8).
 
 import { ageAdaptMult, attrGroup, clamp, type Mods } from './character';
-import type { AttrId, Attributes, Body, Difficulty } from './types';
+import type { AttrId, Attributes, Body, Difficulty, InjurySite } from './types';
 
 export type Clock = 'neural' | 'muscle' | 'tendon';
 
@@ -156,27 +156,38 @@ export interface Activity {
   name: string;
   stim: Partial<Record<AttrId, number>>;
   load: number;
+  /** Finger load (12 §5): its whole load counts toward the finger column, so a cardio spike leaves pulleys alone. */
   finger: boolean;
   energy: number;
   skin: number;
   cost: number;
+  /** The sites it loads (P2 M2): a grade-2+ injury at one of them bars it until the injury heals. */
+  loads: InjurySite[];
+  /** The sites whose injuries it rehabilitates (13 §3, P2 M2). */
+  rehab?: InjurySite[];
   blurb: string;
 }
 
 const GYM = 20; // day pass, 14 §4 (gym tier 2)
 
 export const ACTIVITIES: readonly Activity[] = [
-  { id: 'max_hangs', name: 'Max hangs', stim: { finger_strength: 10, contact_strength: 2 }, load: 9, finger: true, energy: 30, skin: 3, cost: GYM, blurb: '20 mm edge, 7–10 s, five sets. Fingers, slowly.' },
-  { id: 'repeaters', name: 'Repeaters', stim: { finger_endurance: 9, finger_strength: 3 }, load: 8, finger: true, energy: 35, skin: 3, cost: GYM, blurb: '7 on, 3 off, until the forearms argue.' },
-  { id: 'campus', name: 'Campus board', stim: { contact_strength: 9, pull_power: 5, dynamic_movement: 3 }, load: 11, finger: true, energy: 40, skin: 5, cost: GYM, blurb: 'Ladders and bumps. Power for deadpoints, risk for pulleys.' },
-  { id: 'limit_boulders', name: 'Limit bouldering', stim: { finger_strength: 6, core_tension: 5, contact_strength: 4, dynamic_movement: 3, tech_slopers: 1, tech_crimps: 1 }, load: 10, finger: true, energy: 45, skin: 8, cost: GYM, blurb: 'Three to six moves at your maximum, on plastic.' },
-  { id: 'four_by_four', name: '4×4s', stim: { anaerobic_capacity: 9, finger_endurance: 4, pull_power: 2 }, load: 9, finger: false, energy: 50, skin: 7, cost: GYM, blurb: 'Four problems, four times, no rest between.' },
-  { id: 'arc', name: 'ARC', stim: { aerobic_capacity: 9, finger_endurance: 3, footwork: 2 }, load: 4, finger: false, energy: 30, skin: 4, cost: GYM, blurb: 'Thirty minutes of easy continuous climbing.' },
-  { id: 'weights', name: 'Weights', stim: { pull_power: 7, lockoff: 4, core_tension: 3, leg_power: 3 }, load: 8, finger: false, energy: 40, skin: 0, cost: GYM, blurb: 'Weighted pull-ups, deadlifts, overhead press.' },
-  { id: 'skill_drills', name: 'Skill drills', stim: { footwork: 6, body_position: 5, route_reading: 2 }, load: 3, finger: false, energy: 25, skin: 2, cost: GYM, blurb: 'Silent feet, hover hands, flagging.' },
-  { id: 'fall_practice', name: 'Fall practice', stim: { composure: 3, commitment: 2 }, load: 3, finger: false, energy: 25, skin: 2, cost: GYM, blurb: 'Progressive jumps off the top of the gym boulders.' },
-  { id: 'mobility', name: 'Mobility', stim: { hip_mobility: 5, shoulder_mobility: 5 }, load: 2, finger: false, energy: 15, skin: 0, cost: 0, blurb: 'Hips and shoulders, 40 minutes on a mat.' },
-  { id: 'cardio', name: 'Cardio', stim: { aerobic_capacity: 5 }, load: 3, finger: false, energy: 25, skin: 0, cost: 0, blurb: 'A run through the forest.' },
+  { id: 'max_hangs', name: 'Max hangs', stim: { finger_strength: 10, contact_strength: 2 }, load: 9, finger: true, energy: 30, skin: 3, cost: GYM, loads: ['finger', 'wrist', 'elbow'], blurb: '20 mm edge, 7–10 s, five sets. Fingers, slowly.' },
+  { id: 'repeaters', name: 'Repeaters', stim: { finger_endurance: 9, finger_strength: 3 }, load: 8, finger: true, energy: 35, skin: 3, cost: GYM, loads: ['finger', 'wrist', 'elbow'], blurb: '7 on, 3 off, until the forearms argue.' },
+  { id: 'campus', name: 'Campus board', stim: { contact_strength: 9, pull_power: 5, dynamic_movement: 3 }, load: 11, finger: true, energy: 40, skin: 5, cost: GYM, loads: ['finger', 'wrist', 'elbow', 'shoulder'], blurb: 'Ladders and bumps. Power for deadpoints, risk for pulleys.' },
+  { id: 'limit_boulders', name: 'Limit bouldering', stim: { finger_strength: 6, core_tension: 5, contact_strength: 4, dynamic_movement: 3, tech_slopers: 1, tech_crimps: 1 }, load: 10, finger: true, energy: 45, skin: 8, cost: GYM, loads: ['finger', 'wrist', 'elbow', 'shoulder', 'back', 'knee', 'ankle', 'skin'], blurb: 'Three to six moves at your maximum, on plastic.' },
+  { id: 'four_by_four', name: '4×4s', stim: { anaerobic_capacity: 9, finger_endurance: 4, pull_power: 2 }, load: 9, finger: false, energy: 50, skin: 7, cost: GYM, loads: ['finger', 'wrist', 'elbow', 'shoulder', 'knee', 'ankle', 'skin'], blurb: 'Four problems, four times, no rest between.' },
+  { id: 'arc', name: 'ARC', stim: { aerobic_capacity: 9, finger_endurance: 3, footwork: 2 }, load: 4, finger: false, energy: 30, skin: 4, cost: GYM, loads: ['finger', 'elbow', 'skin'], blurb: 'Thirty minutes of easy continuous climbing.' },
+  { id: 'weights', name: 'Weights', stim: { pull_power: 7, lockoff: 4, core_tension: 3, leg_power: 3 }, load: 8, finger: false, energy: 40, skin: 0, cost: GYM, loads: ['elbow', 'shoulder', 'back', 'knee'], blurb: 'Weighted pull-ups, deadlifts, overhead press.' },
+  { id: 'skill_drills', name: 'Skill drills', stim: { footwork: 6, body_position: 5, route_reading: 2 }, load: 3, finger: false, energy: 25, skin: 2, cost: GYM, loads: ['knee', 'ankle'], blurb: 'Silent feet, hover hands, flagging.' },
+  { id: 'fall_practice', name: 'Fall practice', stim: { composure: 3, commitment: 2 }, load: 3, finger: false, energy: 25, skin: 2, cost: GYM, loads: ['back', 'knee', 'ankle'], blurb: 'Progressive jumps off the top of the gym boulders.' },
+  { id: 'mobility', name: 'Mobility', stim: { hip_mobility: 5, shoulder_mobility: 5 }, load: 2, finger: false, energy: 15, skin: 0, cost: 0, loads: [], rehab: ['back'], blurb: 'Hips and shoulders, 40 minutes on a mat.' },
+  { id: 'cardio', name: 'Cardio', stim: { aerobic_capacity: 5 }, load: 3, finger: false, energy: 25, skin: 0, cost: 0, loads: ['knee', 'ankle'], blurb: 'A run through the forest.' },
+  // P2 M2 (12 §1, 13 §3, §6): rehab, and the antagonist work that keeps shoulders and elbows sound for two weeks.
+  { id: 'antagonists', name: 'Antagonists', stim: {}, load: 3, finger: false, energy: 15, skin: 0, cost: 0, loads: [], rehab: ['shoulder', 'elbow', 'back'], blurb: 'Push-ups, external rotations, wrist extensions.' },
+  { id: 'rehab_fingers', name: 'Finger rehab', stim: { finger_strength: 1 }, load: 2, finger: false, energy: 15, skin: 0, cost: 0, loads: [], rehab: ['finger'], blurb: 'Tendon glides and light open-hand hangs.' },
+  { id: 'rehab_shoulder', name: 'Shoulder rehab', stim: { lockoff: 1 }, load: 2, finger: false, energy: 15, skin: 0, cost: 0, loads: [], rehab: ['shoulder'], blurb: 'Cuff and scapular work with a band.' },
+  { id: 'rehab_elbow', name: 'Elbow and wrist rehab', stim: {}, load: 2, finger: false, energy: 10, skin: 0, cost: 0, loads: [], rehab: ['elbow', 'wrist'], blurb: 'Eccentric wrist curls and a flexbar.' },
+  { id: 'rehab_lower', name: 'Ankle and knee rehab', stim: { leg_power: 1 }, load: 2, finger: false, energy: 15, skin: 0, cost: 0, loads: [], rehab: ['ankle', 'knee'], blurb: 'Balance board and single-leg strength.' },
 ];
 
 export const activityById = (id: string): Activity | undefined => ACTIVITIES.find((a) => a.id === id);

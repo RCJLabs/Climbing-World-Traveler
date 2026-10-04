@@ -8,7 +8,8 @@ import { replay } from '../src/sim/run';
 import { REDUCER_VERSION, type RunState } from '../src/sim/state';
 import { nextPlannedAction, simulateDays } from '../src/sim/tactics';
 import type { Action, DataBundle } from '../src/sim/types';
-import { OLDEST_ADAPTABLE } from '../src/save/adapt';
+import { adaptState, OLDEST_ADAPTABLE } from '../src/save/adapt';
+import { CAPACITY } from '../src/sim/injury';
 import { MemoryBackend, type RunRecord } from '../src/save/backend';
 import { cannotContinue, CHUNK, importRun, IncompatibleRun, RunSession, SNAPSHOT_EVERY, SNAPSHOTS_KEPT } from '../src/save/session';
 
@@ -18,6 +19,8 @@ const spec = presetSpec('dirtbag', DEFAULT_OPTIONS);
 /** A save as a backend holds it: written by the build at origin/main when the reducer was at 9 (data p2-0). */
 interface Archive { record: RunRecord; chunks: Action[][]; snapshots: { index: number; state: RunState }[] }
 const archive = JSON.parse(readFileSync('tests/fixtures/saves/v9-kalymnos.json', 'utf8')) as Archive;
+/** The same, written at reducer 10 (P2 M1, data p2-0) by scripts/dev/archive-save.ts. */
+const archive10 = JSON.parse(readFileSync('tests/fixtures/saves/v10-kalymnos.json', 'utf8')) as Archive;
 
 async function restore(a: Archive): Promise<MemoryBackend> {
   const backend = new MemoryBackend();
@@ -125,22 +128,49 @@ describe('saves', () => {
 describe('carrying a run forward (27 §4)', () => {
   const index = archive.snapshots.at(-1)!.index;
 
-  it('carries an archived run from reducer 9: its newest snapshot, adapted, is the state this version builds', async () => {
+  it('carries an archived run from reducer 9 through each adapter to this version', async () => {
     expect(archive.record).toMatchObject({ version: 9, data_version: 'p2-0' });
     const backend = await restore(archive);
     const s = await RunSession.load(backend, bundle, archive.record.id);
     expect(s.record).toMatchObject({ version: REDUCER_VERSION, base: index, action_count: index, day: s.state.day });
     expect(s.record.hashes).toEqual({ fontainebleau: bundle.hashes.get('fontainebleau'), kalymnos: bundle.hashes.get('kalymnos') });
-    // The same actions played by this version: the same state, but for the line about the update.
-    const fresh = replay(archive.chunks.flat().slice(0, index), bundle);
-    expect({ ...s.state, journal: s.state.journal.slice(0, -1) }).toEqual(fresh);
+    // Its newest snapshot through the adapters, and a line about the update. (Replaying its log under this version is
+    // no check any more: M2's injuries play the same actions out otherwise, which is why a run is rebased, 27 §4.)
+    expect({ ...s.state, journal: s.state.journal.slice(0, -1) }).toEqual(adaptState(archive.snapshots.at(-1)!.state, 9, bundle));
     expect(s.state.journal.at(-1)!.text).toMatch(/updated/);
+    expect(s.state).toMatchObject({ injuries: [], ceiling_loss: {}, finger_today: 0 });
     expect(s.state.est).toEqual({ sport: archive.snapshots.at(-1)!.state.est });
     expect(s.state.history.map((p) => `${p.crag}:${Object.keys(p.est ?? {}).join()}`)).toEqual([
       ...Array(4).fill('fontainebleau:boulder'), ...Array(3).fill('kalymnos:sport'),
     ]);
     expect(s.state.ticks.every((t) => t.crag === (t.discipline ? 'kalymnos' : 'fontainebleau'))).toBe(true);
   }, 20_000);
+
+  it('carries an archived run from reducer 10: the newest snapshot as it was, with M2\'s injuries and capacities added', async () => {
+    expect(archive10.record).toMatchObject({ version: 10, data_version: 'p2-0' });
+    const base = archive10.snapshots.at(-1)!;
+    const backend = await restore(archive10);
+    const s = await RunSession.load(backend, bundle, archive10.record.id);
+    expect(s.record).toMatchObject({ version: REDUCER_VERSION, base: base.index, action_count: base.index });
+    const old = base.state as RunState & Record<string, unknown>;
+    const { injuries, ceiling_loss, capacity, finger_today, counters, journal, v, ...rest } = s.state;
+    const { counters: oldCounters, journal: oldJournal, v: oldV, ...oldRest } = old;
+    expect([oldV, v]).toEqual([10, REDUCER_VERSION]);
+    expect(rest).toEqual(oldRest);
+    expect({ injuries, ceiling_loss, finger_today }).toEqual({ injuries: [], ceiling_loss: {}, finger_today: 0 });
+    // It arrived at Kalymnos when its weekly points changed crag; its capacities are its chronic load's (12 §2).
+    const arrived = old.history.find((p) => p.crag === 'kalymnos')!.day;
+    expect(counters).toEqual({ ...oldCounters, finger_loads: [], exposure: {}, exposure_total: 0, tired_week: false, antagonists_until: -1, arrived_day: arrived });
+    const last = oldCounters.loads.slice(-28);
+    const chronic = last.reduce((a, b) => a + b, 0) / last.length;
+    expect(capacity.general).toBeCloseTo(Math.max(CAPACITY.general0, chronic), 9);
+    expect(capacity.finger).toBeGreaterThanOrEqual(0.6 * chronic);
+    expect(journal.slice(0, -1)).toEqual(oldJournal);
+    expect(journal.at(-1)!.text).toMatch(/updated/);
+    // It plays on from the base, and reloads to the same state.
+    await s.simulate((d) => simulateDays(d, bundle, 10));
+    expect((await RunSession.load(backend, bundle, s.id)).state).toEqual(s.state);
+  }, 30_000);
 
   it('cuts the log at the base, drops the old tail, goes on, and reloads to the same state', async () => {
     const backend = await restore(archive);

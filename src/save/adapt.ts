@@ -6,6 +6,7 @@
 // a newer reducer can make a logged action invalid.
 import { parseRouteSeed } from '../sim/routes';
 import { mainDiscipline } from '../sim/discipline';
+import { CAPACITY, startCapacity } from '../sim/injury';
 import { REDUCER_VERSION, type RunState } from '../sim/state';
 import type { DataBundle } from '../sim/types';
 import type { RunRecord } from './backend';
@@ -34,6 +35,32 @@ export const ADAPTERS: Record<number, (state: Json, bundle: DataBundle) => Json>
     const ticks = (s.ticks as (Json & { route_seed: string; area: string; crag?: string })[])
       .map((t) => (t.crag ? t : { ...t, crag: routeCrag(t.route_seed, t.area, bundle) ?? home }));
     return { ...s, est: est === null ? null : { [discipline(s.crag as string)]: est }, history, ticks };
+  },
+  // 10 → 11 (27 M2): injuries and health. A run from before M2 has had no injury: an empty list and no ceiling losses.
+  // Its tendons and body are adapted to the load it has been climbing (12 §2): the capacities are its chronic load (a
+  // finger share of it), never under a habitual climber's. The finger column and the week's exposure start empty; it
+  // arrived where it is when its weekly points last changed crag; a session in progress and a finished run's summary
+  // gain their new fields.
+  10: (s) => {
+    const counters = s.counters as Json & { loads: number[] };
+    const last = counters.loads.slice(-28);
+    const chronic = last.length ? last.reduce((a, b) => a + b, 0) / last.length : 0;
+    const start = startCapacity(((s.attrs as Record<string, { value: number }>).finger_strength?.value) ?? 20);
+    const history = s.history as { day: number; crag: string }[];
+    let arrived = 0;
+    for (let k = history.length - 1; k > 0; k--) {
+      if (history[k]!.crag !== history[k - 1]!.crag) { arrived = history[k]!.day; break; }
+    }
+    const block = s.block as (Json & { session?: Json }) | null;
+    const ended = s.ended as Json | null;
+    return {
+      ...s,
+      injuries: [], ceiling_loss: {}, finger_today: 0,
+      capacity: { finger: Math.max(start.finger, 0.6 * chronic), general: Math.max(CAPACITY.general0, chronic) },
+      counters: { ...counters, finger_loads: [], exposure: {}, exposure_total: 0, tired_week: false, antagonists_until: -1, arrived_day: arrived },
+      block: block?.session ? { ...block, session: { ...block.session, exposure: {}, moves_n: 0, finger_moves: 0 } } : block,
+      ended: ended ? { ...ended, injuries: 0 } : null,
+    };
   },
 };
 

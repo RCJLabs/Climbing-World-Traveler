@@ -36,6 +36,91 @@ const yearEnd = (r: CareerResult, y: number): CareerSample | undefined =>
 const spread = (xs: number[], g: (x: number) => string): string =>
   xs.length ? `${f(quantile(xs, 0.1))} / ${f(quantile(xs, 0.5))} (${g(quantile(xs, 0.5))}) / ${f(quantile(xs, 0.9))}` : '—';
 
+/** 13 §1's anchors (Lutter 2020 and related data) the injury mix is checked against. */
+export const INJURY_ANCHORS = {
+  upper: 0.77, lower: 0.18, finger: [0.33, 0.52] as const, shoulder: 0.17, elbow: 0.08, pulley: 0.123, teno: 0.106,
+  a2a4: [1.5, 2] as const, ankle_fracture_boulder_falls: 0.4, pulley_two_years: 0.13,
+};
+
+/**
+ * Injuries (19 §1, 13 §1; P2 M2): rates per 1,000 climbing days, the site mix against 13 §1's anchors, causes and
+ * grades, days off, relapses and careers ended. Kind `injury` unless said: skin and illness are counted apart.
+ */
+export function injuryStats(rs: CareerResult[]) {
+  const all = rs.flatMap((r) => r.injuries.map((i) => ({ ...i, r })));
+  const inj = all.filter((i) => i.kind === 'injury');
+  const n = inj.length;
+  const days = rs.reduce((a, r) => a + r.climb_days, 0);
+  const share = (pred: (i: (typeof inj)[number]) => boolean) => (n ? inj.filter(pred).length / n : 0);
+  const site = (s: string) => share((i) => i.site === s);
+  const a2 = inj.filter((i) => i.def === 'a2_pulley').length;
+  const a4 = inj.filter((i) => i.def === 'a4_pulley').length;
+  const bfalls = inj.filter((i) => i.cause === 'fall' && i.crag === 'fontainebleau');
+  const two = rs.filter((r) => r.summary.days >= 730);
+  return {
+    n, days, per1000: days ? (1000 * n) / days : 0,
+    perYear: n / Math.max(1e-9, rs.reduce((a, r) => a + years(r), 0)),
+    upper: share((i) => ['finger', 'wrist', 'elbow', 'shoulder'].includes(i.site)), lower: share((i) => i.site === 'knee' || i.site === 'ankle'),
+    finger: site('finger'), shoulder: site('shoulder'), elbow: site('elbow'), wrist: site('wrist'), back: site('back'), knee: site('knee'), ankle: site('ankle'),
+    pulley: share((i) => i.def === 'a2_pulley' || i.def === 'a4_pulley'), teno: share((i) => i.def === 'capsulitis'),
+    a2a4: a4 ? a2 / a4 : NaN,
+    ankleFractureBoulderFalls: bfalls.length ? bfalls.filter((i) => i.def === 'ankle_fracture').length / bfalls.length : NaN,
+    pulleyTwoYears: two.length ? two.filter((r) => r.injuries.some((i) => (i.def === 'a2_pulley' || i.def === 'a4_pulley') && i.day < 730)).length / two.length : NaN,
+    grade: [1, 2, 3].map((g) => share((i) => i.grade === g)),
+    cause: ['load', 'move', 'fall'].map((c) => share((i) => i.cause === c)),
+    relapse: share((i) => i.relapse),
+    daysOffPerYear: inj.filter((i) => i.grade >= 2).reduce((a, i) => a + i.heal, 0) / Math.max(1e-9, rs.reduce((a, r) => a + years(r), 0)),
+    skin: all.filter((i) => i.kind === 'skin'), illness: all.filter((i) => i.kind === 'illness'), inj,
+  };
+}
+
+function injurySection(L: string[], rs: CareerResult[]): void {
+  const s = injuryStats(rs);
+  const A = INJURY_ANCHORS;
+  const p1 = (x: number): string => (Number.isFinite(x) ? `${(100 * x).toFixed(1)}%` : '—');
+  L.push('## Injuries (13 §1)');
+  L.push('');
+  L.push('Kind `injury` unless said; split tips, flappers and illness are counted apart. Rates are per 1,000 climbing days.');
+  L.push('');
+  const byCrag = [...new Set(rs.map((r) => r.crag))].sort().map((c) => {
+    const rc = rs.filter((r) => r.crag === c);
+    const k = injuryStats(rc);
+    return `${c} starters ${f(k.per1000)}`;
+  }).join(', ');
+  L.push(`- ${s.n} injuries in ${s.days} climbing days: ${f(s.per1000)} per 1,000 (${byCrag}); ${s.perYear.toFixed(2)} per career-year. Grades 1/2/3: ${s.grade.map(p1).join(' / ')}. Causes load/move/fall: ${s.cause.map(p1).join(' / ')}. Relapses ${p1(s.relapse)}.`);
+  L.push(`- Days off the rock (grade 2+, to the heal day) per career-year: ${f(s.daysOffPerYear)}. Careers ended by an injury: ${pct(rs.filter((r) => r.ended_by === 'forced_injury').length, rs.length)}.`);
+  L.push('');
+  L.push('| Measure | harness | 13 §1 anchor |');
+  L.push('|---|---|---|');
+  L.push(`| Upper limb (finger, wrist, elbow, shoulder) | ${p1(s.upper)} | ${p1(A.upper)} |`);
+  L.push(`| Lower limb (knee, ankle) | ${p1(s.lower)} | ${p1(A.lower)} |`);
+  L.push(`| Fingers | ${p1(s.finger)} | ${p1(A.finger[0])}–${p1(A.finger[1])} |`);
+  L.push(`| Shoulder | ${p1(s.shoulder)} | about ${p1(A.shoulder)} |`);
+  L.push(`| Elbow | ${p1(s.elbow)} | about ${p1(A.elbow)} |`);
+  L.push(`| Wrist, back, knee, ankle | ${p1(s.wrist)}, ${p1(s.back)}, ${p1(s.knee)}, ${p1(s.ankle)} | — |`);
+  L.push(`| Pulleys (A2, A4) | ${p1(s.pulley)} | ${p1(A.pulley)} |`);
+  L.push(`| Capsulitis (for tenosynovitis) | ${p1(s.teno)} | ${p1(A.teno)} |`);
+  L.push(`| A2 : A4 | ${f(s.a2a4)} | ${A.a2a4[0]}–${A.a2a4[1]} |`);
+  L.push(`| Ankle fractures among Fontainebleau fall injuries | ${p1(s.ankleFractureBoulderFalls)} | ${p1(A.ankle_fracture_boulder_falls)} (indoor bouldering) |`);
+  L.push(`| Careers with a pulley injury in their first two years | ${p1(s.pulleyTwoYears)} | ${p1(A.pulley_two_years)} |`);
+  L.push('');
+  const defs = [...new Set(s.inj.map((i) => i.def))].sort();
+  if (defs.length) {
+    L.push('| Injury | n | share | per 1,000 days | grade 2+ | median days to heal |');
+    L.push('|---|---|---|---|---|---|');
+    for (const d of defs) {
+      const x = s.inj.filter((i) => i.def === d);
+      L.push(`| ${d} | ${x.length} | ${p1(x.length / s.n)} | ${f((1000 * x.length) / Math.max(1, s.days))} | ${p1(x.filter((i) => i.grade >= 2).length / x.length)} | ${Math.round(quantile(x.map((i) => i.heal), 0.5))} |`);
+    }
+    L.push('');
+  }
+  const ill = new Map<string, number>();
+  for (const i of s.illness) ill.set(i.def, (ill.get(i.def) ?? 0) + 1);
+  const cy = Math.max(1e-9, rs.reduce((a, r) => a + years(r), 0));
+  L.push(`- Skin (flappers): ${f((1000 * s.skin.length) / Math.max(1, s.days))} per 1,000 climbing days. Illness per career-year: ${[...ill].map(([d, k]) => `${d} ${(k / cy).toFixed(2)}`).join(', ') || 'none'}.`);
+  L.push('');
+}
+
 export function buildReport(rs: CareerResult[], meta: ReportMeta): string {
   const L: string[] = [];
   const oneCrag = new Set(rs.map((r) => r.crag)).size === 1 && rs.every((r) => r.trips === 0);
@@ -146,10 +231,7 @@ export function buildReport(rs: CareerResult[], meta: ReportMeta): string {
     L.push('');
   }
 
-  L.push('## Injuries');
-  L.push('');
-  L.push('- None: injuries are not modelled before P2 M2 (docs/27). The section keeps the report\'s shape for the rates 19 §1 asks for.');
-  L.push('');
+  injurySection(L, rs);
 
   L.push('## Traits: carriers vs the rest (random builds, so effects are confounded; read as a first look)');
   L.push('');

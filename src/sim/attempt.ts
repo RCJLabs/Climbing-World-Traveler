@@ -7,6 +7,7 @@ import { aggregateMods, athleteFrom, clamp, resourceMult, type Athlete, type Mod
 import { applyMove, canMantle, CHALK_RULE, chalkNow, prepareMove, shakeNow, stanceHoldCost, stanceRest, type Prepared } from './engine';
 import { countEvolve } from './evolve';
 import { boulderKappa, startState } from './grade';
+import { countMove, fallInjury, injuryOverlay, lastInjuryFear, moveInjury, moveTags } from './injury';
 import {
   autoCommitPApex, climbClear, evaluate, fearEffects, izof, powerPool, probs, pumpForm, recoveryChance, reserveStart,
   type CommitOutcome, type Conditions, type MoveState, type Probs,
@@ -49,8 +50,32 @@ export function modsOf(run: Pick<RunState, 'traits'>, bundle: DataBundle): Mods 
  */
 let lastAthlete: { run: RunState; mods: Mods; values: number[]; ath: Athlete } | null = null;
 
+const wallCache = new WeakMap<Mods, WeakMap<object, Mods>>();
+
+/**
+ * The mods the climber climbs with today (P2 M2): its traits', with today's injuries costing their site's holds and
+ * moves (13 §3). The same object comes back while the traits and the injuries' costs stand, so athletes stay cached.
+ */
+export function wallMods(run: Pick<RunState, 'traits' | 'injuries' | 'day'>, bundle: DataBundle): Mods {
+  const base = modsOf(run, bundle);
+  const o = run.injuries.length ? injuryOverlay(run, bundle) : null;
+  if (!o) return base;
+  let byO = wallCache.get(base);
+  if (!byO) wallCache.set(base, (byO = new WeakMap()));
+  let m = byO.get(o);
+  if (!m) {
+    const hold = { ...base.hold_mult };
+    for (const [k, v] of Object.entries(o.hold_mult) as [keyof typeof hold, number][]) hold[k] = (hold[k] ?? 1) + (v - 1);
+    const move = { ...base.move_mult };
+    for (const [k, v] of Object.entries(o.move_mult) as [keyof typeof move, number][]) move[k] = (move[k] ?? 1) + (v - 1);
+    m = { ...base, hold_mult: hold, move_mult: move };
+    byO.set(o, m);
+  }
+  return m;
+}
+
 export function athleteOf(run: RunState, bundle: DataBundle): Athlete {
-  const mods = modsOf(run, bundle);
+  const mods = wallMods(run, bundle);
   const c = lastAthlete;
   if (c && c.run === run && c.mods === mods && c.ath.body === run.body && c.ath.rock_knowledge === run.rock_knowledge) {
     let same = true;
@@ -304,6 +329,9 @@ export function startAttempt(run: RunState, seed: string, asked: AttemptMode, bu
   at.fear_base = clamp(40 - 0.3 * ath.a.confidence + ath.mods.fear_add, 0, 100);
   if (mode === 'onsight') addFear(at, ath, 'onsight', 3);
   if (project.fall_fear > 0) addFear(at, ath, 'last fall', project.fall_fear);
+  // For four weeks after an injury heals, the climber climbs a little scared (13 §3, P2 M2).
+  const scar = lastInjuryFear(run, bundle);
+  if (scar) addFear(at, ath, 'last injury', scar);
   if (route.style_tags.includes('highball')) addFear(at, ath, 'highball', 3);
   if (isRoped(route)) {
     // On a rope: the first bolt is stick-clipped (07 §2.4, a tactic), so there is no ground fall from the start.
@@ -391,8 +419,8 @@ function resolveMove(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athl
   // Costs (05b §5), paid whatever the outcome.
   const rough = outcome === 'clean' ? 1 : 1.5;
   const pump = e.pump_cost * pumpMult * rough;
-  // Cold days split dry skin (Dry Hands, 03 §2 flags; docs/26 §8).
-  const skin = e.skin_cost * (outcome === 'sketchy' ? 1.5 : 1) * (cond.cold ? ath.mods.split_risk_cold : 1);
+  // Cold days split dry skin (Dry Hands, 03 §2 flags; docs/26 §8); a downclimber wears more off a boulder (03 §2).
+  const skin = e.skin_cost * (outcome === 'sketchy' ? 1.5 : 1) * (cond.cold ? ath.mods.split_risk_cold : 1) * (!at.rope && ath.mods.always_downclimb ? 1.1 : 1);
   // An overthinker takes longer over each move (03 §2 flags): more time on the route, the reserve drains further.
   const time = e.time * ath.mods.pre_move_time_mult;
   // On a route the aerobic system clears pump while the climber moves (resolve.ts `climbClear`).
@@ -406,6 +434,14 @@ function resolveMove(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athl
   at.moves++;
   if (hand) { at.hand_moves++; session.hand_moves++; session.pump_total += pump; }
   session.time_s += time;
+
+  // What the move loaded (13 §5.2's exposure), and whether it strained something on a slip or a sketchy move (13 §5.3).
+  // Pulley Veteran's fingers want a warm-up: a session's first go that is not the easiest route doubles their risk.
+  const tags = moveTags(spec.type, prep.cls, spec.angle, hand);
+  countMove(session, tags, spec.type, hand);
+  const cold = ath.mods.warmup_required && session.attempts === 0 && !isWarmup(session, at.route_seed);
+  const hurt = outcome === 'clean' ? null : moveInjury(run, ath.mods, bundle, tags, outcome, [at.route_id, at.attempt_index, at.move_index], cold ? 2 : 1);
+  if (hurt) at.injured = true;
 
   // Stimulus and technique XP (12 §3, 02 §B.2).
   const cell = matrixCell(spec.kind, prep.cls, spec.type);
@@ -432,8 +468,8 @@ function resolveMove(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athl
   at.pq_penalty = 0;
 
   if (outcome === 'slip') {
-    // Recovery check (05b §4.5).
-    const recovered = rng.next() < recoveryChance(ath, spec.kind, spec.otherAnchors);
+    // Recovery check (05b §4.5); nobody holds on through a fresh injury.
+    const recovered = !hurt && rng.next() < recoveryChance(ath, spec.kind, spec.otherAnchors);
     at.move_index++;
     if (recovered) {
       addFear(at, ath, 'slip', 8);
@@ -448,6 +484,14 @@ function resolveMove(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athl
     return;
   }
 
+  if (hurt) {
+    // Something went on a sketchy move: the climber lets go, or lowers off (13 §5.3).
+    at.move_index++;
+    report(at, { ...base, outcome: 'fall', text: 'Something went. Off the wall.' });
+    if (at.rope) lowerOff(run, at, geom, ath, 'jumped', bundle);
+    else finishAttempt(run, at, geom, ath, 'jumped', bundle);
+    return;
+  }
   if (outcome === 'clean') {
     if (margin < 0.5 * e.T) at.focus_meter = Math.min(100, at.focus_meter + 2 * resourceMult(ath.mods, 'focus_meter'));
     calmDown(at, ath);
@@ -486,6 +530,12 @@ function resolveMove(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athl
 }
 
 const limbName = (l: Limb): string => ({ LH: 'Left hand', RH: 'Right hand', LF: 'Left foot', RF: 'Right foot' })[l];
+
+/** Whether a route is the session's warm-up: its easiest slot (the tactics climb it first, docs/24 §3). */
+function isWarmup(session: NonNullable<NonNullable<RunState['block']>['session']>, seed: string): boolean {
+  const warm = [...session.slots].sort((a, b) => a.di_target - b.di_target)[0];
+  return !warm || warm.seed === seed;
+}
 
 function moveText(prep: Prepared, c: CommitOutcome | null): string {
   if (c === 'apex') return 'Caught it at the apex.';
@@ -554,8 +604,10 @@ function ropeFall(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athlete
   rope.falls_here++;
   rope.weighted = true;
   run.counters.rope_falls_logged = (run.counters.rope_falls_logged ?? 0) + 1;
-  // No injuries before P2, so every fall the rope holds is one without injury (03 §1.7).
-  countEvolve(run, 'unhurt_falls');
+  // A fall can injure (13 §5.1, P2 M2); one that does not counts toward Falls Well (03 §1.7).
+  const hurt = at.injured ? null : fallInjury(run, ath.mods, bundle, 'rope', kappa, [at.route_id, at.attempt_index, rope.falls]);
+  if (hurt) at.injured = true;
+  else countEvolve(run, 'unhurt_falls');
   addFear(at, ath, 'last fall', 8);
   const ground = reachesGround(comY, rope.last_clip_y, BELAY_QUALITY);
   const len = rope.last_clip_y === null ? comY : fallLength(comY, rope.last_clip_y, BELAY_QUALITY);
@@ -566,7 +618,7 @@ function ropeFall(run: RunState, at: AttemptState, geom: RouteGeom, ath: Athlete
     return;
   }
   const spent = run.res.energy < 15 || run.res.skin < 12;
-  if (spent || rope.falls >= MAX_ROPE_FALLS) {
+  if (at.injured || spent || rope.falls >= MAX_ROPE_FALLS) {
     lowerOff(run, at, geom, ath, cause, bundle);
     return;
   }
@@ -721,7 +773,7 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
   // A boulder costs by its moves (05b §12.3); a route by the metres climbed and the falls held (07 §2.3, docs/26).
   const energy = at.rope
     ? ROUTE_ENERGY.base + ROUTE_ENERGY.perMetre * progress * route.length_m + ROUTE_ENERGY.perFall * at.rope.falls
-    : 1.5 + 0.1 * at.moves;
+    : (1.5 + 0.1 * at.moves) * (ath.mods.always_downclimb ? 1.1 : 1);
   const roped = !!at.rope;
   const pb = roped ? run.pb_route : run.pb;
   run.res.energy = Math.max(0, run.res.energy - energy);
@@ -733,8 +785,6 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
   session.di_sum += route.di_graded;
   session.load += 0.3 * clamp(route.di_graded - pb + 2, 0.5, 3);
   run.counters.attempts++;
-  // A fall or pump-off onto the pads is a fall without injury until P2's injuries (03 §1.7); rope falls count in ropeFall.
-  if (!roped && (outcome === 'fell' || outcome === 'pumped')) countEvolve(run, 'unhurt_falls');
   if (progress > project.best + 0.1 || outcome === 'sent') session.progress_made = true;
   const firstTry = project.attempts === 0;
   project.attempts++;
@@ -747,6 +797,11 @@ function finishAttempt(run: RunState, at: AttemptState, geom: RouteGeom, ath: At
   else if (outcome !== 'sent') {
     kappa = boulderKappa(geom, ath, at.climb, SPOT_QUALITY);
     if (outcome === 'jumped') kappa *= 0.7;
+    // Off a boulder onto the pads (13 §5.1, P2 M2): a landing can injure; a fall that does not counts toward Falls Well
+    // (03 §1.7). Rope falls roll in ropeFall.
+    const hurt = at.injured ? null : fallInjury(run, ath.mods, _bundle, 'boulder', kappa, [at.route_id, at.attempt_index]);
+    if (hurt) at.injured = true;
+    else if (outcome === 'fell' || outcome === 'pumped') countEvolve(run, 'unhurt_falls');
   }
   let text: string;
   let tick: Tick | undefined;

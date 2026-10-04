@@ -8,6 +8,7 @@ import { evolutionErrors } from '../sim/evolve';
 import { gradeRoute } from '../sim/grade';
 import { PRESETS, presetSpec } from '../sim/presets';
 import { catalogueErrors } from '../sim/routes';
+import { activityById } from '../sim/training';
 import { travelGraphErrors } from '../sim/travel';
 import { ALL_ATTRS, HOLD_TYPES, type DataBundle } from '../sim/types';
 import { cragIds, DATA_DIR, loadBundle, manifestOf } from './bundle';
@@ -53,6 +54,21 @@ export function validateContent(dir = DATA_DIR): Validation {
       const other = bundle.traits.get(x);
       if (other && !other.excludes.includes(t.id)) warn(`trait ${t.id} excludes ${x} but not the reverse`);
     }
+  }
+
+  // Injuries (schemas §9 rule 22, P2 M2): rehab names training activities. Acquired traits (rule 23): each is reached by
+  // an evolution or granted by an injury trigger, and a trigger names injuries that exist.
+  for (const d of bundle.injuries.values()) {
+    for (const a of d.rehab) if (!activityById(a)) err(`injury ${d.id}: unknown rehab activity ${a}`);
+  }
+  const evolvedTo = new Set([...bundle.traits.values()].flatMap((t) => (t.evolves_to ?? []).map((e) => e.trait)));
+  for (const t of bundle.traits.values()) {
+    for (const id of t.acquire?.injury.defs ?? []) if (!bundle.injuries.has(id)) err(`trait ${t.id}: acquire names unknown injury ${id}`);
+    for (const f of t.effect.flags ?? []) {
+      const scoped = /^illness_mult:([a-z0-9_]+)=/.exec(f);
+      if (scoped && bundle.injuries.get(scoped[1]!)?.kind !== 'illness') err(`trait ${t.id}: ${f} names no illness`);
+    }
+    if (t.kind === 'acquired' && !t.acquire && !evolvedTo.has(t.id)) err(`trait ${t.id}: an acquired trait needs an evolution to it or an acquire trigger`);
   }
 
   // Backgrounds: forced traits exist, start crag exists, attr_add uses real attributes, live ones are reachable.

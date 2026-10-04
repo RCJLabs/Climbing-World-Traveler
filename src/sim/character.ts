@@ -3,13 +3,13 @@
 
 import {
   ALL_ATTRS, LIFESTYLE_ATTRS, MENTAL_ATTRS, PHASE_ORDER, PHYSICAL_ATTRS, TECHNIQUE_ATTRS,
-  type AttrGroup, type AttrId, type Attributes, type Background, type Body, type HoldType, type MoveClass,
+  type AttrGroup, type AttrId, type Attributes, type Background, type Body, type HoldType, type InjurySite, type MoveClass,
   type NewRunSpec, type Phase, type Trait,
 } from './types';
 
 /** The build this code ships as: a phase, and the milestone of it that is done (27 §2). */
 export const CURRENT_PHASE: Phase = 'P2';
-export const CURRENT_MILESTONE = 1;
+export const CURRENT_MILESTONE = 2;
 
 /**
  * Whether a trait, background or crag is live in this build: its phase is past, or it is of this phase and its
@@ -164,6 +164,27 @@ export interface Mods {
   split_risk_cold: number;
   /** Familiarity from other climbers' beta (Stubborn): on signature problems until partners come (docs/26 §8). */
   beta_mult: number;
+  /** Injury chance by site (P2 M2, 13): additive across traits, like the other multipliers. */
+  injury_site_mult: Partial<Record<InjurySite, number>>;
+  /** An injury's day counts are divided by it (13 §3: Fast and Slow Healer); additive across traits. */
+  recovery_mult: number;
+  /** Illness chance (Never Sick, Sickly), and per illness id (Iron and Delicate Stomach on the gut's). */
+  illness_mult: number;
+  illness_def_mult: Record<string, number>;
+  /** Boulder-fall injury chance (Cat Feet). */
+  landing_injury_mult: number;
+  /** The worn-skin penalty on slopers is scaled by it (Pain Tolerant). */
+  skin_low_penalty_mult: number;
+  /** A grade-1 injury surfaces a week late, so it heals a week later (Pain Tolerant). */
+  injury_detect_delay: boolean;
+  /** Downclimbs off boulders: boulder-fall injury ×0.7, the attempt's skin and energy ×1.1 (Downclimber). */
+  always_downclimb: boolean;
+  /** Extra energy a boulder session costs to carry the pad in (Bad Back). */
+  pad_carry_energy: number;
+  /** A session whose first go is not a warm-up doubles finger-injury risk on it (Pulley Veteran). */
+  warmup_required: boolean;
+  /** Shifts the hidden tendon robustness at creation (Iron Tendons, Glass Pulleys). */
+  tendon_robustness_add: number;
 }
 
 export const NEUTRAL_MODS: Mods = {
@@ -172,7 +193,8 @@ export const NEUTRAL_MODS: Mods = {
   familiarity_k_mult: 1, fear_source_mult: {}, sending_temp_shift: 0, chalk_friction_base: 0, overchalk_penalty_mult: 1,
   flow_chance_mult: 1, reroll_bad: 0, reroll_good: 0, quit: null, project_stoke_immunity: false,
   stakes_mult: 1, pre_move_time_mult: 1, visualise_action: 0, redpoint_stoke_penalty: 0, sketchy_send_stoke: 0, mass_shift: 0, split_risk_cold: 1,
-  beta_mult: 1,
+  beta_mult: 1, injury_site_mult: {}, recovery_mult: 1, illness_mult: 1, illness_def_mult: {}, landing_injury_mult: 1, skin_low_penalty_mult: 1,
+  injury_detect_delay: false, always_downclimb: false, pad_carry_energy: 0, warmup_required: false, tendon_robustness_add: 0,
 };
 
 /** A trait's multiplier on a resource's regeneration or gain (03 §2: `resource_mult` semantics), 1 without one. */
@@ -184,6 +206,9 @@ export const LIVE_FLAGS: ReadonlySet<string> = new Set([
   'overchalk_penalty_mult', 'flow_chance_mult', 'quit_after_fails', 'quit_chance',
   'stoke_hit', 'project_stoke_immunity', 'stakes_mult', 'pre_move_time_mult', 'visualise_action', 'redpoint_stoke_penalty',
   'sketchy_send_stoke', 'mass_shift', 'split_risk_cold', 'beta_mult',
+  // P2 M2 (13): injuries and illness. `illness_mult:<injury id>` scopes the multiplier to one illness.
+  'tendon_robustness_add', 'illness_mult', 'landing_injury_mult', 'skin_low_penalty_mult', 'injury_detect_delay', 'always_downclimb',
+  'pad_carry_energy', 'warmup_required', 'reroll_bad_outcome', 'reroll_good_outcome',
 ]);
 
 /**
@@ -192,8 +217,8 @@ export const LIVE_FLAGS: ReadonlySet<string> = new Set([
  */
 export const INERT_FLAGS: Readonly<Record<string, Phase>> = {
   city_stoke: 'P2', sponsor_appeal_mult: 'P2', good_event_mult: 'P2', bad_event_mult: 'P2', onsight_rep_mult: 'P2',
-  // Parsed into Mods, but nothing rerolls an outcome before P2's injuries and events (docs/26 §11).
-  reroll_bad_outcome: 'P2', reroll_good_outcome: 'P2',
+  // Chalk Allergy's liquid chalk waits for M4's gear and its prices (27 M4).
+  liquid_chalk_only: 'P2',
   plastic_mult: 'P3', swim_skill: 'P3',
 };
 
@@ -201,10 +226,11 @@ export const INERT_FLAGS: Readonly<Record<string, Phase>> = {
 export const RESOURCE_KEYS: ReadonlySet<string> = new Set(['skin', 'energy', 'stoke', 'burnout', 'health', 'chalk', 'focus_meter', 'aerobic_reserve', 'power']);
 
 /**
- * Resources whose regeneration no system runs yet, and the phase that brings it: energy refills to its cap every morning,
- * health waits for the injuries. A live trait may not use them, or the effect would be silently inert (docs/26 §8).
+ * Resources whose regeneration no system runs yet, and the phase that brings it: energy refills to its cap every morning
+ * (M3's day planner). A live trait may not use them, or the effect would be silently inert (docs/26 §8). Health
+ * regenerates from P2 M2, after an injury or an illness takes some (13 §3).
  */
-export const INERT_RESOURCES: Readonly<Record<string, Phase>> = { energy: 'P2', health: 'P2' };
+export const INERT_RESOURCES: Readonly<Record<string, Phase>> = { energy: 'P2' };
 
 /**
  * Content errors in a trait's effect (schemas §9 rule 11, docs/26 §8): flags the engine does not know, resources it does
@@ -249,6 +275,8 @@ export function aggregateMods(traitIds: readonly string[], traits: ReadonlyMap<s
     addMult(m.resource_mult, e.resource_mult);
     m.fear_add += e.fear_add ?? 0;
     if (e.injury_risk_mult !== undefined) m.injury_risk_mult *= e.injury_risk_mult;
+    addMult(m.injury_site_mult, e.injury_site_mult);
+    if (e.recovery_mult !== undefined) m.recovery_mult += e.recovery_mult - 1;
     if (e.cost_mult !== undefined) m.cost_mult *= e.cost_mult;
     for (const f of e.flags ?? []) {
       const [name, value] = parseFlag(f);
@@ -274,6 +302,15 @@ export function aggregateMods(traitIds: readonly string[], traits: ReadonlyMap<s
       else if (name === 'mass_shift') m.mass_shift += num(value);
       else if (name === 'split_risk_cold') m.split_risk_cold *= num(value);
       else if (name === 'beta_mult') m.beta_mult *= num(value);
+      else if (name === 'tendon_robustness_add') m.tendon_robustness_add += num(value);
+      else if (name === 'illness_mult') m.illness_mult *= num(value);
+      else if (name.startsWith('illness_mult:')) { const d = name.split(':')[1]!; m.illness_def_mult[d] = (m.illness_def_mult[d] ?? 1) * num(value); }
+      else if (name === 'landing_injury_mult') m.landing_injury_mult *= num(value);
+      else if (name === 'skin_low_penalty_mult') m.skin_low_penalty_mult *= num(value);
+      else if (name === 'injury_detect_delay') m.injury_detect_delay = true;
+      else if (name === 'always_downclimb') m.always_downclimb = true;
+      else if (name === 'pad_carry_energy') m.pad_carry_energy += num(value);
+      else if (name === 'warmup_required') m.warmup_required = true;
       // Other flags belong to systems that are not live yet (INERT_FLAGS); they are carried but inert.
     }
   }

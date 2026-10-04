@@ -5,10 +5,10 @@ import 'fake-indexeddb/auto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
+import { adaptState } from '../src/save/adapt';
 import { IdbBackend, type RunRecord } from '../src/save/backend';
 import { RunSession, SNAPSHOTS_KEPT } from '../src/save/session';
 import { DEFAULT_OPTIONS, presetSpec } from '../src/sim/presets';
-import { replay } from '../src/sim/run';
 import type { RunState } from '../src/sim/state';
 import { simulateDays } from '../src/sim/tactics';
 import type { Action } from '../src/sim/types';
@@ -30,8 +30,8 @@ describe('the IndexedDB backend', () => {
     expect((await backend.getRun(s.id))!.hashes).toEqual({ fontainebleau: bundle.hashes.get('fontainebleau'), kalymnos: bundle.hashes.get('kalymnos') });
   }, 20_000);
 
-  it('carries an archived reducer-9 run forward in one rebase: log cut at the base, snapshots replaced', async () => {
-    const archive = JSON.parse(readFileSync('tests/fixtures/saves/v9-kalymnos.json', 'utf8')) as {
+  it('carries an archived reducer-10 run forward in one rebase: log cut at the base, snapshots replaced', async () => {
+    const archive = JSON.parse(readFileSync('tests/fixtures/saves/v10-kalymnos.json', 'utf8')) as {
       record: RunRecord; chunks: Action[][]; snapshots: { index: number; state: RunState }[];
     };
     const backend = await open();
@@ -43,7 +43,7 @@ describe('the IndexedDB backend', () => {
     expect((await backend.getRun(s.id))!).toMatchObject({ base: index, action_count: index, crag: 'kalymnos' });
     expect((await backend.getChunks(s.id, 0)).flat()).toEqual(archive.chunks.flat().slice(0, index));
     expect(await backend.latestSnapshot(s.id)).toEqual({ index, state: s.state });
-    expect({ ...s.state, journal: s.state.journal.slice(0, -1) }).toEqual(replay(archive.chunks.flat().slice(0, index), bundle));
+    expect({ ...s.state, journal: s.state.journal.slice(0, -1) }).toEqual(adaptState(archive.snapshots.at(-1)!.state, 10, bundle));
     // It goes on from the base, and reloads to the same state.
     await s.simulate((d) => simulateDays(d, bundle, 4));
     expect((await RunSession.load(backend, bundle, s.id)).state).toEqual(s.state);

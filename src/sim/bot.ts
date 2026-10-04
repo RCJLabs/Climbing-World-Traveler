@@ -6,6 +6,7 @@
 import { ageOf } from './attempt';
 import { applyAction, canStartBlock, dailyCost, sectorList, travelBlock } from './run';
 import type { RunState } from './state';
+import { climbBlocker, rehabActivity, returning } from './injury';
 import { nextSessionAttempt, pickSector, simulateDays } from './tactics';
 import { destinations, travelAction } from './travel';
 import type { Action, DataBundle, SessionTactic } from './types';
@@ -124,9 +125,16 @@ export class BotDriver {
     const open = sectorList(run, this.bundle).filter((s) => s.open);
     const wantRest = this.streak >= this.policy.climbDaysInARow || run.res.skin < 35 || run.res.burnout > 60;
     const work = () => { if (canStartBlock(run, 'work', undefined, this.bundle).ok) this.dispatch({ t: 'block_start', kind: 'work' }); };
-    if (open.length && !wantRest && !broke && canStartBlock(run, 'climb', open[0]!.id, this.bundle).ok) {
+    // Injured (13 §3, P2 M2): a day of rehab, or rest, instead of climbing; back on the rock, easing in with mileage.
+    const rehab = climbBlocker(run) ? rehabActivity(run, this.bundle) : null;
+    const style = returning(run) ? 'volume' : this.policy.style;
+    if (climbBlocker(run) && !low) {
+      if (rehab && canStartBlock(run, 'train', rehab.id, this.bundle).ok) this.dispatch({ t: 'block_start', kind: 'train', target: rehab.id });
+      else this.dispatch({ t: 'block_start', kind: 'rest' });
+      this.streak = 0;
+    } else if (open.length && !wantRest && !broke && canStartBlock(run, 'climb', open[0]!.id, this.bundle).ok) {
       this.dispatch({ t: 'block_start', kind: 'climb', target: pickSector(run, this.bundle)! });
-      for (let a = nextSessionAttempt(run, this.bundle, this.policy.style); a; a = nextSessionAttempt(run, this.bundle, this.policy.style)) {
+      for (let a = nextSessionAttempt(run, this.bundle, style); a; a = nextSessionAttempt(run, this.bundle, style)) {
         this.dispatch({ t: 'attempt', ...a });
       }
       this.dispatch({ t: 'block_end' });

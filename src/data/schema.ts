@@ -1,13 +1,14 @@
 // Zod schemas mirroring docs/schemas.md for the content the P1a build ships. The validator (scripts/validate.ts)
 // and the bundle loader both use these, so content and code cannot drift apart silently.
 import { z } from 'zod';
-import { ALL_ATTRS, EVOLVE_COUNTERS, HOLD_TYPES, NPC_ARCHETYPES } from '../sim/types';
+import { ALL_ATTRS, EVOLVE_COUNTERS, HOLD_TYPES, INJURY_SITES, INJURY_TRIGGERS, NPC_ARCHETYPES } from '../sim/types';
 
 const attrId = z.enum(ALL_ATTRS as unknown as [string, ...string[]]);
 const holdType = z.enum(HOLD_TYPES as unknown as [string, ...string[]]);
 const phase = z.enum(['P1a', 'P1b', 'P2', 'P3', 'P4', 'P5']);
 const tag = z.string().regex(/^[a-z_]+$/);
 const moveClass = z.enum(['static', 'deadpoint', 'dyno', 'high_step', 'heel_hook', 'toe_hook', 'mantle', 'jam', 'match', 'bump', 'kneebar']);
+const injurySite = z.enum(INJURY_SITES as unknown as [string, ...string[]]);
 const numRecord = (key: z.ZodTypeAny) => z.record(key, z.number());
 
 export const TraitEffectSchema = z.object({
@@ -21,6 +22,7 @@ export const TraitEffectSchema = z.object({
   resource_mult: z.record(z.string(), z.number()).optional(),
   fear_add: z.number().optional(),
   injury_risk_mult: z.number().optional(),
+  injury_site_mult: numRecord(injurySite).optional(),
   recovery_mult: z.number().optional(),
   cost_mult: z.number().optional(),
   rep_mult: z.number().optional(),
@@ -44,6 +46,15 @@ export const TraitSchema = z.object({
     needs: z.array(z.object({ counter: z.enum(EVOLVE_COUNTERS), n: z.number().int().min(1) }).strict()).min(1),
     min_weeks: z.number().int().min(0),
   }).strict()).min(1).optional(),
+  acquire: z.object({
+    injury: z.object({
+      defs: z.array(z.string()).min(1).optional(),
+      grade_min: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
+      healed: z.boolean().optional(),
+      lingering: z.boolean().optional(),
+      count: z.number().int().min(1).optional(),
+    }).strict(),
+  }).strict().optional(),
   flavour: z.string(),
 }).strict().superRefine((t, ctx) => {
   const creation = t.kind === 'creation' || t.kind === 'evolving';
@@ -55,6 +66,61 @@ export const TraitSchema = z.object({
   // Schemas §9 rule 17: evolutions belong to evolving traits and the acquired stages they lead to.
   if (t.evolves_to && t.kind !== 'evolving' && t.kind !== 'acquired') ctx.addIssue({ code: 'custom', message: `${t.id}: only evolving and acquired traits evolve` });
   if (t.kind === 'evolving' && !t.evolves_to) ctx.addIssue({ code: 'custom', message: `${t.id}: an evolving trait needs an evolution` });
+  // Schemas §9 rule 23: the injury system grants acquired traits only.
+  if (t.acquire && t.kind !== 'acquired') ctx.addIssue({ code: 'custom', message: `${t.id}: only acquired traits have an acquire trigger` });
+});
+
+const days = z.tuple([z.number().int().min(0), z.number().int().min(0)]);
+
+/** An injury or illness (13 §2, schemas §7; P2 M2). Rule 22's checks across fields are in the refinement. */
+export const InjuryDefSchema = z.object({
+  id: z.string().regex(/^[a-z0-9_]+$/),
+  name: z.string().min(1),
+  site: injurySite,
+  kind: z.enum(['injury', 'skin', 'illness']),
+  phase,
+  milestone: z.number().int().min(0).max(9).optional(),
+  triggers: z.array(z.enum(INJURY_TRIGGERS as unknown as [string, ...string[]])).min(1),
+  risk_mods: z.array(z.object({ tag, mult: z.number().positive() }).strict()),
+  severities: z.array(z.object({
+    grade: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    heal_days: days,
+    full_load_days: days,
+    permanent_ceiling_loss: numRecord(attrId).optional(),
+    lingering: z.object({ chance: z.number().min(0).max(1) }).strict().optional(),
+    career_ending: z.object({ chance: z.number().min(0).max(1).optional(), repeat_after_age: z.number().int().min(16).optional() }).strict().optional(),
+  }).strict()).min(1),
+  grade_weights: z.tuple([z.number().min(0), z.number().min(0), z.number().min(0)]).optional(),
+  load_base: z.number().min(0).max(1).optional(),
+  move: z.array(z.object({ tag, p: z.number().min(0).max(1) }).strict()).min(1).optional(),
+  fall: z.object({ boulder: z.number().min(0).optional(), rope: z.number().min(0).optional() }).strict().optional(),
+  illness: z.object({
+    daily: z.number().min(0).max(1),
+    first_days: z.object({ days: z.number().int().min(1), daily: z.number().min(0).max(1) }).strict().optional(),
+    cost_tier_max: z.number().int().min(1).max(5).optional(),
+  }).strict().optional(),
+  substitutes: z.object({ site: injurySite, age_max: z.number().int(), chance: z.number().min(0).max(1), tag }).strict().optional(),
+  rehab: z.array(z.string()),
+  deprecated: z.boolean().optional(),
+}).strict().superRefine((d, ctx) => {
+  const issue = (message: string) => ctx.addIssue({ code: 'custom', message: `injury ${d.id}: ${message}` });
+  const grades = d.severities.map((s) => s.grade);
+  if (grades.some((g, i) => i > 0 && g <= grades[i - 1]!)) issue('severities run in ascending grade, each once');
+  for (const s of d.severities) {
+    if (s.heal_days[0] > s.heal_days[1] || s.full_load_days[0] > s.full_load_days[1]) issue(`grade ${s.grade}: day ranges run low to high`);
+    if (s.heal_days[1] > s.full_load_days[1] || s.heal_days[0] > s.full_load_days[0]) issue(`grade ${s.grade}: heals before full load`);
+    if (Object.values(s.permanent_ceiling_loss ?? {}).some((v) => v >= 0)) issue(`grade ${s.grade}: a permanent ceiling loss is negative`);
+    if (s.career_ending && s.grade !== 3) issue('only grade 3 ends a career');
+  }
+  if (d.grade_weights && d.grade_weights.every((w, i) => w === 0 || !grades.includes((i + 1) as 1 | 2 | 3))) issue('grade weights give no grade it has');
+  // Each roll the injury takes part in has its numbers, and no numbers without the roll (cold, heat and altitude come with
+  // their systems, 27 M5 and P4).
+  const has = (t: string) => d.triggers.includes(t);
+  if (has('load') && d.load_base === undefined && !d.substitutes) issue('a load injury has a load_base');
+  if (!has('load') && d.load_base !== undefined) issue('load_base without the load trigger');
+  if (has('move') !== (d.move !== undefined)) issue('move rates go with the move trigger');
+  if (has('fall') !== (d.fall !== undefined)) issue('fall weights go with the fall trigger');
+  if (has('illness') !== (d.illness !== undefined)) issue('illness rates go with the illness trigger');
 });
 
 export const BackgroundSchema = z.object({

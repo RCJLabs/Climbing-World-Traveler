@@ -6,6 +6,7 @@ import traitsJson from '../../data/traits.json';
 import backgroundsJson from '../../data/backgrounds.json';
 import travelJson from '../../data/travel.json';
 import manifestJson from '../../data/manifest.json';
+import injuriesJson from '../../data/injuries.json';
 import type { DataBundle } from '../sim/types';
 import { addCragRoutes, assembleBundle, cragLoaded } from './assemble';
 
@@ -23,7 +24,7 @@ export function bundle(): DataBundle {
   if (cached) return cached;
   const ids = Object.keys(records).map((p) => /\/crags\/([a-z0-9_]+)\//.exec(p)![1]!).sort();
   cached = assembleBundle(
-    { traits: traitsJson, backgrounds: backgroundsJson, travel: travelJson, manifest: manifestJson },
+    { traits: traitsJson, backgrounds: backgroundsJson, travel: travelJson, manifest: manifestJson, injuries: injuriesJson },
     ids.map((id) => ({ id, crag: records[pathOf(id, 'crag')], styles: styles[pathOf(id, 'styles')], names: banks[pathOf(id, 'names')] })),
     validate,
   );

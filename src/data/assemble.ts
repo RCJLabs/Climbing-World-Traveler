@@ -3,9 +3,9 @@
 // loaded: from the filesystem in Node (bundle.ts), as a lazy chunk in the app (browser.ts). No crag is named here:
 // a crag is whatever folder the data has.
 import { cyrb53 } from '../sim/rng';
-import type { Background, Crag, CragStyleProfile, DataBundle, NameBank, Route, Trait, TravelEdge } from '../sim/types';
+import type { Background, Crag, CragStyleProfile, DataBundle, InjuryDef, NameBank, Route, Trait, TravelEdge } from '../sim/types';
 import { decodeRoutes } from './routefile';
-import { BackgroundSchema, CragSchema, ManifestSchema, NamesSchema, ProfileSchema, RouteSchema, TraitSchema, TravelSchema } from './schema';
+import { BackgroundSchema, CragSchema, InjuryDefSchema, ManifestSchema, NamesSchema, ProfileSchema, RouteSchema, TraitSchema, TravelSchema } from './schema';
 
 /**
  * Content and rules version (18 §5). Bump when the same seed would build a different problem, or the same actions
@@ -20,7 +20,7 @@ export const CRAG_FILES = ['crag', 'styles', 'names', 'signatures', 'benchmarks'
 /** A crag folder's content hash (data/manifest.json): cyrb53 over its files' text in CRAG_FILES order, base 36. */
 export const cragHash = (texts: readonly string[]): string => cyrb53(texts.join('\u0000')).toString(36);
 
-export interface CoreFiles { traits: unknown; backgrounds: unknown; travel: unknown; manifest: unknown }
+export interface CoreFiles { traits: unknown; backgrounds: unknown; travel: unknown; manifest: unknown; injuries: unknown }
 /** What a crag folder adds to the bundle at once; `id` is the folder's name, which must be its crag's id. */
 export interface CragFolder { id: string; crag: unknown; styles: unknown; names: unknown }
 /** What it adds when its data is loaded. */
@@ -40,6 +40,7 @@ export function assembleBundle(core: CoreFiles, folders: readonly CragFolder[], 
   if (validate) {
     TraitSchema.array().parse(core.traits);
     BackgroundSchema.array().parse(core.backgrounds);
+    InjuryDefSchema.array().parse(core.injuries);
     TravelSchema.parse(core.travel);
     ManifestSchema.parse(core.manifest);
     for (const f of folders) {
@@ -73,6 +74,7 @@ export function assembleBundle(core: CoreFiles, folders: readonly CragFolder[], 
     hashes: new Map(Object.entries((core.manifest as { crags: Record<string, string> }).crags)),
     names,
     travel: { hubs: travel.hubs, edges: [...travel.edges, ...lastMiles] },
+    injuries: byId(core.injuries as InjuryDef[], 'injuries'),
     version: DATA_VERSION,
   };
 }
