@@ -22,7 +22,7 @@ export function Character({ run }: { run: RunState }) {
   const pb = sport ? run.pb_route : run.pb;
   const otherPb = sport ? run.pb : run.pb_route;
   // The chart keeps to this crag's discipline: a boulder estimate and a route estimate are different numbers.
-  const sportAt = (id: string | undefined): boolean => isSportCrag(data.crags.get(id ?? 'fontainebleau') ?? crag);
+  const sportAt = (id: string | undefined): boolean => isSportCrag(data.crags.get(id ?? run.crag) ?? crag);
   const series = [...run.history, { day: run.day, E, crag: run.crag, pb: run.pb, pb_route: run.pb_route, ticks: 0, attrs: {} }]
     .filter((p) => sportAt(p.crag) === sport)
     .map((p) => ({ ...p, pb: sport ? p.pb_route ?? 0 : p.pb }));

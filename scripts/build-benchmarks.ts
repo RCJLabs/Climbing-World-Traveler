@@ -1,10 +1,10 @@
 // Builds the benchmark problem and route sets used by the grade estimate (02 §C.3, src/sim/estimate.ts) and writes
-// them to data/routes/<crag>_benchmarks.json, for every live crag or the ones named. Decoys are stripped: the
+// them to data/crags/<crag>/benchmarks.json, for every crag or the ones named, then rebuilds data/manifest.json. Decoys are stripped: the
 // expected-value walk only touches start, beta and clipping holds. Numbers are rounded to 3 decimals, which halves
 // the gzipped size, and each route is regraded after rounding so its stored grade matches the geometry shipped.
 // Re-run after any change to the generator or the grade engine:  pnpm benchmarks [crag…]
 import { writeFileSync } from 'node:fs';
-import { loadBundle } from '../src/data/bundle';
+import { loadBundle, writeManifest } from '../src/data/bundle';
 import { generateBenchmarks } from '../src/sim/estimate';
 import { gradeRoute } from '../src/sim/grade';
 import type { Route } from '../src/sim/types';
@@ -18,7 +18,7 @@ const round = <T>(v: T): T => {
 
 const bundle = loadBundle();
 const only = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-for (const cragId of only.length ? only : ['fontainebleau', 'kalymnos']) {
+for (const cragId of only.length ? only : [...bundle.crags.keys()]) {
   let moved = 0;
   const routes = generateBenchmarks(cragId, bundle).map((r) => {
     const keep = new Set([...Object.values(r.start), ...r.beta_line.map((s) => s.hold), r.finish_hold, ...r.protection.flatMap((p) => p.reach_from ?? [])]);
@@ -30,7 +30,8 @@ for (const cragId of only.length ? only : ['fontainebleau', 'kalymnos']) {
     if (Math.abs(di - r.di_graded) > 0.05) moved++;
     return { ...out, di_graded: di, danger: g.danger, components: round(g.components) };
   });
-  const path = `data/routes/${cragId}_benchmarks.json`;
+  const path = `data/crags/${cragId}/benchmarks.json`;
   writeFileSync(path, JSON.stringify(routes) + '\n');
   console.log(`${path}: ${routes.length} routes, ${JSON.stringify(routes).length} bytes; ${moved} regraded by more than 0.05 DI after rounding`);
 }
+writeManifest();

@@ -1,7 +1,7 @@
 // A sector's fixed routes (06 §5, P2): the catalogue every run shares, how a session's slots take routes from it,
 // the content rule (schemas §9 rule 18), and the weekly estimate.
 import { describe, expect, it } from 'vitest';
-import cragsJson from '../data/crags.json';
+import fontJson from '../data/crags/fontainebleau/crag.json';
 import { loadBundle } from '../src/data/bundle';
 import { CragSchema } from '../src/data/schema';
 import { routeEntry } from '../src/sim/attempt';
@@ -61,7 +61,7 @@ describe('a sector\'s catalogue (06 §5)', () => {
     const bare = { ...font, sectors: font.sectors.map(({ routes, ...s }, i) => (i === 2 ? s : { ...s, ...(routes ? { routes } : {}) })) };
     expect(catalogueErrors(bare, true)).toHaveLength(1);
     expect(catalogueErrors(bare, false)).toEqual([]);
-    const raw = (cragsJson as unknown[])[0] as { sectors: Record<string, unknown>[] };
+    const raw = fontJson as { sectors: Record<string, unknown>[] };
     const sized = (n: number) => ({ ...raw, sectors: raw.sectors.map((s, i) => (i === 0 ? { ...s, routes: n } : s)) });
     expect(CragSchema.safeParse(sized(120)).success).toBe(true);
     expect(CragSchema.safeParse(sized(0)).success).toBe(false);

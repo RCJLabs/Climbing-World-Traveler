@@ -3,7 +3,7 @@
 // (docs/26 §8) with the real-name rule that keeps their notes free of people.
 import { describe, expect, it } from 'vitest';
 import { loadBundle } from '../src/data/bundle';
-import cragsJson from '../data/crags.json';
+import kalymnosJson from '../data/crags/kalymnos/crag.json';
 import realNamesJson from '../data/real_names.json';
 import { contentOf, realNameHits } from '../src/data/realnames';
 import { CragSchema, ProfileSchema, RealNamesSchema, TravelSchema } from '../src/data/schema';
@@ -71,7 +71,7 @@ describe('travel (09 §8)', () => {
   it('lists the live crags joined to the graph, and the validator finds a broken one', () => {
     expect(destinations('fontainebleau', bundle).map((t) => t.to)).toEqual(['kalymnos']);
     expect(travelGraphErrors(bundle)).toEqual([]);
-    const cut = { ...bundle, travel: { hubs: bundle.travel.hubs, edges: bundle.travel.edges.filter((e) => e.to !== 'kalymnos') } };
+    const cut = { ...bundle, travel: { hubs: bundle.travel.hubs, edges: bundle.travel.edges.filter((e) => e.from !== 'kalymnos' && e.to !== 'kalymnos') } };
     expect(travelGraphErrors(cut).join(' ')).toMatch(/no way from fontainebleau to kalymnos/);
     const stray = { ...bundle, travel: { hubs: bundle.travel.hubs, edges: [...bundle.travel.edges, { from: 'hub_paris', to: 'hub_nowhere', mode: 'fly' as const, cost: 1, days: 1 }] } };
     expect(travelGraphErrors(stray).join(' ')).toMatch(/unknown crag or hub hub_nowhere/);
@@ -340,10 +340,12 @@ describe('the Grande Grotta signatures (09 §7b, docs/26 §8)', () => {
 
 describe('content schemas (docs/20, schemas §5)', () => {
   const hub = { id: 'hub_x', name: 'X', country: 'GR', lat: 1, lon: 2, airport: true };
-  const edge = { from: 'a', to: 'hub_x', mode: 'fly', cost: 10, days: 1 };
+  const edge = { from: 'hub_y', to: 'hub_x', mode: 'fly', cost: 10, days: 1 };
 
   it('checks the travel graph\'s hubs and legs', () => {
     expect(TravelSchema.safeParse({ hubs: [hub], edges: [edge] }).success).toBe(true);
+    // A crag's own leg is its last mile, in its folder (27 M1): the shared file joins hubs only.
+    expect(TravelSchema.safeParse({ hubs: [hub], edges: [{ ...edge, from: 'kalymnos' }] }).success).toBe(false);
     expect(TravelSchema.safeParse({ hubs: [{ ...hub, id: 'athens' }], edges: [] }).success).toBe(false);
     expect(TravelSchema.safeParse({ hubs: [{ ...hub, country: 'GRC' }], edges: [] }).success).toBe(false);
     expect(TravelSchema.safeParse({ hubs: [], edges: [{ ...edge, mode: 'teleport' }] }).success).toBe(false);
@@ -358,7 +360,7 @@ describe('content schemas (docs/20, schemas §5)', () => {
   });
 
   it('bounds how long a cave seeps', () => {
-    const raw = cragsJson.find((c) => c.id === 'kalymnos')!;
+    const raw = kalymnosJson;
     const seep = (days: number) => ({ ...raw, sectors: raw.sectors.map((s, i) => (i ? s : { ...s, seep_lag_days: days })) });
     expect(CragSchema.safeParse(raw).success).toBe(true);
     expect(CragSchema.safeParse(seep(0)).success).toBe(false);

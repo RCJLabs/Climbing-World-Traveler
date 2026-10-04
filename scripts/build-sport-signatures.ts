@@ -1,13 +1,13 @@
 // Builds the Kalymnos signature routes (docs/09 §7b, 06 §4): an authored spec per route (the wall's shape, its
 // features and the canonical grade) run through the sport generator, which traces, holds, bolts and grades the line,
 // re-seeded until the grade engine lands within ±0.3 DI of the canonical grade (05c C7 allows ±1.0). The route is then
-// named, marked as a signature and written to data/routes/kalymnos_signatures.json, rounded as the benchmarks are.
+// named, marked as a signature and written to data/crags/kalymnos/signatures.json, rounded as the benchmarks are.
 // A 30 m pitch has about 150 holds, so its holds are generated from the spec rather than placed one by one as the Font
 // problems are (docs/26 §8). Real route names as geography only; the first-ascent notes are fictional and name no one;
 // the shapes are approximations, not traced from the rock (25 §7).
 //   pnpm tsx scripts/build-sport-signatures.ts
 import { writeFileSync } from 'node:fs';
-import { loadBundle } from '../src/data/bundle';
+import { loadBundle, writeManifest } from '../src/data/bundle';
 import { gradeRoute } from '../src/sim/grade';
 import { generateSport } from '../src/sim/routes';
 import type { Feature, Route, WallSegment } from '../src/sim/types';
@@ -88,5 +88,6 @@ for (const spec of SPECS) {
   if (!best || Math.abs(best.di_graded - spec.di_target) > 1.0) throw new Error(`${spec.name}: no build within ±1.0 DI`);
   out.push(best);
 }
-writeFileSync('data/routes/kalymnos_signatures.json', JSON.stringify(out) + '\n');
-console.log(`data/routes/kalymnos_signatures.json: ${out.map((r) => `${r.name} ${r.di_graded}`).join(', ')}`);
+writeFileSync('data/crags/kalymnos/signatures.json', JSON.stringify(out) + '\n');
+writeManifest();
+console.log(`data/crags/kalymnos/signatures.json: ${out.map((r) => `${r.name} ${r.di_graded}`).join(', ')}`);

@@ -1,8 +1,9 @@
 // Builds the P1a signature problems (docs/09 §7.3) from hand-authored geometry, checks every move is legal for
 // the reference climber at the target grade, tunes hold quality until the grade engine lands on the canonical
-// grade (05c test C7: within ±1.0; we aim for ±0.3), and writes data/routes/fontainebleau_signatures.json.
+// grade (05c test C7: within ±1.0; we aim for ±0.3), and writes data/crags/fontainebleau/signatures.json.
 // Run: pnpm tsx scripts/build-signatures.ts
 import { writeFileSync } from 'node:fs';
+import { writeManifest } from '../src/data/bundle';
 import { applyMove, prepareMove } from '../src/sim/engine';
 import { gradeRoute, referenceAthlete, startState } from '../src/sim/grade';
 import { FEET_OK, HANDS_OK, REST_BASE, ROCK_FRICTION } from '../src/sim/tables';
@@ -219,5 +220,6 @@ for (const spec of SPECS) {
   if (g.di === null || Math.abs(g.di - spec.di_target) > 1.0) throw new Error(`${spec.name} grades ${g.di}, outside ±1.0 of ${spec.di_target}`);
   out.push(route);
 }
-writeFileSync('data/routes/fontainebleau_signatures.json', JSON.stringify(out, null, 1) + '\n');
-console.log('\nwrote data/routes/fontainebleau_signatures.json');
+writeFileSync('data/crags/fontainebleau/signatures.json', JSON.stringify(out, null, 1) + '\n');
+writeManifest();
+console.log('\nwrote data/crags/fontainebleau/signatures.json');

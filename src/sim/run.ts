@@ -114,8 +114,8 @@ export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle, op
   const errs = opts.unchecked ? [] : validateCreation(spec, ctx);
   if (errs.length) throw new InvalidAction(errs.join(' '));
   const bg = bundle.backgrounds.get(spec.background)!;
-  const crag = bundle.crags.get(bg.start_crag) ?? bundle.crags.get('fontainebleau');
-  if (!crag) throw new InvalidAction('no start crag');
+  const crag = bundle.crags.get(bg.start_crag);
+  if (!crag) throw new InvalidAction(`no start crag ${bg.start_crag}`);
   const traits = [...new Set([...bg.forced_traits, ...spec.traits])];
   const attrs = buildAttributes({ ...spec, traits }, ctx);
   // A trait can add mass at creation (Weightlifter, 03 §2 flags), after the body has passed its bands.

@@ -14,7 +14,8 @@
     "calibrate": "tsx scripts/calibrate.ts",
     "harness": "tsx scripts/bundled.ts scripts/harness.ts",
     "recost": "tsx scripts/bundled.ts scripts/recost.ts",
-    "benchmarks": "tsx scripts/build-benchmarks.ts"
+    "benchmarks": "tsx scripts/build-benchmarks.ts",
+    "manifest": "tsx scripts/build-manifest.ts"
   },
   "dependencies": {
     "@preact/signals": "^2.0.0",

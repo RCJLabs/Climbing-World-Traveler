@@ -1,0 +1,62 @@
+{
+  "kalymnos_gr": {
+    "lang": "en",
+    "masc": [
+      "Thalassa",
+      "Meltemi",
+      "Kyma",
+      "Ilios",
+      "Fengari",
+      "Limani",
+      "Vrachos",
+      "Spilia",
+      "Ammos",
+      "Thymari",
+      "Melissa",
+      "Kafenio",
+      "Taverna",
+      "Ouranos",
+      "Asteri",
+      "Glaros",
+      "Kima",
+      "Elia"
+    ],
+    "fem": [
+      "Tufa",
+      "Stalactite",
+      "Goat",
+      "Ferry",
+      "Sponge",
+      "Octopus",
+      "Lizard",
+      "Siesta",
+      "Dragon",
+      "Ladder",
+      "Organ",
+      "Curtain",
+      "Cathedral",
+      "Bell",
+      "Lantern",
+      "Swallow",
+      "Anchor",
+      "Fig"
+    ],
+    "adj_masc": [
+      "Blue",
+      "Salty",
+      "Lazy",
+      "Hidden",
+      "Golden",
+      "Windy",
+      "Sleepy",
+      "Thirsty",
+      "Crooked",
+      "Endless",
+      "Secret",
+      "Shady"
+    ],
+    "adj_fem": ["Long","Red","Wild","Silent","Burning","Hanging","Little","Grand","Wet","Last","Upside-Down","Lucky"],
+    "place": ["Masouri","Arginonta","Myrties","Telendos","Emporios","Skalia","Pothia","Vathy"],
+    "suffix": ["Direct","Extension","Left","Right","Bis"]
+  }
+}

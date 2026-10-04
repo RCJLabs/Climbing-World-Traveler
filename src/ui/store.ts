@@ -2,7 +2,7 @@
 // through `act` or `simulate`, which serialise writes so two taps can never interleave.
 
 import { signal } from '@preact/signals';
-import { bundle } from '../data/bundle';
+import { bundle, loadCrag } from '../data/browser';
 import { DEFAULT_SETTINGS, emptyMeta, IdbBackend, MemoryBackend, type MetaState, type RunRecord, type SaveBackend, type Settings } from '../save/backend';
 import { RunSession } from '../save/session';
 import { simulateAttempt } from '../sim/attempt';
@@ -56,6 +56,7 @@ export async function boot(): Promise<void> {
     backend = new MemoryBackend();
     storageNote.value = 'Saving is unavailable in this browser mode. Progress will be lost when you close the tab.';
   }
+  await Promise.all([...data.crags.keys()].map(loadCrag));
   meta.value = await backend.getMeta();
   settings.value = { ...DEFAULT_SETTINGS, ...(await backend.getSettings()) };
   runs.value = (await backend.listRuns()).sort((a, b) => b.last_played.localeCompare(a.last_played));

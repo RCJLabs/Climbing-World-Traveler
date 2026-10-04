@@ -302,11 +302,33 @@ export interface Sector {
 
 export type CircuitColour = 'yellow' | 'orange' | 'blue' | 'red' | 'black' | 'white';
 
+/** An access rule on a crag (schemas §6, 09 §5). Data from P2 M1; the systems that read it come with M6. */
+export interface AccessRule {
+  kind: 'permit' | 'daily_cap' | 'reservation' | 'wet_rock' | 'seasonal_closure' | 'cultural' | 'raptor' | 'fee' | 'visa';
+  detail: string;
+  months?: number[];
+  cost?: number;
+  dry_days_required?: number;
+  rep_penalty_if_violated?: number;
+}
+
+/** NPC archetypes a crag's community draws from (15 §1.1, schemas §3). */
+export const NPC_ARCHETYPES = [
+  'local_legend', 'developer', 'dirtbag_lifer', 'weekend_warrior', 'comp_kid', 'international_pro', 'guide', 'setter',
+  'photographer', 'van_couple', 'elder_trad', 'rookie', 'gym_rat',
+] as const;
+export type NpcArchetype = (typeof NPC_ARCHETYPES)[number];
+
+/** How a crag is drawn round its rock on the cartoon wall (25 §10.8, schemas §6): its scenery. */
+export interface CragLook { scenery: 'forest' | 'sea' }
+
 export interface Crag {
   id: string;
   name: string;
   country: string;
   region: string;
+  lat: number;
+  lon: number;
   altitude_m: number;
   rock: RockType;
   disciplines: Discipline[];
@@ -314,6 +336,19 @@ export interface Crag {
   season: number[]; // 12 months, 0..3
   climate: ClimateMonth[]; // 12 months
   cost_tier: 1 | 2 | 3 | 4 | 5;
+  /** The travel hub the crag hangs off (09 §8.1), and the last leg from it (09 §8.3), either way. */
+  hub: string;
+  last_mile: { mode: TravelEdge['mode']; cost: number; days: number };
+  access: AccessRule[];
+  community_size: 'tiny' | 'small' | 'medium' | 'large' | 'huge';
+  /** ISO-639 codes, the most spoken first. */
+  language: string[];
+  gym_tier: 0 | 1 | 2 | 3;
+  /** 0 none .. 3 reliable: remote work and content income (14 §9). */
+  connectivity: 0 | 1 | 2 | 3;
+  climate_class: string;
+  npc_archetypes: NpcArchetype[];
+  look: CragLook;
   sectors: Sector[];
   phase: Phase;
 }
@@ -339,11 +374,15 @@ export interface TravelEdge { from: string; to: string; mode: 'fly' | 'drive' | 
 export interface DataBundle {
   traits: ReadonlyMap<string, Trait>;
   backgrounds: ReadonlyMap<string, Background>;
+  /** Every crag in the build, with its styles and name banks; a crag's routes join when its data is loaded (27 M1). */
   crags: ReadonlyMap<string, Crag>;
   profiles: ReadonlyMap<string, CragStyleProfile>;
+  /** Signature routes of the crags whose data is loaded, by seed. */
   signatures: ReadonlyMap<string, Route>;
-  /** Benchmark problems per crag for the grade estimate (02 §C.3). */
+  /** Benchmark problems per crag for the grade estimate (02 §C.3), for the crags whose data is loaded. */
   benchmarks: ReadonlyMap<string, Route[]>;
+  /** Each crag's content hash (data/manifest.json): a run records the hashes of the crags it has played (27 §4). */
+  hashes: ReadonlyMap<string, string>;
   names: Readonly<Record<string, NameBank>>;
   /** The travel graph between the live crags (09 §8). */
   travel: { hubs: readonly Hub[]; edges: readonly TravelEdge[] };

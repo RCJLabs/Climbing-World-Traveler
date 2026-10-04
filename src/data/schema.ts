@@ -1,7 +1,7 @@
 // Zod schemas mirroring docs/schemas.md for the content the P1a build ships. The validator (scripts/validate.ts)
 // and the bundle loader both use these, so content and code cannot drift apart silently.
 import { z } from 'zod';
-import { ALL_ATTRS, EVOLVE_COUNTERS, HOLD_TYPES } from '../sim/types';
+import { ALL_ATTRS, EVOLVE_COUNTERS, HOLD_TYPES, NPC_ARCHETYPES } from '../sim/types';
 
 const attrId = z.enum(ALL_ATTRS as unknown as [string, ...string[]]);
 const holdType = z.enum(HOLD_TYPES as unknown as [string, ...string[]]);
@@ -75,9 +75,20 @@ export const BackgroundSchema = z.object({
 }).strict();
 
 const circuitColour = z.enum(['yellow', 'orange', 'blue', 'red', 'black', 'white']);
+const travelMode = z.enum(['fly', 'drive', 'bus', 'train', 'boat', 'trek']);
+const tier = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]);
+
+export const AccessRuleSchema = z.object({
+  kind: z.enum(['permit', 'daily_cap', 'reservation', 'wet_rock', 'seasonal_closure', 'cultural', 'raptor', 'fee', 'visa']),
+  detail: z.string().min(1),
+  months: z.array(z.number().int().min(1).max(12)).optional(),
+  cost: z.number().min(0).optional(),
+  dry_days_required: z.number().min(0).optional(),
+  rep_penalty_if_violated: z.number().max(0).optional(),
+}).strict();
 
 export const CragSchema = z.object({
-  id: z.string(),
+  id: z.string().regex(/^[a-z0-9_]+$/),
   name: z.string(),
   country: z.string(),
   region: z.string(),
@@ -91,6 +102,19 @@ export const CragSchema = z.object({
   climate: z.array(z.object({
     t_mean: z.number(), t_sd: z.number(), rh_mean: z.number(), precip_days: z.number(), wind_mean: z.number(), snow: z.boolean(),
   }).strict()).length(12),
+  // The atlas fields (schemas §6, 09 §2–§6), required from P2 M1.
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
+  hub: z.string().regex(/^hub_[a-z0-9_]+$/),
+  last_mile: z.object({ mode: travelMode, cost: z.number().min(0), days: z.number().int().min(0).max(10) }).strict(),
+  access: z.array(AccessRuleSchema),
+  community_size: z.enum(['tiny', 'small', 'medium', 'large', 'huge']),
+  language: z.array(z.string().regex(/^[a-z]{2,3}$/)).min(1),
+  gym_tier: tier,
+  connectivity: tier,
+  climate_class: z.string().regex(/^[a-z_]+$/),
+  npc_archetypes: z.array(z.enum(NPC_ARCHETYPES)).min(1),
+  look: z.object({ scenery: z.enum(['forest', 'sea']) }).strict(),
   sectors: z.array(z.object({
     id: z.string().regex(/^[a-z0-9_]+$/),
     name: z.string(),
@@ -174,11 +198,17 @@ export const RouteSchema = z.object({
   fa_note: z.string().optional(),
 }).strict();
 
+/** The hubs and the legs between them (09 §8.1–§8.2); each crag's last mile is in its own folder (27 M1). */
 export const TravelSchema = z.object({
   hubs: z.array(z.object({ id: z.string().regex(/^hub_[a-z0-9_]+$/), name: z.string(), country: z.string().length(2), lat: z.number(), lon: z.number(), airport: z.boolean() }).strict()),
   edges: z.array(z.object({
-    from: z.string(), to: z.string(), mode: z.enum(['fly', 'drive', 'bus', 'train', 'boat', 'trek']), cost: z.number().min(0), days: z.number().int().min(0).max(10),
+    from: z.string().regex(/^hub_/), to: z.string().regex(/^hub_/), mode: travelMode, cost: z.number().min(0), days: z.number().int().min(0).max(10),
   }).strict()),
+}).strict();
+
+/** data/manifest.json (docs/20 §1): each crag folder's content hash, written by `pnpm manifest`. */
+export const ManifestSchema = z.object({
+  crags: z.record(z.string().regex(/^[a-z0-9_]+$/), z.string().regex(/^[0-9a-z]+$/)),
 }).strict();
 
 /** Real climbers' names the content may not contain (schemas §9 rule 8): whole names, first and last. */
