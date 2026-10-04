@@ -6,8 +6,12 @@
 // `--policy` is project, volume, plan (the game's default week), both (project and volume) or all (the three).
 // `--years N` plays careers of up to N years that retire by 19 §1's rule and travel with the seasons; `--days N`
 // plays N days at the start crag (the one-year runs of P1). `--trait <id>` gives every career that trait: each
-// sampled build that cannot take it is redrawn (docs/19 §2). Writes <out>/harness-<tag>.md and .json.
+// sampled build that cannot take it is redrawn (docs/19 §2). Writes <out>/harness-<tag>.md and .json. With `--out`,
+// careers stream to <out>/harness-<tag>.jsonl as they finish, so a run stopped part-way (a container restart) resumes
+// where it stopped: a career is read back only if its config and the data it was played on are unchanged. The key
+// does not cover the code, so after a code change use a fresh `--out`.
 import { fork } from 'node:child_process';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadBundle } from '../src/data/bundle';
@@ -18,7 +22,7 @@ import { sampleBuild } from '../src/harness/sampler';
 import { setRouteCacheMax } from '../src/sim/attempt';
 import { isLive } from '../src/sim/character';
 import { DEFAULT_OPTIONS } from '../src/sim/presets';
-import { stream } from '../src/sim/rng';
+import { cyrb53, stream } from '../src/sim/rng';
 
 interface Job { index: number; cfg: CareerConfig }
 const POLICY_SETS: Record<string, CareerPolicy[]> = { project: ['project'], volume: ['volume'], plan: ['plan'], both: ['project', 'volume'], all: ['project', 'volume', 'plan'] };
@@ -78,24 +82,42 @@ async function main(): Promise<void> {
     }
     jobs.push({ index: i, cfg: { seed: `h${seed}-${i}`, spec, days, policy: policies[i % policies.length]!, life, checkReplay: i < 2 && !forced, unchecked: !!forced } });
   }
-  const t0 = performance.now();
+  const tag = `${crag === 'fontainebleau' ? '' : `${crag}-`}${life ? `${yearsArg}y-` : ''}${force ? `${force}-` : ''}${seed}`;
   const results: (CareerResult | undefined)[] = new Array(n);
+  // The data a career is played on: every crag's content hash and the top-level data a career reads.
+  const print = cyrb53(JSON.stringify([[...bundle.hashes], [...bundle.traits.values()], [...bundle.backgrounds.values()], [...bundle.injuries.values()], bundle.travel, bundle.version]));
+  const keyOf = (j: Job): number => cyrb53(JSON.stringify(j.cfg) + print);
+  const file = out ? `${out}/harness-${tag}.jsonl` : '';
+  if (file && existsSync(file)) {
+    for (const line of readFileSync(file, 'utf8').split('\n').filter(Boolean)) {
+      const x = JSON.parse(line) as { index: number; h: number; result: CareerResult };
+      const job = jobs[x.index];
+      if (job && x.h === keyOf(job)) results[x.index] = x.result;
+    }
+  }
+  if (out) mkdirSync(out, { recursive: true });
+  const todo = jobs.filter((j) => !results[j.index]);
+  const resumed = n - todo.length;
+  if (resumed) process.stderr.write(`${resumed}/${n} careers read back from ${file}\n`);
+  const t0 = performance.now();
   const failed: { index: number; seed: string; error: string }[] = [];
   let next = 0;
-  let done = 0;
-  await Promise.all(Array.from({ length: workers }, () => new Promise<void>((resolve, reject) => {
+  let done = resumed;
+  await Promise.all(Array.from({ length: Math.min(workers, todo.length) }, () => new Promise<void>((resolve, reject) => {
     const child = fork(SELF, [], { execArgv: SELF.endsWith('.ts') ? ['--import', 'tsx'] : [], env: { ...process.env, CWT_HARNESS_WORKER: '1' } });
     const feed = () => {
-      if (next < jobs.length) child.send({ job: jobs[next++] });
+      if (next < todo.length) child.send({ job: todo[next++] });
       else { child.send({ done: true }); resolve(); }
     };
     child.on('message', (m: { index: number; result?: CareerResult; error?: string }) => {
-      if (m.result) results[m.index] = m.result;
-      else failed.push({ index: m.index, seed: jobs[m.index]!.cfg.seed, error: m.error ?? 'unknown' });
+      if (m.result) {
+        results[m.index] = m.result;
+        if (file) appendFileSync(file, JSON.stringify({ index: m.index, h: keyOf(jobs[m.index]!), result: m.result }) + '\n');
+      } else failed.push({ index: m.index, seed: jobs[m.index]!.cfg.seed, error: m.error ?? 'unknown' });
       done++;
       if (n >= 100 && done % Math.ceil(n / 20) === 0) {
         const s = (performance.now() - t0) / 1000;
-        process.stderr.write(`${done}/${n} careers in ${Math.round(s)} s, about ${Math.round((s / done) * (n - done))} s to go\n`);
+        process.stderr.write(`${done}/${n} careers in ${Math.round(s)} s, about ${Math.round((s / (done - resumed)) * (n - done))} s to go\n`);
       } else if (n < 100) process.stderr.write('.');
       feed();
     });
@@ -107,16 +129,13 @@ async function main(): Promise<void> {
   const evolving = [...bundle.traits.values()].filter((t) => t.kind === 'evolving' && isLive(t)).map((t) => t.id);
   const ok = results.filter((r): r is CareerResult => !!r);
   const refs = Object.fromEntries(Object.entries(referenceCrags(bundle)).map(([d, id]) => [d, bundle.crags.get(id)!.name]));
-  let report = buildReport(ok, { n: ok.length, days, seed, policy: policyArg, crag, life, secs: (performance.now() - t0) / 1000, workers, force, evolving, refs });
+  let report = buildReport(ok, { n: ok.length, days, seed, policy: policyArg, crag, life, secs: (performance.now() - t0) / 1000, workers, force, evolving, refs, resumed });
   if (failed.length) {
     report += `\n\n## Failed careers\n\n${failed.map((x) => `- ${x.seed} (#${x.index}): ${x.error.split('\n')[0]}`).join('\n')}`;
     for (const x of failed) process.stderr.write(`career ${x.seed} failed: ${x.error}\n`);
   }
   console.log(report);
   if (out) {
-    const { mkdirSync, writeFileSync } = await import('node:fs');
-    mkdirSync(out, { recursive: true });
-    const tag = `${crag === 'fontainebleau' ? '' : `${crag}-`}${life ? `${yearsArg}y-` : ''}${force ? `${force}-` : ''}${seed}`;
     writeFileSync(`${out}/harness-${tag}.md`, report + '\n');
     writeFileSync(`${out}/harness-${tag}.json`, JSON.stringify(ok) + '\n');
   }

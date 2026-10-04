@@ -20,6 +20,8 @@ export interface ReportMeta {
   evolving: string[];
   /** The reference crags' names (career.ts `referenceCrags`): where each discipline's estimate is read. */
   refs?: { boulder?: string; sport?: string };
+  /** Careers read back from an earlier session of the same run (scripts/harness.ts), so `secs` covers the rest only. */
+  resumed?: number;
 }
 
 /** Age bands at the start of a career (19 §1). */
@@ -130,7 +132,7 @@ export function buildReport(rs: CareerResult[], meta: ReportMeta): string {
   L.push(`# Harness report · seed ${meta.seed} · ${where}`);
   L.push('');
   const span = meta.days % 365 === 0 && meta.days > 365 ? `${meta.days / 365} years` : `${meta.days} days`;
-  L.push(`${meta.n} careers × ${span} · policy ${meta.policy}${meta.life ? ' · retiring by 19 §1 and travelling with the seasons' : ''}${meta.force ? ` · every build with ${meta.force}` : ''} · ${meta.secs.toFixed(0)} s on ${meta.workers} workers · ${Math.round(mean(rs.map((r) => r.actions)))} actions per career`);
+  L.push(`${meta.n} careers × ${span} · policy ${meta.policy}${meta.life ? ' · retiring by 19 §1 and travelling with the seasons' : ''}${meta.force ? ` · every build with ${meta.force}` : ''} · ${meta.secs.toFixed(0)} s on ${meta.workers} workers${meta.resumed ? ` for the ${meta.n - meta.resumed} not resumed from an earlier session` : ''} · ${Math.round(mean(rs.map((r) => r.actions)))} actions per career`);
   L.push('');
 
   if (oneCrag && meta.days <= 365) {
