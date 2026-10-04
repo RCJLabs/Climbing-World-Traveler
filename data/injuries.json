@@ -3,12 +3,12 @@
     "id": "a2_pulley", "name": "A2 pulley injury", "site": "finger", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load", "move"],
     "risk_mods": [{ "tag": "crimp", "mult": 1.6 }, { "tag": "pocket", "mult": 1.4 }, { "tag": "dynamic", "mult": 1.3 }, { "tag": "cold", "mult": 1.2 }],
-    "load_base": 0.00056,
-    "move": [{ "tag": "crimp", "p": 0.000038 }, { "tag": "pocket", "p": 0.000048 }],
+    "load_base": 0.00038,
+    "move": [{ "tag": "crimp", "p": 0.000019 }, { "tag": "pocket", "p": 0.000016 }],
     "severities": [
       { "grade": 1, "heal_days": [14, 21], "full_load_days": [28, 42] },
       { "grade": 2, "heal_days": [35, 60], "full_load_days": [60, 90] },
-      { "grade": 3, "heal_days": [60, 90], "full_load_days": [120, 180], "permanent_ceiling_loss": { "finger_strength": -3, "tech_crimps": -2 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [60, 90], "full_load_days": [120, 180], "permanent_ceiling_loss": { "finger_strength": -3, "tech_crimps": -2 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_fingers"]
   },
@@ -16,12 +16,12 @@
     "id": "a4_pulley", "name": "A4 pulley injury", "site": "finger", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load", "move"],
     "risk_mods": [{ "tag": "crimp", "mult": 1.5 }, { "tag": "pocket", "mult": 1.3 }, { "tag": "dynamic", "mult": 1.2 }],
-    "load_base": 0.00029,
-    "move": [{ "tag": "crimp", "p": 0.000024 }],
+    "load_base": 0.00021,
+    "move": [{ "tag": "crimp", "p": 0.00002 }],
     "severities": [
       { "grade": 1, "heal_days": [14, 21], "full_load_days": [28, 42] },
       { "grade": 2, "heal_days": [35, 60], "full_load_days": [60, 90] },
-      { "grade": 3, "heal_days": [60, 90], "full_load_days": [120, 180], "permanent_ceiling_loss": { "finger_strength": -2 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [60, 90], "full_load_days": [120, 180], "permanent_ceiling_loss": { "finger_strength": -2 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_fingers"]
   },
@@ -29,12 +29,12 @@
     "id": "lumbrical", "name": "Lumbrical strain", "site": "finger", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load", "move"],
     "risk_mods": [{ "tag": "pocket", "mult": 2.0 }, { "tag": "dynamic", "mult": 1.3 }],
-    "load_base": 0.00025,
-    "move": [{ "tag": "pocket", "p": 0.0002 }],
+    "load_base": 0.000145,
+    "move": [{ "tag": "pocket", "p": 0.000043 }],
     "severities": [
       { "grade": 1, "heal_days": [14, 21], "full_load_days": [28, 28] },
       { "grade": 2, "heal_days": [28, 56], "full_load_days": [56, 70] },
-      { "grade": 3, "heal_days": [56, 84], "full_load_days": [90, 120], "permanent_ceiling_loss": { "tech_pockets": -2 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [56, 84], "full_load_days": [90, 120], "permanent_ceiling_loss": { "tech_pockets": -2 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_fingers"]
   },
@@ -42,12 +42,12 @@
     "id": "collateral_lig", "name": "Finger collateral ligament sprain", "site": "finger", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["fall", "move"],
     "risk_mods": [{ "tag": "crimp", "mult": 1.2 }, { "tag": "dynamic", "mult": 1.4 }, { "tag": "sharp", "mult": 1.1 }],
-    "move": [{ "tag": "gaston", "p": 0.00019 }, { "tag": "dynamic", "p": 0.00015 }],
-    "fall": { "boulder": 0.12, "rope": 0.1 },
+    "move": [{ "tag": "gaston", "p": 0.00016 }, { "tag": "dynamic", "p": 0.00013 }],
+    "fall": { "boulder": 0.1, "rope": 0.1 },
     "severities": [
       { "grade": 1, "heal_days": [14, 28], "full_load_days": [35, 35] },
       { "grade": 2, "heal_days": [42, 70], "full_load_days": [84, 84] },
-      { "grade": 3, "heal_days": [84, 120], "full_load_days": [150, 180], "permanent_ceiling_loss": { "finger_strength": -1 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [84, 120], "full_load_days": [150, 180], "permanent_ceiling_loss": { "finger_strength": -1 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_fingers"]
   },
@@ -55,13 +55,13 @@
     "id": "tfcc", "name": "TFCC tear", "site": "wrist", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load", "move", "fall"],
     "risk_mods": [{ "tag": "sloper", "mult": 1.6 }, { "tag": "compression", "mult": 1.3 }, { "tag": "jam", "mult": 1.3 }],
-    "load_base": 0.00034,
-    "move": [{ "tag": "sloper", "p": 0.000058 }],
-    "fall": { "boulder": 0.1 },
+    "load_base": 0.000425,
+    "move": [{ "tag": "sloper", "p": 0.000072 }],
+    "fall": { "boulder": 0.12 },
     "severities": [
       { "grade": 1, "heal_days": [42, 60], "full_load_days": [70, 70] },
       { "grade": 2, "heal_days": [90, 150], "full_load_days": [180, 180], "lingering": { "chance": 0.33 } },
-      { "grade": 3, "heal_days": [180, 270], "full_load_days": [300, 300], "lingering": { "chance": 0.33 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [180, 270], "full_load_days": [300, 300], "lingering": { "chance": 0.33 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_elbow"]
   },
@@ -69,11 +69,11 @@
     "id": "medial_epi", "name": "Golfer's elbow", "site": "elbow", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load"],
     "risk_mods": [{ "tag": "crimp", "mult": 1.4 }, { "tag": "endurance", "mult": 1.3 }, { "tag": "pocket", "mult": 1.2 }],
-    "load_base": 0.000175,
+    "load_base": 0.000186,
     "severities": [
       { "grade": 1, "heal_days": [42, 42], "full_load_days": [56, 56] },
       { "grade": 2, "heal_days": [90, 120], "full_load_days": [150, 150] },
-      { "grade": 3, "heal_days": [150, 180], "full_load_days": [240, 240], "permanent_ceiling_loss": { "finger_endurance": -2 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [150, 180], "full_load_days": [240, 240], "permanent_ceiling_loss": { "finger_endurance": -2 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_elbow", "antagonists"]
   },
@@ -81,11 +81,11 @@
     "id": "lateral_epi", "name": "Tennis elbow", "site": "elbow", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load"],
     "risk_mods": [{ "tag": "sloper", "mult": 1.3 }, { "tag": "pinch", "mult": 1.3 }, { "tag": "compression", "mult": 1.2 }, { "tag": "gym", "mult": 1.2 }],
-    "load_base": 0.000125,
+    "load_base": 0.000266,
     "severities": [
       { "grade": 1, "heal_days": [42, 42], "full_load_days": [56, 56] },
       { "grade": 2, "heal_days": [90, 120], "full_load_days": [150, 150] },
-      { "grade": 3, "heal_days": [150, 180], "full_load_days": [240, 240], "permanent_ceiling_loss": { "lockoff": -2 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [150, 180], "full_load_days": [240, 240], "permanent_ceiling_loss": { "lockoff": -2 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_elbow", "antagonists"]
   },
@@ -93,12 +93,12 @@
     "id": "biceps_tendon", "name": "Biceps tendinopathy", "site": "elbow", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load", "move"],
     "risk_mods": [{ "tag": "static", "mult": 1.3 }, { "tag": "power", "mult": 1.2 }],
-    "load_base": 0.00007,
-    "move": [{ "tag": "static", "p": 8.5e-7 }],
+    "load_base": 0.000095,
+    "move": [{ "tag": "static", "p": 0.00000116 }],
     "severities": [
       { "grade": 1, "heal_days": [21, 28], "full_load_days": [42, 42] },
       { "grade": 2, "heal_days": [56, 84], "full_load_days": [112, 112] },
-      { "grade": 3, "heal_days": [120, 180], "full_load_days": [240, 240], "permanent_ceiling_loss": { "pull_power": -2 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [120, 180], "full_load_days": [240, 240], "permanent_ceiling_loss": { "pull_power": -2 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_elbow"]
   },
@@ -106,13 +106,13 @@
     "id": "rotator_cuff", "name": "Rotator cuff injury", "site": "shoulder", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load", "move", "fall"],
     "risk_mods": [{ "tag": "gaston", "mult": 1.5 }, { "tag": "compression", "mult": 1.3 }, { "tag": "dynamic", "mult": 1.3 }, { "tag": "overhang", "mult": 1.2 }, { "tag": "flexibility", "mult": 0.8 }],
-    "load_base": 0.00042,
-    "move": [{ "tag": "gaston", "p": 0.000088 }, { "tag": "dynamic", "p": 0.000045 }],
-    "fall": { "rope": 0.15 },
+    "load_base": 0.00051,
+    "move": [{ "tag": "gaston", "p": 0.000097 }, { "tag": "dynamic", "p": 0.00005 }],
+    "fall": { "rope": 0.12 },
     "severities": [
       { "grade": 1, "heal_days": [21, 35], "full_load_days": [56, 56] },
       { "grade": 2, "heal_days": [90, 150], "full_load_days": [180, 180] },
-      { "grade": 3, "heal_days": [180, 270], "full_load_days": [300, 365], "permanent_ceiling_loss": { "lockoff": -3, "shoulder_mobility": -3 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [180, 270], "full_load_days": [300, 365], "permanent_ceiling_loss": { "lockoff": -3, "shoulder_mobility": -3 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_shoulder", "antagonists"]
   },
@@ -120,12 +120,12 @@
     "id": "labrum_slap", "name": "Labrum (SLAP) tear", "site": "shoulder", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["move", "fall"],
     "risk_mods": [{ "tag": "compression", "mult": 1.5 }, { "tag": "dynamic", "mult": 1.4 }, { "tag": "roof", "mult": 1.3 }, { "tag": "flexibility", "mult": 0.8 }],
-    "move": [{ "tag": "dynamic", "p": 0.00014 }, { "tag": "gaston", "p": 0.00012 }],
-    "fall": { "rope": 0.1 },
+    "move": [{ "tag": "dynamic", "p": 0.00012 }, { "tag": "gaston", "p": 0.0001 }],
+    "fall": { "rope": 0.08 },
     "severities": [
       { "grade": 1, "heal_days": [28, 42], "full_load_days": [70, 70] },
       { "grade": 2, "heal_days": [120, 180], "full_load_days": [210, 210] },
-      { "grade": 3, "heal_days": [180, 365], "full_load_days": [365, 365], "permanent_ceiling_loss": { "shoulder_mobility": -5, "lockoff": -2 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [180, 365], "full_load_days": [365, 365], "permanent_ceiling_loss": { "shoulder_mobility": -5, "lockoff": -2 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_shoulder"]
   },
@@ -133,11 +133,11 @@
     "id": "capsulitis", "name": "Finger capsulitis", "site": "finger", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load"],
     "risk_mods": [{ "tag": "crimp", "mult": 1.4 }, { "tag": "endurance", "mult": 1.3 }, { "tag": "cold", "mult": 1.2 }],
-    "load_base": 0.00084,
+    "load_base": 0.001,
     "severities": [
       { "grade": 1, "heal_days": [14, 28], "full_load_days": [28, 28] },
       { "grade": 2, "heal_days": [42, 84], "full_load_days": [90, 90] },
-      { "grade": 3, "heal_days": [90, 150], "full_load_days": [180, 180], "permanent_ceiling_loss": { "tech_crimps": -1 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [90, 150], "full_load_days": [180, 180], "permanent_ceiling_loss": { "tech_crimps": -1 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_fingers"]
   },
@@ -157,7 +157,7 @@
     "id": "flapper", "name": "Flapper", "site": "skin", "kind": "skin", "phase": "P2", "milestone": 2,
     "triggers": ["move"],
     "risk_mods": [{ "tag": "jug", "mult": 1.4 }, { "tag": "sloper", "mult": 1.3 }, { "tag": "polished", "mult": 1.2 }, { "tag": "gym", "mult": 1.3 }],
-    "move": [{ "tag": "jug", "p": 0.0016 }, { "tag": "sloper", "p": 0.0031 }],
+    "move": [{ "tag": "jug", "p": 0.00136 }, { "tag": "sloper", "p": 0.0026 }],
     "grade_weights": [0.75, 0.25, 0],
     "severities": [
       { "grade": 1, "heal_days": [2, 4], "full_load_days": [4, 4] },
@@ -169,11 +169,11 @@
     "id": "ankle_sprain", "name": "Ankle sprain", "site": "ankle", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["fall"],
     "risk_mods": [{ "tag": "boulder", "mult": 1.8 }, { "tag": "highball", "mult": 1.5 }, { "tag": "ice", "mult": 1.4 }],
-    "fall": { "boulder": 0.15, "rope": 0.25 },
+    "fall": { "boulder": 0.12, "rope": 0.3 },
     "severities": [
       { "grade": 1, "heal_days": [7, 14], "full_load_days": [21, 21] },
       { "grade": 2, "heal_days": [21, 42], "full_load_days": [56, 56] },
-      { "grade": 3, "heal_days": [42, 84], "full_load_days": [90, 90], "permanent_ceiling_loss": { "leg_power": -1 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [42, 84], "full_load_days": [90, 90], "permanent_ceiling_loss": { "leg_power": -1 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_lower"]
   },
@@ -181,11 +181,11 @@
     "id": "ankle_fracture", "name": "Ankle fracture", "site": "ankle", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["fall"],
     "risk_mods": [{ "tag": "boulder", "mult": 2.0 }, { "tag": "highball", "mult": 2.5 }, { "tag": "ice", "mult": 2.0 }, { "tag": "dws", "mult": 0.5 }],
-    "fall": { "boulder": 0.35, "rope": 0.1 },
+    "fall": { "boulder": 0.4, "rope": 0.1 },
     "grade_weights": [0, 0.75, 0.25],
     "severities": [
       { "grade": 2, "heal_days": [42, 84], "full_load_days": [120, 180] },
-      { "grade": 3, "heal_days": [84, 120], "full_load_days": [180, 270], "permanent_ceiling_loss": { "leg_power": -3, "footwork": -2, "hip_mobility": -2 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [84, 120], "full_load_days": [180, 270], "permanent_ceiling_loss": { "leg_power": -3, "footwork": -2, "hip_mobility": -2 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_lower"]
   },
@@ -193,12 +193,12 @@
     "id": "knee_meniscus_mcl", "name": "Knee injury (meniscus or MCL)", "site": "knee", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["move", "fall"],
     "risk_mods": [{ "tag": "heel_hook", "mult": 2.0 }, { "tag": "overhang", "mult": 1.3 }, { "tag": "roof", "mult": 1.3 }, { "tag": "boulder", "mult": 1.2 }],
-    "move": [{ "tag": "heel_hook", "p": 0.0016 }],
-    "fall": { "boulder": 0.2, "rope": 0.15 },
+    "move": [{ "tag": "heel_hook", "p": 0.002 }],
+    "fall": { "boulder": 0.18, "rope": 0.15 },
     "severities": [
       { "grade": 1, "heal_days": [14, 28], "full_load_days": [42, 42] },
       { "grade": 2, "heal_days": [42, 90], "full_load_days": [120, 120] },
-      { "grade": 3, "heal_days": [120, 180], "full_load_days": [240, 365], "permanent_ceiling_loss": { "hip_mobility": -4, "leg_power": -2 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [120, 180], "full_load_days": [240, 365], "permanent_ceiling_loss": { "hip_mobility": -4, "leg_power": -2 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_lower"]
   },
@@ -206,13 +206,13 @@
     "id": "lower_back", "name": "Lower back injury", "site": "back", "kind": "injury", "phase": "P2", "milestone": 2,
     "triggers": ["load", "move", "fall"],
     "risk_mods": [{ "tag": "roof", "mult": 1.4 }, { "tag": "core", "mult": 0.8 }, { "tag": "bigwall", "mult": 1.3 }],
-    "load_base": 0.000125,
-    "move": [{ "tag": "roof", "p": 0.000014 }],
+    "load_base": 0.00016,
+    "move": [{ "tag": "roof", "p": 0.000018 }],
     "fall": { "boulder": 0.08, "rope": 0.15 },
     "severities": [
       { "grade": 1, "heal_days": [7, 14], "full_load_days": [21, 21] },
       { "grade": 2, "heal_days": [28, 56], "full_load_days": [84, 84] },
-      { "grade": 3, "heal_days": [90, 180], "full_load_days": [240, 240], "permanent_ceiling_loss": { "core_tension": -3 }, "career_ending": { "chance": 0.3, "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [90, 180], "full_load_days": [240, 240], "permanent_ceiling_loss": { "core_tension": -3 }, "career_ending": { "chance": 0.3, "repeat_after_age": 30 } }
     ],
     "rehab": ["mobility", "antagonists"]
   },
@@ -224,7 +224,7 @@
     "grade_weights": [0, 0.75, 0.25],
     "severities": [
       { "grade": 2, "heal_days": [42, 84], "full_load_days": [90, 120] },
-      { "grade": 3, "heal_days": [120, 180], "full_load_days": [240, 240], "permanent_ceiling_loss": { "finger_strength": -4, "tech_crimps": -3 }, "career_ending": { "repeat_after_age": 40 } }
+      { "grade": 3, "heal_days": [120, 180], "full_load_days": [240, 240], "permanent_ceiling_loss": { "finger_strength": -4, "tech_crimps": -3 }, "career_ending": { "repeat_after_age": 30 } }
     ],
     "rehab": ["rehab_fingers"]
   },

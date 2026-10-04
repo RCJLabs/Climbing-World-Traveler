@@ -23,7 +23,7 @@ import { calendarDate, formatDate } from './weather';
  * shape follows 13 §5.1's rows (a boulder's 2 m, 3–4.5 m and highball falls; a rope's clean, ledge and ground falls)
  * and its level is calibrated to 13 §1's injury rates. **(tune)**
  */
-export const FALL_RISK = { boulder: { a: 0.017, b: 1.2 }, rope: { a: 0.009, b: 2.6 } };
+export const FALL_RISK = { boulder: { a: 0.0145, b: 1.2 }, rope: { a: 0.0077, b: 2.6 } };
 /** Load and move rates are the data's, times these: one knob each for the harness's calibration. **(tune)** */
 export const RATE_SCALE = { load: 1, move: 1, illness: 1 };
 /** A sketchy move strains a structure at this share of a slip's chance (13 §5.3). **(tune)** */
@@ -65,8 +65,8 @@ const SITE_LOAD: Record<InjurySite, { hold?: Partial<Record<HoldType, number>>; 
   back: { move: { dyno: 0.6, heel_hook: 0.6, toe_hook: 0.6, high_step: 0.4 }, all: 0.4 },
   knee: { move: { heel_hook: 1, kneebar: 1, high_step: 0.7, toe_hook: 0.5, mantle: 0.4 } },
   ankle: { move: { dyno: 1, high_step: 0.7, heel_hook: 0.5, toe_hook: 0.5 }, hold: { smear: 0.5, foot_chip: 0.5 } },
-  skin: { all: 0.4 },
-  systemic: { all: 0.5 },
+  skin: { all: 0.25 },
+  systemic: { all: 0.3 },
 };
 
 /** Hold families' exposure tags (13 §5.2). */
@@ -547,7 +547,8 @@ export function endOfWeek(run: RunState, mods: Mods, bundle: DataBundle): Injury
     const weeks = Math.max(1, Math.ceil((Math.min(run.day, i.day_heal) - i.day_onset + 1) / 7));
     i.rehab_progress = Math.round(clamp((100 * i.rehab) / (REHAB.per_week * weeks), 0, 100));
     const week = Math.min(1, i.rehab_week / REHAB.per_week);
-    if (physio && run.day < i.day_heal - 1) i.day_heal = Math.max(run.day + 1, i.day_heal - Math.round(REHAB.heal_cut * 7 * week));
+    // Never sooner than the day after tomorrow: today's heal-day check (endOfDay) has run already.
+    if (physio && run.day < i.day_heal - 2) i.day_heal = Math.max(run.day + 2, i.day_heal - Math.round(REHAB.heal_cut * 7 * week));
     i.rehab_week = 0;
   }
   const hit = weeklyLoadRoll(run, mods, bundle);

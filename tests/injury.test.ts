@@ -172,8 +172,8 @@ describe('what an injury does (13 §3)', () => {
 describe('careers it ends (11 §4, P2 M2)', () => {
   const at = (age: number) => runOf(`age${age}`, { ...spec, background: 'desk_job_late_starter', body: { ...spec.body, age_start: age } }, { unchecked: true });
 
-  it('a second grade 3 at the same site at 40 or over ends the career at the end of its day; at 39 it does not', () => {
-    const old = at(41);
+  it('a second grade 3 at the same site at 30 or over ends the career at the end of its day; at 29 it does not', () => {
+    const old = at(31);
     hurt(old, 'rotator_cuff', 3, 'a');
     expect(old.injuries[0]!.career_ending).toBeUndefined();
     const second = hurt(old, 'labrum_slap', 3, 'b');
@@ -182,7 +182,7 @@ describe('careers it ends (11 §4, P2 M2)', () => {
     applyAction(old, { t: 'end_day' }, bundle);
     expect(old.ended).toMatchObject({ end_reason: 'forced_injury', injuries: 2 });
     expect(old.journal.some((j) => /ends the climbing/.test(j.text))).toBe(true);
-    const young = at(38);
+    const young = at(29);
     hurt(young, 'rotator_cuff', 3, 'a');
     expect(hurt(young, 'labrum_slap', 3, 'b').career_ending).toBeUndefined();
   });
