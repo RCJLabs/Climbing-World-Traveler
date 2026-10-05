@@ -95,6 +95,8 @@ Implemented; as built and measured: [28 §2](28-p2-implementation-notes.md). Exi
 | Live traits | the injury and illness traits (19, and Cool Head and Risk Blind if `risk_judgement` gets a role, open questions), among them Lucky and Unlucky with rerolls that finally do something; Chalk Allergy's and Asthma's illness clauses; the injury clauses of Light Frame, Heavy Bones, Reckless and Cautious, live today and read by nothing |
 | Calibration | 13 §5.2's base rates first: as written they give a 63% chance of a pulley injury in two years, against 13 §1's 13% |
 
+Implemented; as built and measured: [28 §3](28-p2-implementation-notes.md). Exit test met by the second exit run: over 1,000 ten-year careers at both crags on the default week, the injury rate and the site mix sit inside bands around 13 §1's anchors, set before the runs were read, and 4.2% of careers end by injury (P2's band, 3–6%); the first exit run missed A2 : A4 and the career-end share (28 §3.9–3.10). A career ends at a second grade 3 of the same injury from 25, not 40: with the harness's starts, 40 ends almost none (28 §3.4). The re-costing priced Bad Back at −10 and Cool Head and Risk Blind at the floor; the other M2 traits keep docs/03's costs (28 §3.6).
+
 ### M3 Training, aging and run ends
 
 | Item | Detail |

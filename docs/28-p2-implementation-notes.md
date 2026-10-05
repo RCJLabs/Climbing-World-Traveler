@@ -12,7 +12,8 @@ Related: [27 P2 Plan](27-p2-plan.md) · [06 §5](06-procedural-routes.md) · [19
 |---|---|
 | M0 Harness at scale | implemented (§1); exit test met: 1,000 ten-year careers at both crags in 1 h 33 min on 4 workers, after a first run of 2 h 36 min (§1.6) |
 | M1 Groundwork for a bigger world | implemented (§2); exit test met (§2.10) |
-| M2–M9 | not started |
+| M2 Injuries and health | implemented (§3); exit test met by the second exit run, after the first missed two bands (§3.9–3.10) |
+| M3–M9 | not started |
 
 ## 1. M0: Harness at scale
 
@@ -458,8 +459,34 @@ The probes, all at both crags on the default week, seed 7:
 | 4 | 200 × 10 years | rates about ×0.85, the A2 pulley and pocket moves cut hardest; wrist, elbow, shoulder and lower limb up; the rule at 30, by site | 0.54 | 43 / 36 / 21 | 41.4% | 13.0% | 1.3 | 11.0% | 43% | 5.5% |
 
 | Exit 1 | 1,000 × 10 years | A2 ×1.25, A4 ×0.92; the rule by the same injury | 0.57 | 43 / 36 / 21 | 41.4% | 12.9% | 3.0 | 12.6% | 41% | 2.8% |
+| Exit 2 | 1,000 × 10 years | A2 ×0.85, A4 ×1.45; the repeat age 25 | 0.57 | 43 / 36 / 22 | 41.3% | 13.0% | 1.55 | 13.9% | 42% | 4.2% |
 
 Probe 4 sat inside every band but A2 : A4 (1.3), with pulleys in two years and careers ended near a band's edge; before the exit run the A2 pulley's rates went ×1.25 and the A4's ×0.92 (about 1.75 at a tenth more pulley injuries), and the rule came to count the same injury (§3.4). The first exit run met ten bands and missed two. A2 : A4 read 3.0: probe 4's 23 slip-caused A4 injuries sat about four standard errors above what probe 3 and the exit run both imply, so pass 4 was sized on noise. And 2.8% of careers ended by injury. Pass 5 sized the pulleys on the exit run's own rates (A2 ×0.85, A4 ×1.45, for about 1.75 at the same total) and set the repeat age to 25 (§3.4); the second exit run, on the same seed and held to the same bands, is §3.10.
+
+### 3.10 The exit test
+
+`pnpm harness --n 1000 --years 10 --crag both --policy plan --workers 4 --seed 7`, the second exit run, after pass 5, held to §3.9's bands as they were set before any probe was read.
+
+| Measure | Band | Second exit run | |
+|---|---|---|---|
+| Injuries per career-year | 0.45–0.65 | 0.57 (4.3 per 1,000 climbing days: Font starters 4.8, Kalymnos 3.7) | met |
+| Upper limb | 73–81% | 78.8% | met |
+| Lower limb | 14–22% | 17.0% | met |
+| Fingers | 33–52% | 41.3% | met |
+| Shoulder | 13–21% | 17.5% | met |
+| Elbow | 5–11% | 7.7% | met |
+| Pulleys | 9–16% | 13.0% | met |
+| Capsulitis (for tenosynovitis) | 7.5–14% | 12.0% | met |
+| A2 : A4 | 1.5–2 | 1.55 (444 : 286) | met, near the edge |
+| Ankle fractures among Font fall injuries | 32–48% | 41.7% | met |
+| Careers with a pulley injury in their first two years | 10–16% | 13.9% | met |
+| Careers ended by injury | 3–6% | 4.2%: 10 spinal backs, 32 repeats; ages 20–47, median 30 | met |
+
+Beside the bands: grades 1/2/3 53.0% / 34.0% / 13.1%; causes load/move/fall 43 / 36 / 22; relapses 10.4%; 26.8 days off the rock a career-year (grade 2+, to the heal day); flappers 11.7 per 1,000 climbing days; colds 2.3 and food poisoning 0.28 a career-year. No career failed, and the two replayed were identical.
+
+It was the milestone's third exit run in all: the first missed two bands (§3.9), and two container restarts stopped the second at 600 and 950 careers, an hour each, until the harness streamed its careers and resumed (`--out` now writes `harness-<tag>.jsonl` as careers finish, and a rerun reads back every career whose config and data are unchanged; checked on a small run whose resumed report and careers matched the full run's). The run took 5,625 s on 4 workers, on a host about a third slower than the first exit run's 4,033 s for the same 1,000 careers; M0's 5,584 s played a third of its careers on each policy, so the times do not compare.
+
+Checks: typecheck, 267 tests, validate, calibrate `--quick` 14/14, and CI green on every push.
 
 ## Open questions
 
@@ -468,7 +495,7 @@ Probe 4 sat inside every band but A2 : A4 (1.3), with pulleys in two years and c
 - **Out of reach.** The rule hides the reach problem rather than fixing it (26 open questions, Reach): a 150 cm climber still finds only 33 of 134 easy Kalymnos routes physically possible.
 - **Phone memory.** The game keeps 400 built routes; at Kalymnos that is about 80 MB, against 18 §7's 150 MB heap. With fixed routes a smaller cache costs little, since a route is rebuilt only when it comes back.
 - **A climber stuck working.** The same 150 cm build on the default week at Kalymnos climbed 163 days in ten years and took 2,518 odd jobs: failed sessions hold its burnout at 70–87, the week's automatic rest turns climbing days into rest, and the money stub keeps it short, so it never meets the 60-day retirement rule either. M3's burnout chain and M4's money model own the parts; the reach problem above is the cause.
-- **Harness speed beyond M0** (§1.6). At the second run's speed the P2a exit run of 2,000 ten-year careers (27 §5) takes about 3 hours on 4 workers, and 10,000 nightly about 15.5 hours. The next lever is the weekly estimate, about a third of a Kalymnos career: starting its walk two levels under last week's estimate, and from the bottom only when that level already fails, would save about half of it and change an estimate only when a level further down would have capped it (no exact shortcut exists); estimating fortnightly would save about as much again. Both change the game, so neither is taken without a decision. M2–M5 add work to every day, so each milestone's exit run re-measures the speed.
+- **Harness speed beyond M0** (§1.6). At the second run's speed the P2a exit run of 2,000 ten-year careers (27 §5) takes about 3 hours on 4 workers, and 10,000 nightly about 15.5 hours. The next lever is the weekly estimate, about a third of a Kalymnos career: starting its walk two levels under last week's estimate, and from the bottom only when that level already fails, would save about half of it and change an estimate only when a level further down would have capped it (no exact shortcut exists); estimating fortnightly would save about as much again. Both change the game, so neither is taken without a decision. M2–M5 add work to every day, so each milestone's exit run re-measures the speed. M2's took 4,033 s for 1,000 ten-year careers on the default week alone (§3.10).
 - **Endurance never trains** (§1.6). Whether climbing should train aerobic and anaerobic capacity from the pump it costs (12 §1), and whether the bot and the default week should train the weakest family (19 §1's policy names that rule; the bot's wet-day lists ignore it), is for M3. Until then the route estimate stalls at 7c and caps the routes a strong climber is offered.
 - **Precache or cache on visit** (§2.5). Every crag's route chunk is precached, about 125 kB gzipped a crag at most: fine for two crags, about 4 MB for M6's 32. Caching a crag only when visited saves that, but an update renames every chunk, so a climber who updates and then goes offline cannot continue at their crag. A middle way: on install, precache the chunks of the crags the player's saved runs stand at. For M6.
 - **What a crag's hash covers** (§2.7, 20 open questions). It covers the files' text, so a fixed typo in a sector's description carries every run that has played the crag forward, and its projects relearn their moves.
