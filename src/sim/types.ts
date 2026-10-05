@@ -7,8 +7,8 @@ export const PHASE_ORDER: readonly Phase[] = ['P1a', 'P1b', 'P2', 'P3', 'P4', 'P
 
 export type Tag =
   | 'slab' | 'vertical' | 'overhang' | 'roof' | 'arete' | 'corner' | 'crack' | 'compression' | 'highball'
-  | 'crimp' | 'edge' | 'sloper' | 'pinch' | 'pocket' | 'jug' | 'jam' | 'smear' | 'volume'
-  | 'power' | 'endurance' | 'contact' | 'static' | 'dynamic' | 'core' | 'flexibility' | 'footwork' | 'reading'
+  | 'crimp' | 'edge' | 'sloper' | 'pinch' | 'pocket' | 'jug' | 'jam' | 'smear' | 'volume' | 'gaston'
+  | 'power' | 'endurance' | 'contact' | 'static' | 'dynamic' | 'core' | 'flexibility' | 'footwork' | 'reading' | 'heel_hook'
   | 'cold' | 'heat' | 'humid' | 'wet' | 'wind' | 'altitude' | 'friction' | 'sharp' | 'polished'
   | 'fear' | 'focus' | 'risk' | 'patience' | 'competition' | 'flow' | 'onsight' | 'redpoint'
   | 'social' | 'reputation' | 'partner' | 'sponsor' | 'ethics' | 'media'
@@ -48,6 +48,66 @@ export type SizeClass = 'xs' | 's' | 'm' | 'l' | 'xl';
 export type Feature = 'arete' | 'corner' | 'crack' | 'lip' | 'ledge' | 'hueco' | 'tufa' | 'none';
 export type ProtectionKind = 'bolt' | 'gear' | 'anchor' | 'pad_zone' | 'water' | 'ice_screw' | 'none';
 export type Discipline = 'boulder' | 'sport' | 'trad' | 'multipitch' | 'bigwall' | 'alpine' | 'ice' | 'mixed' | 'dws' | 'comp_boulder' | 'comp_lead' | 'gym';
+
+// ---------------------------------------------------------------- injuries and illness (13, schemas §7; P2 M2)
+
+export type InjurySite = 'finger' | 'wrist' | 'elbow' | 'shoulder' | 'back' | 'knee' | 'ankle' | 'skin' | 'systemic';
+export const INJURY_SITES: readonly InjurySite[] = ['finger', 'wrist', 'elbow', 'shoulder', 'back', 'knee', 'ankle', 'skin', 'systemic'];
+/** The harness's injury mix (13 §1) counts kind `injury` only: split tips and flappers, and illness, are counted apart. */
+export type InjuryKind = 'injury' | 'skin' | 'illness';
+export type InjuryTrigger = 'load' | 'fall' | 'move' | 'cold' | 'heat' | 'altitude' | 'illness';
+export const INJURY_TRIGGERS: readonly InjuryTrigger[] = ['load', 'fall', 'move', 'cold', 'heat', 'altitude', 'illness'];
+
+export interface InjurySeverity {
+  grade: 1 | 2 | 3;
+  /** Days to pain-free daily life and light climbing; drawn once at onset. */
+  heal_days: [number, number];
+  /** Days until the structure takes full load; drawn once at onset. */
+  full_load_days: [number, number];
+  permanent_ceiling_loss?: Partial<Record<AttrId, number>>;
+  /** A lasting loss rolled at onset in this share of cases (TFCC: Glass Wrist). */
+  lingering?: { chance: number };
+  /** 11 §4: ends a career with a chance at onset, or as a second grade 3 at the same site at or after an age. */
+  career_ending?: { chance?: number; repeat_after_age?: number };
+}
+
+export interface InjuryDef {
+  id: string;
+  name: string;
+  site: InjurySite;
+  kind: InjuryKind;
+  phase: Phase;
+  milestone?: number;
+  triggers: InjuryTrigger[];
+  risk_mods: { tag: Tag; mult: number }[];
+  severities: InjurySeverity[];
+  grade_weights?: [number, number, number];
+  load_base?: number;
+  move?: { tag: Tag; p: number }[];
+  fall?: { boulder?: number; rope?: number };
+  illness?: { daily: number; first_days?: { days: number; daily: number }; cost_tier_max?: number };
+  substitutes?: { site: InjurySite; age_max: number; chance: number; tag: Tag };
+  rehab: string[];
+  deprecated?: boolean;
+}
+
+export interface InjuryInstance {
+  def: string;
+  grade: 1 | 2 | 3;
+  cause: 'fall' | 'load' | 'move' | 'illness';
+  day_onset: number;
+  day_heal: number;
+  day_full_load: number;
+  /** Rehab blocks done for it, in all and this week. */
+  rehab: number;
+  rehab_week: number;
+  /** 0..100: rehab blocks against two a week while it heals (13 §3). */
+  rehab_progress: number;
+  neglected?: boolean;
+  lingering?: boolean;
+  /** It ends the career (11 §4): the run ends with the day it happened. */
+  career_ending?: boolean;
+}
 
 // ---------------------------------------------------------------- character
 
@@ -121,11 +181,18 @@ export interface TraitEffect {
   resource_mult?: Partial<Record<string, number>>;
   fear_add?: number;
   injury_risk_mult?: number;
+  /** Injury-risk multiplier by site (P2 M2, 27 §6: the field, not the flag 03 first wrote). */
+  injury_site_mult?: Partial<Record<InjurySite, number>>;
   recovery_mult?: number;
   cost_mult?: number;
   rep_mult?: number;
   /** Flags from the 03 §1.9 registry, written `name=value` or bare `name`. */
   flags?: string[];
+}
+
+/** An acquired trait's trigger, evaluated once a day (03 §1.8, schemas §4.4, P2 M2). */
+export interface AcquireTrigger {
+  injury: { defs?: string[]; grade_min?: 1 | 2 | 3; healed?: boolean; lingering?: boolean; count?: number };
 }
 
 /** What an evolution counts (schemas §4.4, 03 §1.7). */
@@ -154,6 +221,8 @@ export interface Trait {
   requires_age?: [number, number];
   /** Evolving traits and the acquired stages they lead to (03 §1.7); the first evolution met applies. */
   evolves_to?: Evolution[];
+  /** Acquired traits the injury system grants (03 §1.8, P2 M2). */
+  acquire?: AcquireTrigger;
   flavour: string;
 }
 
@@ -397,6 +466,8 @@ export interface DataBundle {
   names: Readonly<Record<string, NameBank>>;
   /** The travel graph between the live crags (09 §8). */
   travel: { hubs: readonly Hub[]; edges: readonly TravelEdge[] };
+  /** The injury and illness catalogue (13 §2, data/injuries.json; P2 M2). */
+  injuries: ReadonlyMap<string, InjuryDef>;
   /** Content version; replays pin it (schemas §8 data_version). */
   version: string;
 }
@@ -505,4 +576,6 @@ export interface RunSummary {
   /** First route sends by rounded DI (P1b). */
   pyramid_route: Record<string, number>;
   got_away?: { name: string; sessions: number; di: number; discipline?: Discipline };
+  /** Injuries (kind `injury`) of grade 2 or more (11 §5, P2 M2): −4 each in the score (16 §6). */
+  injuries: number;
 }

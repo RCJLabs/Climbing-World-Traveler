@@ -46,7 +46,8 @@ describe('the P1b traits in the data', () => {
   it('name only flags the engine reads or knows to be inert, and only resources it regenerates; an invented one is caught', () => {
     for (const t of bundle.traits.values()) if (isLive(t)) expect(traitEffectErrors(t), t.id).toEqual([]);
     expect(traitEffectErrors({ id: 'made_up', effect: { flags: ['moon_phase_mult=1.2'], resource_mult: { mana: 1.1 } } })).toHaveLength(2);
-    // Energy refills every morning and health waits for the injuries: fine on a P2 trait, an error on a live one.
+    // Energy refills every morning until M3's day planner: fine on a P2 trait, an error on a live one. Health regenerates
+    // from P2 M2.
     expect(traitEffectErrors({ id: 'early', phase: 'P1b', effect: { resource_mult: { energy: 1.1 } } })).toEqual(['trait early: resource energy waits for P2']);
     expect(traitEffectErrors({ id: 'later', phase: 'P2', effect: { resource_mult: { health: 1.2 } } })).toEqual([]);
   });
@@ -55,9 +56,11 @@ describe('the P1b traits in the data', () => {
     const p1b = [...bundle.traits.values()].filter((t) => t.phase === 'P1b' && t.kind === 'creation');
     expect(p1b).toHaveLength(43);
     for (const id of ['dry_hands', 'clutch', 'zen', 'rope_gun', 'vertigo', 'weightlifter', 'stubborn']) expect(bundle.traits.has(id), id).toBe(true);
-    for (const id of ['bendy_shoulders', 'pain_tolerant', 'kneebar_finder', 'downclimber']) expect(bundle.traits.has(id), id).toBe(false);
-    // Nothing they carry is read before P2 (docs/26 §11): kept in the data, not offered at creation.
-    for (const id of ['lucky', 'unlucky', 'cool_head', 'risk_blind']) expect(isLive(bundle.traits.get(id)!), id).toBe(false);
+    expect(bundle.traits.has('kneebar_finder')).toBe(false);
+    // Moved to P2 with their injuries (docs/26 §11, 28 §3): in the data from M2, at P2 M2.
+    for (const id of ['bendy_shoulders', 'pain_tolerant', 'downclimber', 'lucky', 'unlucky', 'cool_head', 'risk_blind']) {
+      expect(bundle.traits.get(id), id).toMatchObject({ phase: 'P2', milestone: 2 });
+    }
   });
 });
 
@@ -237,7 +240,7 @@ describe('the P2 traits of M1 (27 §2: the ten whose systems are live; 28 §2.8:
   const base = runOf([]);
 
   it('come live with P2 M1; a P2 row of a later milestone, or with none, waits', () => {
-    expect(CURRENT_MILESTONE).toBe(1);
+    expect(CURRENT_MILESTONE).toBe(2);
     for (const id of M1) {
       const t = bundle.traits.get(id)!;
       expect(t, id).toMatchObject({ phase: 'P2', milestone: 1, kind: 'creation' });
@@ -251,7 +254,8 @@ describe('the P2 traits of M1 (27 §2: the ten whose systems are live; 28 §2.8:
     expect(Object.fromEntries(M1.map((id) => [id, bundle.traits.get(id)!.cost]))).toEqual({
       cold_blooded: 10, gaston_goblin: 3, hibernator: 7, frugal: 2, shiny_things: -2, fuelled: 4, junk_food: -4,
     });
-    expect([isLive({ phase: 'P1b' }), isLive({ phase: 'P2' }), isLive({ phase: 'P2', milestone: 2 }), isLive({ phase: 'P3', milestone: 1 })]).toEqual([true, false, false, false]);
+    expect([isLive({ phase: 'P1b' }), isLive({ phase: 'P2' }), isLive({ phase: 'P2', milestone: 2 }), isLive({ phase: 'P2', milestone: 3 }), isLive({ phase: 'P3', milestone: 1 })])
+      .toEqual([true, false, true, false, false]);
     expect(build.traits.some((t) => M1.includes(t) || t in LATER)).toBe(false);
   });
 

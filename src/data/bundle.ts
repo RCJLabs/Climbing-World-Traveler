@@ -34,6 +34,7 @@ export function loadBundle(validate = true, dir = DATA_DIR): DataBundle {
     backgrounds: readJson(`${dir}/backgrounds.json`),
     travel: readJson(`${dir}/travel.json`),
     manifest: readJson(`${dir}/manifest.json`),
+    injuries: readJson(`${dir}/injuries.json`),
   };
   const ids = cragIds(dir);
   const texts = ids.map((id) => cragTexts(dir, id).map((t) => JSON.parse(t) as unknown));

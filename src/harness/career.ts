@@ -108,8 +108,27 @@ export interface CareerResult {
   work_blocks: number;
   burnout_max: number;
   actions: number;
+  /** Every injury and illness of the career (13, P2 M2), with its site and kind for the report. */
+  injuries: CareerInjury[];
   replay_ok: boolean | null;
   ms: number;
+}
+
+/** One injury or illness as the report reads it (P2 M2). Days are from onset. */
+export interface CareerInjury {
+  def: string;
+  site: string;
+  kind: string;
+  grade: number;
+  cause: string;
+  day: number;
+  heal: number;
+  full: number;
+  /** Where it happened: the crag the climber was at. */
+  crag: string;
+  career_ending: boolean;
+  /** The same injury within a year before (13 §3's relapse). */
+  relapse: boolean;
 }
 
 export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
@@ -127,6 +146,7 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
   const daysAt: Record<string, number> = {};
   let trips = 0;
   let burnoutMax = 0;
+  const injuryCrag: string[] = [];
   const every = cfg.days > 365 ? SAMPLE_DAYS.career : SAMPLE_DAYS.year;
   let nextSample = every;
   while (run.day < cfg.days && !run.ended) {
@@ -144,6 +164,7 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
       }
     }
     burnoutMax = Math.max(burnoutMax, run.res.burnout);
+    while (injuryCrag.length < run.injuries.length) injuryCrag.push(crag);
     if (run.day >= nextSample && !run.ended) {
       nextSample += every;
       const ath = athleteOf(run, bundle);
@@ -181,5 +202,13 @@ export function runCareer(cfg: CareerConfig, bundle: DataBundle): CareerResult {
     hardest_onsight: sport ? run.ended!.hardest_route_onsight : run.ended!.hardest_flash,
     attempts: run.counters.attempts, sends: run.counters.sends, train_blocks: run.counters.train_blocks, work_blocks: run.counters.work_blocks,
     burnout_max: burnoutMax, actions: run.actions, replay_ok: replayOk, ms: performance.now() - t0,
+    injuries: run.injuries.map((i, k) => {
+      const d = bundle.injuries.get(i.def)!;
+      return {
+        def: i.def, site: d.site, kind: d.kind, grade: i.grade, cause: i.cause, day: i.day_onset, heal: i.day_heal - i.day_onset,
+        full: i.day_full_load - i.day_onset, crag: injuryCrag[k] ?? run.crag, career_ending: !!i.career_ending,
+        relapse: run.injuries.slice(0, k).some((j) => j.def === i.def && i.day_onset - j.day_onset < 365),
+      };
+    }),
   };
 }

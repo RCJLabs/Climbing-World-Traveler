@@ -6,14 +6,15 @@ import type { CommitOutcome } from './resolve';
 import type { ClimbState } from './wall';
 import type { DayWeather, RainMark } from './weather';
 import type {
-  AttemptMode, AttrId, Attributes, BlockKind, Body, Discipline, EvolveCounter, Limb, MoveClass, RunOptions, RunSummary, Tick, WeekPlan,
+  AttemptMode, AttrId, Attributes, BlockKind, Body, Discipline, EvolveCounter, InjuryInstance, Limb, MoveClass, RunOptions, RunSummary, Tag, Tick,
+  WeekPlan,
 } from './types';
 
 /**
  * Reducer version (18 §5, 27 §4). Bump when the state's shape changes or an old log would play out differently, and
  * add the adapter from the version before (save/adapt.ts) with a test on an archived save of it.
  */
-export const REDUCER_VERSION = 10;
+export const REDUCER_VERSION = 11;
 
 export interface Resources {
   energy: number;
@@ -118,6 +119,8 @@ export interface AttemptState {
   stakes?: boolean;
   /** A move went sketchy this attempt (Perfectionist reads it on a send). */
   sketchy?: boolean;
+  /** Something was injured this attempt (P2 M2): it ends, and its fall rolls no second injury. */
+  injured?: boolean;
 }
 
 /** The rope during an attempt (05a §3, 05b §11, 07 §2). */
@@ -179,6 +182,11 @@ export interface SessionState {
   energy_spent: number;
   /** Attempts on each problem this session, and whether one of them sent (by route seed), for the session tactics (docs/24 §3). */
   tried: Record<string, { n: number; sent: boolean }>;
+  /** Moves made, by the tags their holds, classes and walls carry (13 §5.2's exposure; P2 M2), and in all. */
+  exposure: Partial<Record<Tag, number>>;
+  moves_n: number;
+  /** Hand moves on holds that load the fingers (crimps, edges, pockets, pinches, slopers): the finger share of its load (12 §5). */
+  finger_moves: number;
 }
 
 export interface BlockState {
@@ -212,6 +220,17 @@ export interface Counters {
   pyramid_route: Record<string, number>;
   /** What evolving traits count (03 §1.7, schemas §8), with the day each was first counted; never reset. */
   evolve: Partial<Record<EvolveCounter, { n: number; first_day: number }>>;
+  /** Daily finger load for the last 35 days (12 §5, P2 M2), beside `loads`. */
+  finger_loads: number[];
+  /** The week's load by the tags it carried, and the week's load in all (13 §5.2), settled at the week's end. */
+  exposure: Partial<Record<Tag, number>>;
+  exposure_total: number;
+  /** A block this week started with energy under 25 (13 §5.2's fatigue term). */
+  tired_week: boolean;
+  /** Antagonist work keeps shoulders and elbows sound until this day (12 §1, 13 §6). */
+  antagonists_until: number;
+  /** The day the climber reached the crag it is at (13 §5.4's travel term). */
+  arrived_day: number;
 }
 
 export interface JournalEntry {
@@ -282,6 +301,17 @@ export interface RunState {
   counters: Counters;
   /** Training load accumulated today (12 §5), pushed into `counters.loads` at settlement. */
   load_today: number;
+  /** Finger load accumulated today (12 §5, P2 M2), pushed into `counters.finger_loads`. */
+  finger_today: number;
+  /** Every injury and illness of the run, healed ones kept (13 §3, P2 M2). */
+  injuries: InjuryInstance[];
+  /** Permanent ceiling losses from grade-3 injuries (13 §2), applied whenever ceilings are rebuilt. */
+  ceiling_loss: Partial<Record<AttrId, number>>;
+  /**
+   * The daily load the tendons (`finger`) and the body (`general`) are adapted to (12 §2, §5; hidden): it follows the
+   * chronic load on the tendon and muscle clocks, so a comeback after a layoff does not read as a spike.
+   */
+  capacity: { finger: number; general: number };
   ended: RunSummary | null;
   actions: number;
   /** The training week simulated days follow (docs/24 §2). */

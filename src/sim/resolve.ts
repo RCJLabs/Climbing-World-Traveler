@@ -213,7 +213,8 @@ export function evaluate(ath: Athlete, m: MoveSpec, st: MoveState, cond: Conditi
   const fmod = frictionMod(m.friction, cond, ath);
   let M_cond = 1 + FS[m.type] * (fmod - 1);
   M_cond *= 1 - 0.001 * Math.max(0, 50 - st.skin);
-  if (st.skin < 30 && (m.type === 'sloper' || m.type === 'smear' || m.type === 'volume')) M_cond *= 0.9;
+  // Worn skin on slopers (Pain Tolerant halves the loss, 03 §2 `skin_low_penalty_mult`, P2 M2).
+  if (st.skin < 30 && (m.type === 'sloper' || m.type === 'smear' || m.type === 'volume')) M_cond *= 1 - 0.1 * ath.mods.skin_low_penalty_mult;
   M_cond *= 1 + 0.001 * (ath.rock_knowledge[m.rock] ?? 0);
   const pump_mod = 1 - 0.35 * Math.pow(Math.min(100, st.pump) / 100, 2);
   const fear_mod = 1 - 0.12 * st.overgrip - 0.06 * st.under;

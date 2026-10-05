@@ -7,6 +7,7 @@ import { sectorFloor } from '../../sim/routes';
 import { sectorStatus } from '../../sim/weather';
 import { Circuit, TabBar, Top } from '../components';
 import { climbsLabel, COUNTRY_LABEL, gradeAt, money, ROCK_LABEL } from '../format';
+import { blockerLine } from '../injuries';
 import { act, data, goto, travel } from '../store';
 
 export function Crag({ run }: { run: RunState }) {
@@ -22,6 +23,7 @@ export function Crag({ run }: { run: RunState }) {
       </Top>
       <div class="scroll">
         {inSession && <button class="btn primary" onClick={() => goto({ name: 'routes' })}>Back to your session</button>}
+        {blockerLine(run, data) && <p class="small warn">{blockerLine(run, data)}</p>}
         <span class="kicker">{roped ? 'Sectors' : 'Areas'}</span>
         {crag.sectors.map((s) => {
           const st = sectorStatus(sectorRock(s, data), s, run.weather, run.last_rain);
@@ -37,7 +39,7 @@ export function Crag({ run }: { run: RunState }) {
               <span class="small soft">{s.character}</span>
               <span class={`tiny ${st.open ? 'good' : 'warn'}`}>
                 {st.open ? 'dry' : st.reason}{s.shade ? ' · shaded' : ' · sunny'}{floor > -Infinity ? ` · ${sectorDiscipline(s, data) === 'sport' ? 'routes' : 'problems'} from ${gradeAt(floor, sectorDiscipline(s, data), crag)}` : ''}{sigs.length ? ` · ${sigs.join(', ')}` : ''}
-                {st.open && !check.ok && !inSession ? ` · ${check.reason}` : ''}
+                {st.open && !check.ok && !inSession && !blockerLine(run, data) ? ` · ${check.reason}` : ''}
               </span>
             </button>
           );

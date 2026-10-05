@@ -1,11 +1,14 @@
 // The run reducer (docs/11, 12, 14, 16, 18 §5). A run is its `new_run` action plus every later action; the
 // state is a cache. `applyAction` mutates a draft in place (replay, harness); `reduce` clones first (UI).
 
-import { ageMoneyBonus, aggregateMods, buildAttributes, ceilingFor, clamp, isLive, resourceMult, validateCreation, type Athlete } from './character';
+import { ageMoneyBonus, aggregateMods, buildAttributes, clamp, isLive, resourceMult, validateCreation, type Athlete } from './character';
 import { ageOf, athleteOf, doWallAction, InvalidAction, modsOf, routeEntry, sectorOf, simulateAttempt } from './attempt';
 import { cragDisciplines, mainDiscipline, sectorDiscipline, sectorRock, type Climb } from './discipline';
 import { estimateAt } from './estimate';
-import { countEvolve, evolveTraits, PRACTICE_FALLS_PER_SESSION } from './evolve';
+import { countEvolve, evolveTraits, PRACTICE_FALLS_PER_SESSION, rebuildCeilings } from './evolve';
+import {
+  climbBlocker, countedInjuries, countRehab, emptyExposure, endOfDay, endOfWeek, settleActivity, settleSession, startCapacity, trainBlocker,
+} from './injury';
 import { stream } from './rng';
 import { sectorCatalogue, sectorRange } from './routes';
 import { REDUCER_VERSION, type Counters, type DaySummary, type RouteSlot, type RunState, type SessionState, type WeekPoint } from './state';
@@ -63,6 +66,7 @@ function emptyCounters(): Counters {
     neg_money_days: 0, failure_streak: 0, monotony_weeks: 0, week_sectors: [], prev_week_sectors: [], loads: [],
     forced_break_until: -1, burnout_hits: { season: -1, hits: 0 }, climb_days: 0, rest_days: 0, attempts: 0, sends: 0,
     work_blocks: 0, train_blocks: 0, pyramid: {}, new_sectors_today: 0, rope_falls_logged: 0, pyramid_route: {}, evolve: {},
+    finger_loads: [], exposure: {}, exposure_total: 0, tired_week: false, antagonists_until: -1, arrived_day: 0,
   };
 }
 
@@ -133,9 +137,12 @@ export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle, op
   needRoutes(bundle, crag.id);
   const traits = [...new Set([...bg.forced_traits, ...spec.traits])];
   const attrs = buildAttributes({ ...spec, traits }, ctx);
-  // A trait can add mass at creation (Weightlifter, 03 §2 flags), after the body has passed its bands.
-  const massShift = aggregateMods(traits, bundle.traits).mass_shift;
-  const body = massShift ? { ...spec.body, mass_kg: Math.round((spec.body.mass_kg + massShift) * 10) / 10 } : spec.body;
+  // A trait can add mass (Weightlifter) or shift the hidden tendon robustness (Iron Tendons, Glass Pulleys) at creation,
+  // after the body has passed its bands (03 §2 flags).
+  const created = aggregateMods(traits, bundle.traits);
+  let body = spec.body;
+  if (created.mass_shift) body = { ...body, mass_kg: Math.round((body.mass_kg + created.mass_shift) * 10) / 10 };
+  if (created.tendon_robustness_add) body = { ...body, tendon_robustness: clamp(body.tendon_robustness + created.tendon_robustness_add, 0, 100) };
   const money = (bg.money_start + ageMoneyBonus(spec.body.age_start)) * START_MONEY_MULT[spec.options.difficulty];
   const run: RunState = {
     v: REDUCER_VERSION, data_version: bundle.version, seed, name: spec.name, background: bg.id, body, traits,
@@ -147,6 +154,7 @@ export function createRun(seed: string, spec: NewRunSpec, bundle: DataBundle, op
     journal: [{ day: 0, text: `${spec.name} arrives in ${crag.name} with $${Math.round(money).toLocaleString('en-US')} and ${KIT[cragDisciplines(crag, bundle).join('+')] ?? KIT.boulder}.`, tone: 'info' }],
     today: emptyDay(0), yesterday: null, counters: emptyCounters(), load_today: 0, ended: null, actions: 1,
     plan: structuredClone(DEFAULT_PLAN), est: null, history: [],
+    finger_today: 0, injuries: [], ceiling_loss: {}, capacity: startCapacity(attrs.finger_strength.value),
   };
   if (run.weather.sky === 'rain' || run.weather.sky === 'storm') run.last_rain = { day: 0, mm: run.weather.precip_mm };
   run.res.energy = energyCap(run);
@@ -252,7 +260,7 @@ function startSession(run: RunState, sectorId: string, bundle: DataBundle): Sess
   return {
     sector: sectorId, E, slots: sessionSlots(run, sectorId, E, bundle), attempts: 0, sends: 0, di_sum: 0, hard_moves: 0,
     hand_moves: 0, pump_total: 0, time_s: 0, progress_made: false, stim: {}, xp: {}, load: 6, energy_spent: CLIMB_BLOCK_BASE_ENERGY,
-    tried: {},
+    tried: {}, ...emptyExposure(),
   };
 }
 
@@ -303,6 +311,8 @@ function endSession(run: RunState, s: SessionState, bundle: DataBundle): void {
   }
   run.today.notes.push(`${sectorOf(run, bundle, s.sector).name}: ${s.attempts} attempts, ${s.sends} sends.`);
   todayLoad(run, s.load);
+  // The session's load by what it was made of (13 §5.2) and its finger share (12 §5, P2 M2).
+  settleSession(run, s, sectorDiscipline(sectorOf(run, bundle, s.sector), bundle) === 'boulder', run.weather.t_max < 8);
 }
 
 function todayLoad(run: RunState, load: number): void {
@@ -321,6 +331,9 @@ export function canStartBlock(run: RunState, kind: BlockKind, target: string | u
   const onBreak = run.day < run.counters.forced_break_until;
   if (kind === 'climb') {
     if (onBreak) return { ok: false, reason: 'Forced break: burnout. Rest, work or recover.' };
+    // A grade-2+ injury or illness bars climbing until it heals (13 §3, P2 M2).
+    const hurt = climbBlocker(run);
+    if (hurt) return { ok: false, reason: `${bundle.injuries.get(hurt.def)?.name ?? hurt.def}: no climbing until ${formatDate(calendarDate(run.start_month, run.start_dom, hurt.day_heal))}.` };
     if (!target) return { ok: false, reason: 'Pick a sector.' };
     const sector = sectorOf(run, bundle, target);
     const status = sectorStatus(sectorRock(sector, bundle), sector, run.weather, run.last_rain);
@@ -332,6 +345,8 @@ export function canStartBlock(run: RunState, kind: BlockKind, target: string | u
     if (onBreak) return { ok: false, reason: 'Forced break: burnout. Rest, work or recover.' };
     const act = target ? activityById(target) : undefined;
     if (!act) return { ok: false, reason: 'Pick an activity.' };
+    const hurt = trainBlocker(run, act, bundle);
+    if (hurt) return { ok: false, reason: `${bundle.injuries.get(hurt.def)?.name ?? hurt.def}: not until ${formatDate(calendarDate(run.start_month, run.start_dom, hurt.day_heal))}.` };
     if (run.res.energy < act.energy * 0.6) return { ok: false, reason: 'Too tired for that session.' };
     if (act.skin > 0 && run.res.skin < act.skin) return { ok: false, reason: 'Not enough skin.' };
   }
@@ -343,9 +358,13 @@ function startBlock(run: RunState, kind: BlockKind, target: string | undefined, 
   const check = canStartBlock(run, kind, target, bundle);
   if (!check.ok) throw new InvalidAction(check.reason);
   run.blocks_today.push(kind);
+  // A block begun with under 25 energy is a tired one: the week's connective-tissue risk ×1.4 (13 §5.2).
+  if ((kind === 'climb' || kind === 'train') && run.res.energy < 25) run.counters.tired_week = true;
   switch (kind) {
     case 'climb': {
-      run.res.energy = Math.max(0, run.res.energy - CLIMB_BLOCK_BASE_ENERGY);
+      // Bad Back's pad costs energy to carry in (03 §2 `pad_carry_energy`), on a boulder sector.
+      const pad = sectorDiscipline(sectorOf(run, bundle, target!), bundle) === 'boulder' ? modsOf(run, bundle).pad_carry_energy : 0;
+      run.res.energy = Math.max(0, run.res.energy - CLIMB_BLOCK_BASE_ENERGY - pad);
       run.block = { kind, target: target!, session: startSession(run, target!, bundle) };
       return;
     }
@@ -357,6 +376,8 @@ function startBlock(run: RunState, kind: BlockKind, target: string | undefined, 
       run.today.money_delta -= act.cost;
       addGains(run, applyStimulus(gainCtx(run, bundle), act.stim));
       todayLoad(run, act.load);
+      settleActivity(run, act);
+      if (act.rehab) countRehab(run, act, bundle);
       if (act.id === 'fall_practice') countEvolve(run, 'practice_falls', PRACTICE_FALLS_PER_SESSION);
       run.counters.train_blocks++;
       run.today.notes.push(`${act.name}${act.cost ? ` ($${act.cost})` : ''}.`);
@@ -434,6 +455,11 @@ function endDay(run: RunState, bundle: DataBundle): void {
   if (c.loads.length > 35) c.loads.shift();
   const ratio = acwr(c.loads);
 
+  // Injuries and illness (13, P2 M2): the finger column and the capacities, health, heal days, illness, acquired traits;
+  // at the week's end, rehab and the load roll.
+  endOfDay(run, mods, bundle);
+  if ((day + 1) % 7 === 0) endOfWeek(run, mods, bundle);
+
   // Burnout (12 §7). Failing sessions weigh only on days you climb: charged on rest days too, a long failure
   // streak outweighed rest, so burnout could never fall and the forced break repeated for the rest of the run.
   const novelty = c.new_sectors_today > 0 ? 1 : 0;
@@ -481,14 +507,15 @@ function endDay(run: RunState, bundle: DataBundle): void {
     run.history.push(weekPoint(run));
   }
 
-  // Birthday (11 §3).
+  // Birthday (11 §3): ceilings follow the age, keeping the permanent losses of grade-3 injuries.
   if (run.day % 365 === 0) {
     const age = Math.floor(ageOf(run));
-    for (const id of ALL_ATTRS) run.attrs[id].ceiling = ceilingFor(id, run.body, run.traits, bundle.traits, age);
+    rebuildCeilings(run, bundle);
     run.journal.push({ day: run.day, text: `${run.name} turns ${age}.`, tone: 'info' });
   }
 
-  // Run-end checks (11 §4).
+  // Run-end checks (11 §4). An injury marked career-ending ends the run the day it happened.
+  if (run.injuries.some((i) => i.career_ending)) { endRun(run, 'forced_injury', bundle); return; }
   if (c.neg_money_days >= BANKRUPT_GRACE[run.options.difficulty]) { endRun(run, 'bankrupt', bundle); return; }
   if (c.neg_money_days === 7 || c.neg_money_days === 20) run.journal.push({ day: run.day, text: 'The account is in the red. Odd jobs pay $50 a block.', tone: 'bad' });
   if (run.res.burnout >= 80 && run.day >= c.forced_break_until) {
@@ -537,6 +564,7 @@ function travel(run: RunState, to: string, legs: readonly string[] | undefined, 
       // The climber arrives overnight: tomorrow's weather is the destination's, and its rock has not been rained on.
       run.crag = to;
       run.last_rain = null;
+      run.counters.arrived_day = run.day + 1;
       if (!run.visited.includes(to)) run.visited.push(to);
     }
     endDay(run, bundle);
@@ -558,7 +586,9 @@ export function summarise(run: RunState, reason: RunSummary['end_reason'], bundl
   const countries = new Set(run.visited.map((id) => bundle.crags.get(id)?.country ?? id)).size;
   // 16 §6: the best discipline in full, a second at 4 per DI, countries at 3 each.
   const second = hardest > 0 && hardestRoute > 0 ? Math.min(hardest, hardestRoute) : 0;
-  const score = (10 * Math.max(hardest, hardestRoute) + 4 * second + 0.6 * Math.sqrt(sends.length) + 3 * countries + 0.02 * run.day)
+  // P2 M2: −4 for each injury of grade 2 or more (16 §6, 11 §5).
+  const injuries = countedInjuries(run, bundle);
+  const score = (10 * Math.max(hardest, hardestRoute) + 4 * second + 0.6 * Math.sqrt(sends.length) + 3 * countries + 0.02 * run.day - 4 * injuries)
     * SCORE_MULT[run.options.difficulty];
   const unsent = Object.values(run.projects).filter((p) => !p.sent).sort((a, b) => b.sessions - a.sessions || b.di - a.di)[0];
   const out: RunSummary = {
@@ -567,7 +597,7 @@ export function summarise(run: RunState, reason: RunSummary['end_reason'], bundl
     hardest_flash: max(boulders.filter((t) => t.style === 'onsight' || t.style === 'flash').map((t) => t.di)),
     hardest_route: hardestRoute, hardest_route_onsight: max(routes.filter((t) => t.style === 'onsight').map((t) => t.di)), countries,
     ticks: sends.length, circuits, score: Math.round(score * 10) / 10, unlocks: ['p1a:second_background'], seed: run.seed,
-    pyramid: { ...run.counters.pyramid }, pyramid_route: { ...run.counters.pyramid_route },
+    pyramid: { ...run.counters.pyramid }, pyramid_route: { ...run.counters.pyramid_route }, injuries,
   };
   if (unsent && unsent.sessions >= 2) {
     out.got_away = { name: unsent.name, sessions: unsent.sessions, di: unsent.di };
@@ -611,6 +641,7 @@ export function applyAction(run: RunState, a: Action, bundle: DataBundle): void 
     case 'attempt':
       if (run.block?.kind !== 'climb') throw new InvalidAction('not at the crag');
       if (run.res.skin <= 0) throw new InvalidAction('no skin left');
+      if (climbBlocker(run)) throw new InvalidAction('injured: no climbing');
       simulateAttempt(run, a.route_seed, a.mode, bundle);
       break;
     case 'set_plan': {

@@ -69,13 +69,34 @@ export function evolveTraits(run: RunState, bundle: DataBundle): void {
     run.journal.push({ day: run.day, text: to ? `${from.name} becomes ${to.name}: ${what(ev)}.` : `${from.name} is gone: ${what(ev)}.`, tone: 'good' });
   }
   if (!changed) return;
+  rebuildCeilings(run, bundle);
+  for (const t of gained) applyAttrAdd(run, t, bundle);
+}
+
+/**
+ * Every ceiling from the body, the traits and the age, less the permanent losses of grade-3 injuries (13 §2, P2 M2),
+ * which a rebuild must never give back. Ceilings otherwise move on birthdays and when the trait list changes.
+ */
+export function rebuildCeilings(run: Pick<RunState, 'attrs' | 'body' | 'traits' | 'day' | 'ceiling_loss'>, bundle: DataBundle): void {
   // The age the birthday ceilings use (attempt.ts ageOf, not imported to keep this module free of the attempt loop).
   const age = Math.floor(run.body.age_start + run.day / 365);
-  for (const id of ALL_ATTRS) run.attrs[id].ceiling = ceilingFor(id, run.body, run.traits, bundle.traits, age);
-  for (const t of gained) {
-    for (const [k, v] of Object.entries(bundle.traits.get(t)!.effect.attr_add ?? {}) as [AttrId, number][]) {
-      const a = run.attrs[k];
-      a.value = Math.max(1, Math.min(a.ceiling, a.value + v));
-    }
+  for (const id of ALL_ATTRS) run.attrs[id].ceiling = Math.max(5, ceilingFor(id, run.body, run.traits, bundle.traits, age) + (run.ceiling_loss[id] ?? 0));
+}
+
+/** A trait gained in play: its attribute adds apply once, when it is gained (docs/26 §10). */
+function applyAttrAdd(run: RunState, id: string, bundle: DataBundle): void {
+  for (const [k, v] of Object.entries(bundle.traits.get(id)!.effect.attr_add ?? {}) as [AttrId, number][]) {
+    const a = run.attrs[k];
+    a.value = Math.max(1, Math.min(a.ceiling, a.value + v));
   }
+}
+
+/** An acquired trait joins the climber (03 §1.8, P2 M2): ceilings follow at once, its attribute adds apply once. */
+export function gainTrait(run: RunState, id: string, bundle: DataBundle): void {
+  const t = bundle.traits.get(id);
+  if (!t || run.traits.includes(id)) return;
+  run.traits = [...run.traits, id];
+  rebuildCeilings(run, bundle);
+  applyAttrAdd(run, id, bundle);
+  run.journal.push({ day: run.day + 1, text: `New trait: ${t.name}. ${t.flavour}`, tone: 'info' });
 }

@@ -4,9 +4,11 @@
 
 import { routeEntry } from './attempt';
 import { sectorDiscipline, sessionDiscipline } from './discipline';
+import { climbBlocker, rehabActivity, returning, trainBlocker } from './injury';
 import { isRoped } from './rope';
 import { sectorFloor } from './routes';
 import { applyAction, canStartBlock, dailyCost, sectorList } from './run';
+import { activityById } from './training';
 import type { RouteSlot, RunState } from './state';
 import type { Action, AttemptMode, BlockKind, DataBundle, PlanBlock, SessionTactic } from './types';
 
@@ -62,6 +64,8 @@ export function firstMode(run: RunState, seed: string, bundle: DataBundle): Atte
 export function nextSessionAttempt(run: RunState, bundle: DataBundle, tactic: SessionTactic): { route_seed: string; mode: AttemptMode } | null {
   const s = run.block?.session;
   if (!s || tired(run)) return null;
+  // Something went today: the session is over (13 §3, P2 M2).
+  if (run.injuries.some((i) => i.day_onset === run.day)) return null;
   // A sport sector's slots are all routes (sessionSlots): the table is known before any route is built.
   const roped = sessionDiscipline(run, bundle) === 'sport';
   const t = (roped ? ROUTE_TACTICS : TACTICS)[tactic];
@@ -143,21 +147,37 @@ export function plannedBlock(run: RunState, bundle: DataBundle): PlanBlock | nul
     const short = run.res.money < SHORT_DAYS * cost;
     if (broke || (short && (!first || b?.kind !== 'climb'))) b = { kind: 'work' };
   }
-  if (!b) return null;
+  // A healing injury (13 §3, P2 M2): climbing that it bars, and training that loads it, become its rehab, or rest; and
+  // while one heals the day's second block, when the plan leaves it free, is rehab too.
+  const rehab = (): PlanBlock => {
+    const a = rehabActivity(run, bundle);
+    return a && canStartBlock(run, 'train', a.id, bundle).ok ? { kind: 'train', activity: a.id } : { kind: 'rest' };
+  };
+  if (!b) {
+    const a = !first && rehabActivity(run, bundle);
+    return a && !run.blocks_today.includes('train') && canStartBlock(run, 'train', a.id, bundle).ok ? { kind: 'train', activity: a.id } : null;
+  }
   const onBreak = run.day < run.counters.forced_break_until;
+  if (b.kind === 'climb' && climbBlocker(run)) b = rehab();
+  if (b.kind === 'train' && trainBlocker(run, activityById(b.activity)!, bundle)) b = rehab();
   if (b.kind === 'climb') {
     if (onBreak || (plan.auto_rest && (run.res.skin < REST_SKIN || run.res.burnout > REST_BURNOUT))) b = { kind: 'rest' };
     else if (!pickSector(run, bundle)) b = plan.wet_day;
   }
   if (b.kind === 'train' && onBreak) b = { kind: 'rest' };
+  if (b.kind === 'train' && trainBlocker(run, activityById(b.activity)!, bundle)) b = rehab();
+  if (b.kind === 'active_recovery' && !first && !run.blocks_today.includes('train') && rehabActivity(run, bundle)) b = rehab();
   if (canStartBlock(run, blockKind(b), blockTarget(run, b, bundle), bundle).ok) return b;
   return first && canStartBlock(run, 'rest', undefined, bundle).ok ? { kind: 'rest' } : null;
 }
 
-/** The tactic of a climbing session in progress: the plan's for today, or volume. */
+/**
+ * The tactic of a climbing session in progress: the plan's for today, or volume; and volume while an injury is between
+ * healed and full load, easing back in (27 M2's return-to-load ramp).
+ */
 export function sessionTactic(run: RunState): SessionTactic {
   const day = run.plan.days[run.day % 7]!;
-  return day.main.kind === 'climb' ? day.main.tactic : 'volume';
+  return day.main.kind === 'climb' && !returning(run) ? day.main.tactic : 'volume';
 }
 
 /** The next action of a simulated day (docs/24 §2): the plan's blocks, a session played by its tactic, then end_day. */

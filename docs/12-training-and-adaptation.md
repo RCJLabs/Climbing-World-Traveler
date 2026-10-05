@@ -109,6 +109,15 @@ Age multiplies decay: ×1.0 to 35, linearly to **×2.0 at 50** **(tune)**, as th
 
 The curve is the sports-science ACWR shape (a U with a steep right arm) adapted as a multiplier **(tune)**. It multiplies the per-week `load` trigger probabilities in [13 §5](13-injury-and-health.md). Finger-specific load is tracked separately as `finger_load` (hangboard, campus, limit boulders, crimpy climbing) so that a cardio spike does not inflate pulley risk. Two further multipliers: full-crimp-heavy sessions at age 16–17 ×2.5 (growth plates; 02 §A.1), and `energy < 25` at session start ×1.4.
 
+**Capacity (as built, P2 M2; [28 §3](28-p2-implementation-notes.md)).** The hidden tendon-capacity term of §2 is one state per load column, `capacity.finger` and `capacity.general`, in daily load units: the load the tendons and the body are adapted to. Each day it moves toward the column's 28-day mean load, up at `1 − 2^(−1/t½)` a day on the tendon clock (`t½` of §2, so robustness sets its rate: one model, not 13's fixed `tendon_robustness` term as well, 27 §6) or on a clock a third of it for the general column, and down three times slower. The weekly roll then reads:
+
+```
+ratio  = acute_7d / (7 × max(chronic_daily, capacity))      → m_acwr(ratio) from the table above
+m_load = m_acwr(ratio) × (1 + 0.8 × max(0, chronic_daily / capacity − 1))      (tune)
+```
+
+so a comeback after three weeks off, whose chronic load has collapsed, is not a spike (the capacity still holds the old level), while climbing steadily above what the tendons have adapted to costs even without a spike. Finger and elbow injuries read the finger column; the rest the general one. A new climber starts at a habitual climber's capacity: finger `3 + 0.06 × finger_strength`, general 8 **(tune)**. The first week reads 1.2 (the novice term above); the ratio itself is the table's.
+
 ---
 
 ## 6. Sleep and nutrition multipliers

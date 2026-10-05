@@ -5,7 +5,7 @@ import { athleteOf } from '../sim/attempt';
 import { mainDiscipline, sessionDiscipline, type Climb } from '../sim/discipline';
 import { estimateAt } from '../sim/estimate';
 import type { AttemptResult, JournalEntry, RunState } from '../sim/state';
-import { ALL_ATTRS, type AttrId, type DataBundle, type Tick } from '../sim/types';
+import { ALL_ATTRS, type AttrId, type DataBundle, type InjuryInstance, type Tick } from '../sim/types';
 import { LATER_ATTRS } from './format';
 
 export interface AttrChange { id: AttrId; before: number; after: number }
@@ -36,6 +36,8 @@ export interface Report {
   attrs: AttrChange[];
   money: number;
   journal: JournalEntry[];
+  /** Injuries and illness that began in the stretch (13, P2 M2). */
+  injuries: InjuryInstance[];
   ended: boolean;
 }
 
@@ -65,6 +67,7 @@ export function buildReport(kind: Report['kind'], title: string, before: RunStat
     estimate: [estimateAt(athleteOf(before, bundle), after.crag, discipline, bundle), estimateAt(athleteOf(after, bundle), after.crag, discipline, bundle)],
     attrs, money: after.res.money - before.res.money,
     journal: after.journal.slice(before.journal.length),
+    injuries: after.injuries.slice(before.injuries.length),
     ended: !!after.ended,
   };
 }

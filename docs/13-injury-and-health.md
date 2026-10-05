@@ -128,11 +128,38 @@ With `base_def` as listed and a sweet-spot ACWR, a climber of average robustness
 
 `cold`/`altitude`/`illness` triggers roll per day block from [10](10-weather-and-conditions.md) and [07 §5–6](07-disciplines.md) exposures; illness rolls use the region's `cost_tier` (tier 1–2: `travel_bug` 2%/day for the first 10 days in a new country, 0.3%/day after) and lodging type (`common_cold` hostel 0.8%/day in winter).
 
+### 5.5 As built (P2 M2)
+
+The pipeline as implemented (`src/sim/injury.ts`, `data/injuries.json`; [28 §3](28-p2-implementation-notes.md) for the measured results). Rates are the data's, calibrated with the harness against §1.
+
+| Roll | When, on which stream | Chance |
+|---|---|---|
+| Fall | each boulder fall or jump (κ ×0.7 for a jump), each fall the rope holds; `injury\|fall\|route\|attempt\|n` | `a × κ^b` (boulder a, b = 1.2; rope b = 2.6) × age (1 + 0.02/yr past 30) × (1 − 0.3 × body_position/100) × (1 + 0.01 × (mass − ref)) × (1.3 − 0.6 × risk_judgement/100) × traits; κ already holds the pads, the spotter and the rope (05b §11), so §5.1's coverage and spot terms are not applied again; the injury is drawn by the fall kind's weights (each injury's `fall`) × site multipliers |
+| Move | a sketchy or slip outcome on a hold or move carrying a tag an injury lists (`move`); `injury\|move\|route\|attempt\|move` | the injury's rate per slip, × 0.2 on a sketchy move; the simulated climber slips or goes sketchy hundreds of times a week, so the rates are about 1/100 of §5.3's |
+| Load | each week's end; `injury\|load\|week` | `load_base` × the load multiplier against capacity ([12 §5](12-training-and-adaptation.md)) × exposure (risk mods as additive shares of the week's load by tag, or by attribute for flexibility, core, skin, nutrition, sleep) × age × leanness × fatigue (×1.4) × traits × prevention × relapse; at most one a week; at 16–17 a finger injury in a crimp-heavy week is the growth-plate variant 40% of the time |
+| Illness | each day's end, one at a time; `illness\|day` | the illness's daily rate × cold months (crag mean under 10 °C) × the first two weeks after a trip × sleep and nutrition × traits; the travel bug only at cost tiers 1–2 |
+
+| Effect | As built |
+|---|---|
+| Windows | heal and full-load days drawn once at onset, divided by `recovery_mult × sleep × nutrition × (1 − 0.01 × (age − 30))` |
+| Climbing | grade 2+ bars climbing (and attempts) until the heal day; grade 1 climbs on |
+| Training | grade 2+ bars activities that load its site (`TrainingActivity.loads`); an illness bars all but rehab and mobility |
+| Penalty | each hold type and move class of the site loses `0.25 × grade × fade` of EffectiveStat (fade 1 to the heal day, then linear to 0 at full load), weighted by the site (fingers: crimps and pockets 1, pinches 0.7, slopers 0.5, jugs 0.3; shoulders: gastons, dynos; ankles: dynos, high steps; back and illness: everything a little) |
+| Health | −5 × grade at onset, +1 a day × `resource_mult(health)` × sleep |
+| Fear | `last injury` +3 for 28 days after a grade-2+ injury heals |
+| Rehab | blocks of the injury's rehab activity; with sports physio (cost tiers 2–4) each week's compliance (two blocks) brings the heal day a quarter of a week forward; under 25% compliance by the heal day: full load 30% later, relapse ×2 again |
+| Relapse | the same injury within 365 days: ×2 |
+| Ceilings | grade-3 losses go to `RunState.ceiling_loss` and stay through every rebuild |
+| Plan | climbing it bars becomes its rehab (or rest), training that loads it too, and a free second block is rehab; between heal and full load sessions are mileage |
+| Career end | `career_ending` on grade 3: lower back spinal 30% of the time; a second grade 3 of the same injury at 25+ (11 §4's 40, lowered to reach P2's band) |
+
 ---
 
 ## 6. Prevention
 
 `antagonists` and `mobility` blocks reduce the next 14 days' shoulder and elbow risk ×0.85/×0.8 ([12 §1](12-training-and-adaptation.md)); warm-up quality is implicit in the first attempt of a session (first attempt at ≥ PB − 1 DI: finger-def risk ×1.5); `skin_durability` and tape reduce skin defs; a helmet applies `helmet_mult` 0.3 to the systemic branch of rope and alpine falls; stick-clipping removes the rope ground branch at bolt 1.
+
+As built (P2 M2): an `antagonists` block gives 14 days of shoulder ×0.85 and elbow ×0.8 (12 §1's row; mobility helps through `shoulder_mobility`, which lowers cuff and labrum risk, instead); the session tactics always warm up on their easiest route, so the warm-up term never fires, except for Pulley Veteran's `warmup_required` when a player starts a session on a harder route; `skin_durability` scales split tips (M5); helmets wait for P3–P4; the first bolt is always stick-clipped (07 §2.4). Health-care costs (§7) and insurance come with M4.
 
 ---
 

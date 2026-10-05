@@ -29,7 +29,7 @@ export function atRoute(run: RunState, route: Route): void {
     session: {
       sector: route.area, E: 0, slots: [{ seed: route.seed ?? route.id, kind: 'mid', di_target: route.di_target }],
       attempts: 0, sends: 0, di_sum: 0, hard_moves: 0, hand_moves: 0, pump_total: 0, time_s: 0, progress_made: false,
-      stim: {}, xp: {}, load: 0, energy_spent: 0, tried: {},
+      stim: {}, xp: {}, load: 0, energy_spent: 0, tried: {}, exposure: {}, moves_n: 0, finger_moves: 0,
     },
   };
   run.res.energy = 100;

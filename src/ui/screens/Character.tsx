@@ -9,6 +9,7 @@ import type { RunState } from '../../sim/state';
 import { LIFESTYLE_ATTRS, MENTAL_ATTRS, PHYSICAL_ATTRS, TECHNIQUE_ATTRS, type AttrId } from '../../sim/types';
 import { Meter, TabBar, Top } from '../components';
 import { ATTR_LABEL, gradeAt, LATER_ATTRS, ROCK_LABEL } from '../format';
+import { Health } from '../injuries';
 import { data, exportCurrent } from '../store';
 
 export function Character({ run }: { run: RunState }) {
@@ -71,6 +72,7 @@ export function Character({ run }: { run: RunState }) {
           <Meter label="Stoke" value={run.res.stoke} colour="var(--accent)" />
           <Meter label="Burnout" value={run.res.burnout} colour="var(--warn)" />
         </div>
+        <Health run={run} bundle={data} />
         <div class="row wrap">{run.traits.map((t) => <span key={t} class="chip">{data.traits.get(t)?.name ?? t}</span>)}</div>
         {run.traits.map((t) => <Evolving key={`ev-${t}`} run={run} id={t} />)}
         {group('Physical', PHYSICAL_ATTRS)}

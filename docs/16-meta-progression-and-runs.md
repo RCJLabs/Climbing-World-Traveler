@@ -115,6 +115,8 @@ score = 10 × max(hardest[*]) + 4 × hardest[second discipline] + 0.6 × √tick
 
 End reason is shown as an icon; `death` entries render in a muted style and never top a list that includes a `retired` run with an equal score. Filters: discipline, background, scenario, year.
 
+As built (P2 M2): `injuries` counts injuries of kind `injury` at grade 2 or more (11 §5): a grade-1 strain, a flapper and an illness do not count. Runs saved before M2 read 0.
+
 ---
 
 ## 7. Grade pyramid history

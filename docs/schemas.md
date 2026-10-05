@@ -27,9 +27,9 @@ type Tag =
   // terrain
   | 'slab' | 'vertical' | 'overhang' | 'roof' | 'arete' | 'corner' | 'crack' | 'compression' | 'highball'
   // holds
-  | 'crimp' | 'edge' | 'sloper' | 'pinch' | 'pocket' | 'jug' | 'jam' | 'smear' | 'volume'
+  | 'crimp' | 'edge' | 'sloper' | 'pinch' | 'pocket' | 'jug' | 'jam' | 'smear' | 'volume' | 'gaston'
   // energy systems and movement
-  | 'power' | 'endurance' | 'contact' | 'static' | 'dynamic' | 'core' | 'flexibility' | 'footwork' | 'reading'
+  | 'power' | 'endurance' | 'contact' | 'static' | 'dynamic' | 'core' | 'flexibility' | 'footwork' | 'reading' | 'heel_hook'
   // conditions
   | 'cold' | 'heat' | 'humid' | 'wet' | 'wind' | 'altitude' | 'friction' | 'sharp' | 'polished'
   // mental
@@ -224,8 +224,14 @@ interface Trait {
   evolves_to?: Evolution[];       // 'evolving' traits and the acquired stages they lead to; the first one met applies
   foreshadow?: string;            // hidden traits: event id that fires before the reveal
   expires?: { days: number } | { condition: string };    // temporary acquired traits (Acclimatised, Comp Yips)
+  acquire?: AcquireTrigger;       // acquired traits granted by the injury system (P2 M2, 03 §1.8)
   flavour: string;
 }
+
+// P2 M2: an acquired trait's trigger, evaluated once a day (03 §1.8): the climber has had at least `count` (default 1)
+// injuries matching it. `defs` absent means any injury of kind 'injury'; `healed` counts only those past their heal day;
+// `lingering` only those whose lingering loss was rolled at onset (Glass Wrist).
+interface AcquireTrigger { injury: { defs?: string[]; grade_min?: 1 | 2 | 3; healed?: boolean; lingering?: boolean; count?: number } }
 ```
 
 ### 4.5 Background (see [04 Backgrounds](04-backgrounds.md))
@@ -282,7 +288,7 @@ interface Climber {
   counters: Record<string, number>; // named counters for evolving traits and events (practice_falls, rope_falls_logged, flights_taken…)
   acclimatisation_m: number;        // altitude the climber is currently adapted to (07, 10)
   rack_kg: number;                  // carried protection mass on trad routes (07)
-  insurance: 'none' | 'travel' | 'full';   // (13, 14)
+  insurance: 'none' | 'standard' | 'expedition';   // (13 §7, 14 §4; one set from P2 M2, 27 §6)
   comp_results: { event: string; day: number; discipline: Discipline; rank: number; field: number }[];
   archetypes: string[];             // detected, cosmetic
 }
@@ -468,18 +474,55 @@ interface TravelEdge { from: string; to: string; mode: 'fly' | 'drive' | 'bus' |
 ## 7. Systems
 
 ```ts
+// As built in P2 M2 (data/injuries.json, src/sim/injury.ts; 13 §2, §5). Acquired traits name their own trigger
+// (Trait.acquire) rather than the injury naming the trait: 03 owns acquired traits (27 §6).
+type InjuryKind = 'injury' | 'skin' | 'illness';      // the harness's injury mix (13 §1) counts kind 'injury' only
+type InjuryTrigger = 'load' | 'fall' | 'move' | 'cold' | 'heat' | 'altitude' | 'illness';
+
+interface InjurySeverity {
+  grade: 1 | 2 | 3;
+  heal_days: [number, number];            // pain-free daily life and light climbing; drawn once at onset
+  full_load_days: [number, number];       // the structure takes full load; drawn once at onset
+  permanent_ceiling_loss?: Partial<Record<AttrId, number>>;   // negative; kept in RunState.ceiling_loss
+  lingering?: { chance: number };         // share of cases with a lasting loss, rolled at onset (TFCC: Glass Wrist)
+  career_ending?: { chance?: number; repeat_after_age?: number };   // 11 §4: a chance at onset (a spinal back), or a
+                                          // second grade 3 of the same injury at or after this age
+}
+
 interface InjuryDef {
   id: string;
   name: string;
   site: InjurySite;
-  severities: { grade: 1 | 2 | 3; heal_days: [number, number]; full_load_days: [number, number]; permanent_ceiling_loss?: Partial<Record<AttrId, number>>; career_ending?: boolean }[];
-  triggers: ('load' | 'fall' | 'move' | 'cold' | 'altitude' | 'illness')[];
-  risk_mods: { tag: Tag; mult: number }[];
+  kind: InjuryKind;
+  phase: Phase;
+  milestone?: number;                     // as on Trait: when its rolls come live (cold and heat with M5, altitude P4)
+  triggers: InjuryTrigger[];
+  risk_mods: { tag: Tag; mult: number }[];   // exposure tags scale by the week's share of them; flexibility, core,
+                                          // skin, nutrition and sleep by the attribute they name (13 §5.2)
+  severities: InjurySeverity[];           // ascending; a grade the injury cannot have is absent
+  grade_weights?: [number, number, number];  // G1/G2/G3 before shifts; default 0.6 / 0.3 / 0.1
+  load_base?: number;                     // weekly probability before multipliers (13 §5.2), with trigger 'load'
+  move?: { tag: Tag; p: number }[];       // per slip on a hold or move carrying the tag (13 §5.3), with trigger 'move'
+  fall?: { boulder?: number; rope?: number };   // weight among fall injuries of that kind (13 §5.1), with 'fall'
+  illness?: { daily: number; first_days?: { days: number; daily: number }; cost_tier_max?: number };   // 13 §5.4
+  substitutes?: { site: InjurySite; age_max: number; chance: number; tag: Tag };   // the growth-plate variant (13 §2)
   rehab: string[];                        // TrainingActivity ids
-  acquired_trait?: string;
+  deprecated?: boolean;
 }
 
-interface InjuryInstance { def: string; grade: 1 | 2 | 3; day_onset: number; day_full_load: number; rehab_progress: number; rehab_compliance: number; /* 0..1, lowers re-injury risk (13) */ }
+interface InjuryInstance {
+  def: string; grade: 1 | 2 | 3;
+  cause: 'fall' | 'load' | 'move' | 'illness';
+  day_onset: number;
+  day_heal: number;                       // drawn at onset; rehab with sports physio brings it forward (13 §3)
+  day_full_load: number;                  // drawn at onset; ignored rehab pushes it 30% later (13 §3)
+  rehab: number;                          // rehab blocks done for it
+  rehab_week: number;                     // this week's, settled at the week's end
+  rehab_progress: number;                 // 0..100: blocks done against two a week while it heals
+  neglected?: boolean;                    // set at the heal day when rehab was ignored: re-injury ×2 again
+  lingering?: boolean;                    // its lingering loss was rolled
+  career_ending?: boolean;                // it ends the career (11 §4): the run ends with the day it happened
+}
 
 interface ActivityBlock {
   kind: 'climb' | 'train' | 'rest' | 'active_recovery' | 'work' | 'social' | 'travel' | 'admin' | 'physio' | 'comp_round' | 'alpine_day' | 'climb_bigwall';
@@ -495,6 +538,8 @@ interface TrainingActivity {
   energy_cost: number; skin_cost: number;
   requires: ('hangboard' | 'campus' | 'board' | 'gym' | 'weights' | 'outdoors' | 'none')[];
   tags: Tag[];
+  loads: InjurySite[];                            // P2 M2: the sites it loads; a grade-2+ injury there bars it until healed
+  rehab?: InjurySite[];                           // P2 M2: the sites whose injuries it rehabilitates (13 §3)
 }
 
 interface GearDef {
@@ -646,6 +691,12 @@ interface WeekPoint { day: number; est: Partial<Record<'boulder' | 'sport', numb
 // (03 §1.7); counts are kept for every climber and never reset, so a second stage counts from the first.
 // P2 adds ProjectState.reach_until?: number, the day until which a route with a move out of the climber's reach is
 // left alone (06 §5).
+// Reducer 11 (P2 M2, 13) adds injuries: InjuryInstance[] (every injury and illness of the run, healed ones kept),
+// ceiling_loss: Partial<Record<AttrId, number>> (permanent losses, applied whenever ceilings are rebuilt), capacity:
+// { finger: number; general: number } (the hidden load the tendons and the body are adapted to, daily units, 12 §2,
+// §5), counters.finger_loads: number[] (daily finger load, the last 35 days, beside counters.loads), counters.exposure
+// (the week's load by Tag) and exposure_total, counters.tired_week, counters.antagonists_until, counters.arrived_day,
+// finger_today (beside load_today), and SessionState.exposure, moves_n and finger_moves.
 
 interface RunSummary {                   // P1a shape (src/sim/types.ts); later phases make hardest per discipline
   climber: string; background: string; days: number; age_end: number;
@@ -664,7 +715,8 @@ interface RunSummary {                   // P1a shape (src/sim/types.ts); later 
   pyramid: Record<string, number>;       // rounded DI -> first sends (boulders)
   pyramid_route: Record<string, number>; // P1b: the same for routes
   got_away?: { name: string; sessions: number; di: number; discipline?: Discipline };
-  // later: scenario, risky_choices, first_ascents, injuries, legacy_npc_id
+  injuries: number;                      // P2 M2: injuries (kind 'injury') of grade 2 or more (11 §5); −4 each in the score
+  // later: scenario, risky_choices, first_ascents, legacy_npc_id
 }
 ```
 
@@ -693,6 +745,8 @@ interface RunSummary {                   // P1a shape (src/sim/types.ts); later 
 19. The manifest holds a current content hash for every crag folder and for nothing else, and a folder holds the crag it is named for (P2 M1, 20 §1).
 20. A sector climbs one discipline (all its styles bolted, or none) on one rock (all its styles' `rock` the same); a crag's `disciplines` are its sectors', its `rock` is one of its sectors', and `grades` names a system only for a discipline it climbs; sector ids are unique across crags (P2 M1).
 21. A crag hangs off a hub in `travel.json`, whose edges join hubs only; a crag's signatures and benchmarks are its own (P2 M1).
+22. An `InjuryDef` has severities in ascending grade with `heal_days` and `full_load_days` as ordered pairs of whole days, heal never after full load (`frostbite` G3's permanent full load is 9999); every trigger it lists has its parameters (`load_base` for `load`, `move` for `move`, `fall` for `fall`, `illness` for `illness`) and no parameters without the trigger; its rehab names training activities; `permanent_ceiling_loss` values are negative; `career_ending` appears on grade 3 only (P2 M2).
+23. A trait's `acquire` appears only on `acquired` traits and names existing injury ids; every acquired trait is reached by an evolution or has an `acquire` (P2 M2).
 
 ## Open questions
 

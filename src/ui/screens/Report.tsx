@@ -3,6 +3,7 @@
 import type { RunState } from '../../sim/state';
 import { Top } from '../components';
 import { ATTR_LABEL, gradeAt, money, pct, signed, tickGrade } from '../format';
+import { injuryName, injuryStatus } from '../injuries';
 import { busy, data, goto, report, simulatePlan } from '../store';
 
 const OUTCOME: Record<string, string> = { sent: 'sent', fell: 'fell', jumped: 'jumped off', pumped: 'pumped off', worked: 'worked' };
@@ -27,6 +28,21 @@ export function Report({ run }: { run: RunState }) {
           <div class="row between"><span class="kicker">Sends</span><span class="mono">{r.sends} of {r.attempts} attempts</span></div>
           <div class="row between"><span class="kicker">Money</span><span class={`mono ${r.money < 0 ? 'warn' : ''}`}>{r.money >= 0 ? '+' : ''}{money(r.money)}</span></div>
         </div>
+
+        {r.injuries.length > 0 && (
+          <div class="card">
+            <span class="kicker">{r.injuries.some((i) => i.grade >= 2) ? 'Hurt' : 'Niggles'}</span>
+            {r.injuries.map((i, k) => (
+              <div key={k} class="col">
+                <span class={`small ${i.grade >= 2 ? 'warn' : ''}`}>{injuryName(i, data)}</span>
+                <span class="tiny muted">{injuryStatus(run, i, data)}</span>
+              </div>
+            ))}
+            {r.injuries.some((i) => i.grade >= 2) && r.kind === 'days' && (
+              <span class="tiny muted">The simulation stopped here so you can change the plan. Climbing days become {r.injuries.some((i) => i.grade >= 2 && data.injuries.get(i.def)?.rehab.length) ? 'rehab' : 'rest'} while it heals.</span>
+            )}
+          </div>
+        )}
 
         {r.tries.length > 0 && (
           <>

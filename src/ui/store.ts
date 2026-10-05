@@ -261,9 +261,15 @@ export async function finishSession(tactic: SessionTactic): Promise<void> {
   goto({ name: 'report' });
 }
 
-/** Days played by the week plan (docs/24 §2), then the report. Stops early when the run ends. */
+/**
+ * Days played by the week plan (docs/24 §2), then the report. Stops early when the run ends, and after a day that
+ * brought an injury or illness of grade 2 or worse (13, P2 M2), so the player can change the plan.
+ */
 export async function simulatePlan(days: number): Promise<void> {
-  const r = await simulate((draft) => simulateDays(draft, data, days));
+  const r = await simulate((draft) => {
+    const n = draft.injuries.length;
+    return simulateDays(draft, data, days, (d) => d.injuries.slice(n).some((i) => i.grade >= 2));
+  });
   if (!r) return;
   const n = r.after.day - r.before.day;
   report.value = buildReport('days', n === 1 ? 'One day' : n === 7 ? 'One week' : `${n} days`, r.before, r.after, data);
